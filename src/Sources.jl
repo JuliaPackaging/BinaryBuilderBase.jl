@@ -1,3 +1,5 @@
+using LibGit2
+
 export ArchiveSource, FileSource, GitSource, DirectorySource
 
 """

@@ -29,7 +29,7 @@ function UserNSRunner(workspace_root::String;
                       src_name::AbstractString = "",
                       shards = nothing,
                       kwargs...)
-    global use_ccache, use_squashfs, runner_override
+    global use_ccache, runner_override
 
     # Check that our kernel is new enough to use this runner
     kernel_version_check()
