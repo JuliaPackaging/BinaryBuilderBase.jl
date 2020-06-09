@@ -1,5 +1,5 @@
 ## Basic tests for simple utilities within BB
-using BinaryBuilderBase, Test, Pkg, UUIDs
+using BinaryBuilderBase, Test, Pkg
 using BinaryBuilderBase: preferred_runner, resolve_jlls, CompilerShard, preferred_libgfortran_version, preferred_cxxstring_abi, gcc_version, available_gcc_builds, getversion, generate_compiler_wrappers!, getpkg
 
 @testset "Supported Platforms" begin
