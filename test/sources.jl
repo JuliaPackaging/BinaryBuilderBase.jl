@@ -1,6 +1,6 @@
 using Test
 using BinaryBuilderBase
-using BinaryBuilderBase: coerce_source, sourcify
+using BinaryBuilderBase: coerce_source, sourcify, SetupSource
 using JSON
 
 @testset "Sources" begin
@@ -10,6 +10,11 @@ using JSON
     @test GitSource("https://github.com/jedisct1/libsodium.git", "5b2ea7d73d3ffef2fb93b82b9f112f009d54c6e6"; unpack_target = "libs").unpack_target == "libs"
     @test FileSource("https://curl.haxx.se/ca/cacert-2020-01-01.pem", "adf770dfd574a0d6026bfaa270cb6879b063957177a991d453ff1d302c02081f").filename == "cacert-2020-01-01.pem"
     @test FileSource("https://curl.haxx.se/ca/cacert-2020-01-01.pem", "adf770dfd574a0d6026bfaa270cb6879b063957177a991d453ff1d302c02081f"; filename="cacert.pem").filename == "cacert.pem"
+
+    @test SetupSource("https://ftp.gnu.org/gnu/wget/wget-1.20.3.tar.gz", "", "", "") isa SetupSource{ArchiveSource}
+    @test SetupSource("https://ftp.gnu.org/gnu/wget/wget-1.20.3.zip", "", "", "")    isa SetupSource{ArchiveSource}
+    @test SetupSource("https://github.com/jedisct1/libsodium.git", "", "", "")       isa SetupSource{GitSource}
+    @test SetupSource("https://curl.haxx.se/ca/cacert-2020-01-01.pem", "", "", "")   isa SetupSource{FileSource}
 
     @testset "Download" begin
         mktempdir() do dir
@@ -51,7 +56,7 @@ using JSON
         @test sourcify(jfs) == fs
         jgs = JSON.lower(gs)
         @test jgs == Dict("type" => "git", "url" => gs.url, "hash" => gs.hash, "unpack_target" => gs.unpack_target)
-        @test sourcify(jas) == as
+        @test sourcify(jgs) == gs
         jds = JSON.lower(ds)
         @test jds == Dict("type" => "directory", "path" => ds.path, "target" => "")
         @test sourcify(jds) == ds

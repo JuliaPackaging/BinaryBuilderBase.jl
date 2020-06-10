@@ -1,3 +1,5 @@
+using UUIDs
+
 export Dependency, BuildDependency
 
 # Pkg.PackageSpec return different types in different Julia versions so...
@@ -114,14 +116,14 @@ __version(v::VersionNumber) = v
 __version(v::Pkg.Types.VersionSpec) = v.ranges[1].lower
 version(d::AbstractDependency) = __version(getpkg(d).version)
 
-JSON.lower(d::Dependency) = Dict("type" => "dependency", "name" => d.pkg.name, "uuid" => string_or_nothing(d.pkg.uuid),
-                                 "version-major" => major(version(d)),
-                                 "version-minor" => minor(version(d)),
-                                 "version-patch" => patch(version(d)))
-JSON.lower(d::BuildDependency) = Dict("type" => "builddependency", "name" => d.pkg.name, "uuid" => string_or_nothing(d.pkg.uuid),
-                                      "version-major" => major(version(d)),
-                                      "version-minor" => minor(version(d)),
-                                      "version-patch" => patch(version(d)))
+for (type, type_descr) in ((Dependency, "dependency"), (BuildDependency, "builddependency"))
+    JSON.lower(d::type) = Dict("type" => type_descr,
+                               "name" => d.pkg.name,
+                               "uuid" => string_or_nothing(d.pkg.uuid),
+                               "version-major" => major(version(d)),
+                               "version-minor" => minor(version(d)),
+                               "version-patch" => patch(version(d)))
+end
 
 # When deserialiasing the JSON file, the dependencies are in the form of
 # dictionaries.  This function converts the dictionary back to the appropriate
