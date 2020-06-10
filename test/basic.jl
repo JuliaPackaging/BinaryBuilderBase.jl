@@ -63,6 +63,54 @@ end
     @test BinaryBuilderBase.exeext(Windows(:i686)) == ".exe"
 end
 
+@testset "Prefix" begin
+    mktempdir() do temp_dir
+        prefix = Prefix(temp_dir)
+
+        # Test that it's taking the absolute path
+        @test prefix.path == abspath(temp_dir)
+
+        # Test that `bindir()`, `libdirs()` and `includedir()` all work
+        for dir in unique([bindir(prefix), libdirs(prefix)..., includedir(prefix)])
+            @test !isdir(dir)
+            mkpath(dir)
+        end
+
+        # Create a little script within the bindir to ensure we can run it
+        ppt_path = joinpath(bindir(prefix), "prefix_path_test.sh")
+        open(ppt_path, "w") do f
+            write(f, "#!/bin/sh\n")
+            write(f, "echo yolo\n")
+        end
+        chmod(ppt_path, 0o775)
+
+        # These tests are taken from BinaryProvider, but here we don't have
+        # withenv.  Do we have anything similar?
+        #
+        # # Test that our `withenv()` stuff works.  :D
+        # withenv(prefix) do
+        #     @test startswith(ENV["PATH"], bindir(prefix))
+
+        #     if !Sys.iswindows()
+        #         envname = Sys.isapple() ? "DYLD_FALLBACK_LIBRARY_PATH" : "LD_LIBRARY_PATH"
+        #         @test startswith(ENV[envname], last(libdirs(prefix)))
+        #         private_libdir = abspath(joinpath(Sys.BINDIR, Base.PRIVATE_LIBDIR))
+        #         @test endswith(ENV[envname], private_libdir)
+
+        #         # Test we can run the script we dropped within this prefix.
+        #         # Once again, something about Windows | busybox | Julia won't
+        #         # pick this up even though the path clearly points to the file.
+        #         @test success(`$sh $(ppt_path)`)
+        #         @test success(`$sh -c prefix_path_test.sh`)
+        #     end
+        # end
+
+        # Test that we can control libdirs() via platform arguments
+        @test first(libdirs(prefix, Linux(:x86_64))) == joinpath(prefix, "lib64")
+        @test last(libdirs(prefix, Linux(:x86_64))) == joinpath(prefix, "lib")
+        @test last(libdirs(prefix, Windows(:x86_64))) == joinpath(prefix, "bin")
+    end
+end
 
 @testset "Products" begin
     @test template(raw"$libdir/foo-$arch/$nbits/bar-$target", Windows(:x86_64)) ==

@@ -1,7 +1,7 @@
 ## This file contains functionality related to the actual layout of the files
 #  on disk.  Things like the name of where downloads are stored, and what
 #  environment variables must be updated to, etc...
-import Base: convert, joinpath, show, withenv
+import Base: convert, joinpath, show
 using SHA, CodecZlib
 
 export Prefix, bindir, libdirs, includedir, logdir, activate, deactivate,
