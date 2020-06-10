@@ -7,6 +7,15 @@ using JSON
 # Define equality between dependencies, in order to carry out the tests below
 Base.:(==)(a::AbstractDependency, b::AbstractDependency) = getpkg(a) == getpkg(b)
 
+if VERSION <= v"1.4"
+    # Copy definition from Pkg v1.4, for compatibility
+    function Base.:(==)(a::Pkg.Types.PackageSpec, b::Pkg.Types.PackageSpec)
+        return a.name == b.name && a.uuid == b.uuid && a.version == b.version &&
+            a.tree_hash == b.tree_hash && a.repo == b.repo && a.path == b.path &&
+            a.pinned == b.pinned && a.mode == b.mode
+    end
+end
+
 @testset "Dependencies" begin
     name = "Foo_jll"
     dep = Dependency(PackageSpec(; name = name))
