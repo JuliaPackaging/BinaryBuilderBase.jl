@@ -345,7 +345,7 @@ function repr(p::ExecutableProduct)
     varname = repr(p.variable_name)
     binnames = repr(p.binnames)
     if p.dir_path != nothing
-        return "ExecutableProduct($(binnames), $(varname), $(repr(p.dir_path))"
+        return "ExecutableProduct($(binnames), $(varname), $(repr(p.dir_path)))"
     else
         return "ExecutableProduct($(binnames), $(varname))"
     end
