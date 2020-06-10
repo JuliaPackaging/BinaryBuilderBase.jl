@@ -4,20 +4,8 @@
 import Base: convert, joinpath, show
 using SHA, CodecZlib
 
-export Prefix, bindir, libdirs, includedir, logdir, activate, temp_prefix
+export Prefix, bindir, libdirs, includedir, logdir, temp_prefix
 import Pkg.PlatformEngines: package
-
-# Temporary hack around https://github.com/JuliaLang/julia/issues/26685
-function safe_isfile(path)
-    try
-        return isfile(path)
-    catch e
-        if typeof(e) <: Base.IOError && e.code == Base.UV_EINVAL
-            return false
-        end
-        rethrow(e)
-    end
-end
 
 """
     temp_prefix(func::Function)

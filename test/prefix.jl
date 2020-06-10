@@ -2,6 +2,7 @@ using Test
 using Pkg.PlatformEngines, Pkg.BinaryPlatforms
 using SHA
 using BinaryBuilderBase
+using CodecZlib
 
 @testset "Prefix" begin
     mktempdir() do temp_dir
@@ -46,9 +47,12 @@ using BinaryBuilderBase
         # end
 
         # Test that we can control libdirs() via platform arguments
-        @test first(libdirs(prefix, Linux(:x86_64))) == joinpath(prefix, "lib64")
-        @test last(libdirs(prefix, Linux(:x86_64))) == joinpath(prefix, "lib")
-        @test last(libdirs(prefix, Windows(:x86_64))) == joinpath(prefix, "bin")
+        @test libdirs(prefix, Linux(:x86_64)) == [joinpath(prefix, "lib64"), joinpath(prefix, "lib")]
+        @test libdirs(prefix, Linux(:i686)) == [joinpath(prefix, "lib")]
+        @test libdirs(prefix, Windows(:i686)) == [joinpath(prefix, "bin")]
+        @test bindir(prefix) == joinpath(prefix, "bin")
+        @test includedir(prefix) == joinpath(prefix, "include")
+        @test logdir(prefix) == joinpath(prefix, "logs")
     end
 end
 
@@ -86,7 +90,7 @@ end
         end
 
         # Next, package it up as a .tar.gz file
-        tarball_path, tarball_hash = package(prefix, "./libfoo", v"1.0.0"; verbose=true)
+        tarball_path, tarball_hash = @test_logs (:info, r"^Tree hash of contents of") (:info, r"^SHA256 of") package(prefix, "./libfoo", v"1.0.0"; verbose=true)
         @test isfile(tarball_path)
 
         # Check that we are calculating the hash properly
@@ -172,5 +176,19 @@ end
         @test String(read(joinpath(dstdir, "dir", "fileC"))) == "fileC\n"
         @test String(read(joinpath(dstdir, "sym_fileC"))) == "fileC\n"
         @test_throws Base.IOError realpath(joinpath(dstdir, "sym_fileB"))
+    end
+end
+
+@testset "Compression" begin
+    lorem = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua."
+    mktempdir() do dir
+        file = joinpath(dir, "file.txt")
+        file_gz = file * ".gz"
+        write(file, lorem)
+        compress_dir(dir)
+        # Check that there is only the compressed file
+        @test readdir(dir) == [basename(file_gz)]
+        # Decompress it
+        @test String(transcode(GzipDecompressor, read(file_gz))) == lorem
     end
 end

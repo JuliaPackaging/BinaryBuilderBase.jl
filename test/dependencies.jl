@@ -41,6 +41,7 @@ end
         jfull_dep = JSON.lower(full_dep)
         @test jfull_dep == Dict("type" => "dependency", "name" => "Baz_jll", "uuid" => "00000000-1111-2222-3333-444444444444", "version-major" => 0x3, "version-minor" => 0x1, "version-patch" => 0x4)
         @test dependencify(jfull_dep) == full_dep
+        @test_throws ErrorException dependencify(Dict("type" => "git"))
     end
 end
 
