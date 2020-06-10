@@ -112,6 +112,65 @@ end
     end
 end
 
+@testset "Packaging" begin
+    # Clear out previous build products
+    for f in readdir(".")
+        if !endswith(f, ".tar.gz") && !endswith(f, ".sha256")
+            continue
+        end
+        Base.rm(f; force=true)
+    end
+
+    # Gotta set this guy up beforehand
+    tarball_path = nothing
+    tarball_hash = nothing
+
+    temp_prefix() do prefix
+        # Create random files
+        mkpath(bindir(prefix))
+        mkpath(last(libdirs(prefix)))
+        mkpath(joinpath(prefix, "etc"))
+        bar_path = joinpath(bindir(prefix), "bar.sh")
+        open(bar_path, "w") do f
+            write(f, "#!/bin/sh\n")
+            write(f, "echo yolo\n")
+        end
+        baz_path = joinpath(last(libdirs(prefix)), "baz.so")
+        open(baz_path, "w") do f
+            write(f, "this is not an actual .so\n")
+        end
+
+        qux_path = joinpath(prefix, "etc", "qux.conf")
+        open(qux_path, "w") do f
+            write(f, "use_julia=true\n")
+        end
+
+        # Next, package it up as a .tar.gz file
+        tarball_path, tarball_hash = package(prefix, "./libfoo", v"1.0.0"; verbose=true)
+        @test isfile(tarball_path)
+
+        # Check that we are calculating the hash properly
+        tarball_hash_check = open(tarball_path, "r") do f
+            bytes2hex(sha256(f))
+        end
+        @test tarball_hash_check == tarball_hash
+
+        # Test that packaging into a file that already exists fails
+        @test_throws ErrorException package(prefix, "./libfoo", v"1.0.0")
+    end
+
+    # Test that we can inspect the contents of the tarball
+    contents = list_tarball_files(tarball_path)
+    libdir_name = Sys.iswindows() ? "bin" : "lib"
+    @test joinpath("bin", "bar.sh") in contents
+    @test joinpath(libdir_name, "baz.so") in contents
+    @test joinpath("etc", "qux.conf") in contents
+
+    # Cleanup after ourselves
+    Base.rm(tarball_path; force=true)
+    Base.rm("$(tarball_path).sha256"; force=true)
+end
+
 @testset "Products" begin
     @test template(raw"$libdir/foo-$arch/$nbits/bar-$target", Windows(:x86_64)) ==
         "bin/foo-x86_64/64/bar-x86_64-w64-mingw32"
