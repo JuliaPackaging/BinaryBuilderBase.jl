@@ -114,7 +114,7 @@ struct PatchSource
     patch::String
 end
 
-function download_source(source::T; verbose::Bool = false) where {T<:Union{ArchiveSource,FileSource}}
+function download_source(source::T; verbose::Bool = false, downloads_dir = storage_dir("downloads")) where {T<:Union{ArchiveSource,FileSource}}
     gettarget(s::ArchiveSource) = s.unpack_target
     gettarget(s::FileSource) = s.filename
     if isfile(source.url)
@@ -126,14 +126,14 @@ function download_source(source::T; verbose::Bool = false) where {T<:Union{Archi
         verify(src_path, source.hash; verbose=verbose)
     else
         # Otherwise, download and verify
-        src_path = storage_dir("downloads", string(source.hash, "-", basename(source.url)))
+        src_path = joinpath(downloads_dir, string(source.hash, "-", basename(source.url)))
         download_verify(source.url, source.hash, src_path; verbose=verbose)
     end
     return SetupSource{T}(src_path, source.hash, gettarget(source))
 end
 
-function download_source(source::GitSource; verbose::Bool = false)
-    src_path = storage_dir("downloads", basename(source.url))
+function download_source(source::GitSource; verbose::Bool = false, downloads_dir = storage_dir("downloads"))
+    src_path = joinpath(downloads_dir, basename(source.url))
 
     # If this git repository already exists, ensure that its origin remote actually matches
     if isdir(src_path)
@@ -149,11 +149,13 @@ function download_source(source::GitSource; verbose::Bool = false)
     end
 
     if isdir(src_path)
+        @info "Cached repository found in $(src_path)"
         # If we didn't just mercilessly obliterate the cached git repo, use it!
         LibGit2.with(LibGit2.GitRepo(src_path)) do repo
             LibGit2.fetch(repo)
         end
     else
+        @info "Cloning $(source.url) to $(src_path)..."
         # If there is no src_path yet, clone it down.
         repo = LibGit2.clone(source.url, src_path; isbare=true)
     end
@@ -164,6 +166,7 @@ function download_source(source::DirectorySource; verbose::Bool = false)
     if !isdir(source.path)
         error("Could not find directory \"$(source.path)\".")
     end
+    @info "Directory \"$(source.path)\" found"
     return SetupSource{DirectorySource}(abspath(source.path), "", source.target)
 end
 

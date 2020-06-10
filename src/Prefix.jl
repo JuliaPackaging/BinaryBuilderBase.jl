@@ -4,9 +4,7 @@
 import Base: convert, joinpath, show
 using SHA, CodecZlib
 
-export Prefix, bindir, libdirs, includedir, logdir, activate, deactivate,
-       isinstalled,
-       install, uninstall, list_tarball_files, verify, temp_prefix
+export Prefix, bindir, libdirs, includedir, logdir, activate, temp_prefix
 import Pkg.PlatformEngines: package
 
 # Temporary hack around https://github.com/JuliaLang/julia/issues/26685
