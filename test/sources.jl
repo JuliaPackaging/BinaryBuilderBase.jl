@@ -41,6 +41,10 @@ using JSON
                 patchdir = abspath(joinpath(dir, ds.path, "patches"))
                 mkpath(patchdir)
                 write(abspath(joinpath(patchdir, "fix-windows-headers.patch")), "This is a patch file")
+                # Create a symlink.  We'll want to check that `setup` follows symlinks
+                link = joinpath(patchdir, "link.patch")
+                symlink("fix-windows-headers.patch", link)
+                @test islink(link)
                 sds = @test_logs (:info, r"^Directory .* found") download_source(ds; verbose = true)
                 # Try to fetch a non-existing directory
                 @test_throws ErrorException download_source(DirectorySource(joinpath(dir, "does_not_exist")); verbose = true)
@@ -58,6 +62,11 @@ using JSON
                 target = abspath(joinpath(srcdir, "patches"))
                 @test_logs (:info, "Copying content of bundled in srcdir...") setup(sds, srcdir, true)
                 @test isdir(target)
+                # Make sure that the symlinks are followed
+                @test isfile(joinpath(target, "link.patch"))
+                @test !islink(joinpath(target, "link.patch"))
+
+                # Make sure in srcdir there are all files and directories we expect
                 @test Set(readdir(srcdir)) == Set(["ARCHDefs", "ARCHDefs-2.0.3x", fs.filename, "patches"])
             end
         end
