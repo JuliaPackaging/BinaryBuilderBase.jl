@@ -1,7 +1,7 @@
 using Test
-using Pkg
+using Pkg, Pkg.BinaryPlatforms
 using BinaryBuilderBase
-using BinaryBuilderBase: getname, getpkg, dependencify
+using BinaryBuilderBase: getname, getpkg, dependencify, dlext
 using JSON
 
 # Define equality between dependencies, in order to carry out the tests below
@@ -42,6 +42,36 @@ end
         @test jfull_dep == Dict("type" => "dependency", "name" => "Baz_jll", "uuid" => "00000000-1111-2222-3333-444444444444", "version-major" => 0x3, "version-minor" => 0x1, "version-patch" => 0x4)
         @test dependencify(jfull_dep) == full_dep
         @test_throws ErrorException dependencify(Dict("type" => "git"))
+    end
+
+    @testset "Setup" begin
+        mktempdir() do dir
+            prefix = Prefix(dir)
+            dependencies = [
+                Dependency("Zlib_jll")
+            ]
+            platform = platform_key_abi()
+            ap = @test_logs setup_dependencies(prefix, getpkg.(dependencies), platform)
+            @test "libz." * dlext(platform) in readdir(last(libdirs(Prefix(joinpath(dir, "destdir")))))
+            @test "zlib.h" in readdir(joinpath(dir, "destdir", "include"))
+            @test readdir(joinpath(dir, "destdir", "logs")) == ["Zlib.log.gz"]
+
+            # Make sure the directories are emptied by `cleanup_dependencies`
+            @test_nowarn cleanup_dependencies(prefix, ap)
+            @test readdir(joinpath(dir, "destdir", "include")) == []
+            @test readdir(joinpath(dir, "destdir", "logs")) == []
+        end
+
+        # Setup a dependency that doesn't have a mapping for the given platform
+        mktempdir() do dir
+            prefix = Prefix(dir)
+            dependencies = [
+                Dependency("LibOSXUnwind_jll")
+            ]
+            platform = Linux(:i686, libc=:musl)
+            @test_logs (:warn, "Dependency LibOSXUnwind_jll does not have a mapping for LibOSXUnwind!") setup_dependencies(prefix, getpkg.(dependencies), platform)
+            @test "destdir" ∉ readdir(joinpath(dir))
+        end
     end
 end
 
