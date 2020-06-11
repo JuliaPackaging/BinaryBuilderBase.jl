@@ -260,14 +260,16 @@ function setup(source::SetupSource{GitSource}, targetdir, verbose)
     # Chop off the `.git` at the end of the source.path
     repo_dir = joinpath(targetdir, basename(source.path)[1:end-4])
     if verbose
-        @info "Cloning $(basename(source.path)) to $(basename(targetdir))..."
+        # Need to strip the trailing separator
+        path = isdirpath(targetdir) ? dirname(targetdir) : targetdir
+        @info "Cloning $(basename(source.path)) to $(basename(repo_dir))..."
     end
     LibGit2.with(LibGit2.clone(source.path, repo_dir)) do repo
         LibGit2.checkout!(repo, source.hash)
     end
 end
 
-function setup(source::SetupSource{ArchiveSource}, targetdir, verbose)
+function setup(source::SetupSource{ArchiveSource}, targetdir, verbose; tar_flags = verbose ? "xvof" : "xof")
     mkpath(targetdir)
     # Extract with host tools because it is _much_ faster on e.g. OSX.
     # If this becomes a compatibility problem, we'll just have to install
@@ -277,7 +279,6 @@ function setup(source::SetupSource{ArchiveSource}, targetdir, verbose)
             if verbose
                 @info "Extracting tarball $(basename(source.path))..."
             end
-            tar_flags = verbose ? "xvof" : "xof"
             run(`tar -$(tar_flags) $(source.path)`)
         elseif endswith(source.path, ".zip")
             if verbose

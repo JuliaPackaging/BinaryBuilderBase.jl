@@ -185,7 +185,7 @@ end
         file = joinpath(dir, "file.txt")
         file_gz = file * ".gz"
         write(file, lorem)
-        compress_dir(dir)
+        @test_logs (:info, r"Compressing files in") compress_dir(dir; verbose=true)
         # Check that there is only the compressed file
         @test readdir(dir) == [basename(file_gz)]
         # Decompress it
