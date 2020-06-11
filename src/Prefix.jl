@@ -261,7 +261,7 @@ function setup(source::SetupSource{GitSource}, targetdir, verbose)
     repo_dir = joinpath(targetdir, basename(source.path)[1:end-4])
     if verbose
         # Need to strip the trailing separator
-        path = isdirpath(targetdir) ? dirname(targetdir) : targetdir
+        path = strip_backslash(targetdir)
         @info "Cloning $(basename(source.path)) to $(basename(repo_dir))..."
     end
     LibGit2.with(LibGit2.clone(source.path, repo_dir)) do repo
@@ -300,7 +300,7 @@ end
 
 function setup(source::SetupSource{DirectorySource}, targetdir, verbose)
     # Need to strip the trailing separator also here
-    srcpath = isdirpath(source.path) ? dirname(source.path) : source.path
+    srcpath = strip_backslash(source.path)
     if verbose
         @info "Copying content of $(basename(srcpath)) in $(basename(targetdir))..."
     end
@@ -351,7 +351,7 @@ function setup_workspace(build_path::AbstractString, sources::Vector;
             target = joinpath(srcdir, source.target)
             # Trailing directory separator matters for `basename`, so let's strip it
             # to avoid confusion
-            target = isdirpath(target) ? dirname(target) : target
+            target = strip_backslash(target)
             setup(source, target, verbose)
         else
             setup(source, srcdir, verbose)
