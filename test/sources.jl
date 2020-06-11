@@ -49,6 +49,7 @@ using JSON
                 # Try to fetch a non-existing directory
                 @test_throws ErrorException download_source(DirectorySource(joinpath(dir, "does_not_exist")); verbose = true)
 
+                # Setup the sources with `setup`
                 srcdir = joinpath(dir, "srcdir")
                 target = joinpath(srcdir, as.unpack_target)
                 @test_logs (:info, r"^Extracting tarball") setup(sas, target, true; tar_flags = "xof")
@@ -68,6 +69,12 @@ using JSON
 
                 # Make sure in srcdir there are all files and directories we expect
                 @test Set(readdir(srcdir)) == Set(["ARCHDefs", "ARCHDefs-2.0.3x", fs.filename, "patches"])
+
+                # Setup the sources with `setup_workspace`
+                workspace = joinpath(dir, "workspace")
+                mkpath(workspace)
+                prefix = setup_workspace(workspace, [sfs, sds, sgs]; verbose=true)
+                @test Set(readdir(joinpath(prefix.path, "srcdir"))) == Set(["ARCHDefs", "file-source.tar.gz", "patches"])
             end
         end
     end
