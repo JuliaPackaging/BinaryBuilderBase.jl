@@ -73,7 +73,7 @@ using JSON
                 # Setup the sources with `setup_workspace`
                 workspace = joinpath(dir, "workspace")
                 mkpath(workspace)
-                prefix = setup_workspace(workspace, [sfs, sds, sgs]; verbose=true)
+                prefix = @test_logs (:info, r"^Copying") (:info, r"^Copying") (:info, r"^Cloning") setup_workspace(workspace, [sfs, sds, sgs]; verbose=true)
                 @test Set(readdir(joinpath(prefix.path, "srcdir"))) == Set(["ARCHDefs", "file-source.tar.gz", "patches"])
             end
         end
