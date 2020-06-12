@@ -386,8 +386,8 @@ will run on this platform, whereas binaries compiled with `5.2.0` may not.
 """
 function gcc_version(cabi::CompilerABI, GCC_builds::Vector{GCCBuild})
     # First, filter by libgfortran version.
-    if cabi.libgfortran_version !== nothing
-        GCC_builds = filter(b -> getabi(b).libgfortran_version == cabi.libgfortran_version, GCC_builds)
+    if libgfortran_version(cabi) !== nothing
+        GCC_builds = filter(b -> libgfortran_version(getabi(b)) == libgfortran_version(cabi), GCC_builds)
     end
 
     # Next, filter by libstdc++ GLIBCXX symbol version.  Note that this
@@ -395,15 +395,15 @@ function gcc_version(cabi::CompilerABI, GCC_builds::Vector{GCCBuild})
     # version that is slightly lower than what is actually installed on
     # a system.  See https://gcc.gnu.org/onlinedocs/libstdc++/manual/abi.html
     # for the whole list, as well as many other interesting factoids.
-    if cabi.libstdcxx_version !== nothing
-        GCC_builds = filter(b -> getabi(b).libstdcxx_version <= cabi.libstdcxx_version, GCC_builds)
+    if libstdcxx_version(cabi) !== nothing
+        GCC_builds = filter(b -> libstdcxx_version(getabi(b)) <= libstdcxx_version(cabi), GCC_builds)
     end
 
     # Finally, enforce cxxstring_abi guidelines.  It is possible to build
     # :cxx03 binaries on GCC 5+, (although increasingly rare) so the only
     # filtering we do is that if the platform is explicitly :cxx11, we
     # disallow running on < GCC 5.
-    if cabi.cxxstring_abi !== nothing && cabi.cxxstring_abi === :cxx11
+    if cxxstring_abi(cabi) !== nothing && cxxstring_abi(cabi) === :cxx11
         GCC_builds = filter(b -> getversion(b) >= v"5", GCC_builds)
     end
 
@@ -589,7 +589,7 @@ GCC version (as opposed to `nothing`) only that `Platform` is returned.
 """
 function expand_gfortran_versions(p::Platform)
     # If this platform cannot be expanded, then exit out fast here.
-    if compiler_abi(p).libgfortran_version != nothing
+    if libgfortran_version(compiler_abi(p)) != nothing
         return [p]
     end
 
@@ -613,7 +613,7 @@ GCC version (as opposed to `nothing`) only that `Platform` is returned.
 """
 function expand_cxxstring_abis(p::Platform)
     # If this platform cannot be expanded, then exit out fast here.
-    if compiler_abi(p).cxxstring_abi != nothing
+    if cxxstring_abi(compiler_abi(p)) != nothing
         return [p]
     end
 
@@ -637,20 +637,20 @@ function preferred_libgfortran_version(platform::Platform, shard::CompilerShard;
     if shard.name != "GCCBootstrap"
         error("Shard must be `GCCBootstrap`")
     end
-    if shard.target.arch != platform.arch || shard.target.libc != platform.libc
+    if arch(shard.target) != arch(platform) || libc(shard.target) != libc(platform)
         error("Incompatible platform and shard target")
     end
 
-    if compiler_abi(platform).libgfortran_version != nothing
+    if libgfortran_version(compiler_abi(platform)) != nothing
         # Here we can't use `shard.target` because the shard always has the
         # target as ABI-agnostic, thus we have also to ask for the platform.
-        return compiler_abi(platform).libgfortran_version
+        return libgfortran_version(compiler_abi(platform))
     else
         idx = findfirst(b -> getversion(b) == shard.version, available_gcc_builds)
         if isnothing(idx)
             error("The shard doesn't match any version of the available GCC builds")
         else
-            return getabi(gcc_builds[idx]).libgfortran_version
+            return libgfortran_version(getabi(gcc_builds[idx]))
         end
     end
 end
@@ -667,20 +667,20 @@ function preferred_cxxstring_abi(platform::Platform, shard::CompilerShard;
     if shard.name != "GCCBootstrap"
         error("Shard must be `GCCBootstrap`")
     end
-    if shard.target.arch != platform.arch || shard.target.libc != platform.libc
+    if arch(shard.target) != arch(platform) || libc(shard.target) != libc(platform)
         error("Incompatible platform and shard target")
     end
 
-    if compiler_abi(platform).cxxstring_abi != nothing
+    if cxxstring_abi(compiler_abi(platform)) != nothing
         # Here we can't use `shard.target` because the shard always has the
         # target as ABI-agnostic, thus we have also to ask for the platform.
-        return compiler_abi(platform).cxxstring_abi
+        return cxxstring_abi(compiler_abi(platform))
     else
         idx = findfirst(b -> getversion(b) == shard.version, available_gcc_builds)
         if isnothing(idx)
             error("The shard doesn't match any version of the available GCC builds")
         else
-            return getabi(gcc_builds[idx]).cxxstring_abi
+            return cxxstring_abi(getabi(gcc_builds[idx]))
         end
     end
 end

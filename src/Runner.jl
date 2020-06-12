@@ -86,8 +86,8 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     #   * in all other cases we don't do anything here but later below we'll let
     #     the host wrappers to be overwritten by the wrappers for the target
     if target == host_target
-        target_cxxabi = compiler_abi(platform).cxxstring_abi
-        host_cxxabi   = compiler_abi(host_platform).cxxstring_abi
+        target_cxxabi = cxxstring_abi(compiler_abi(platform))
+        host_cxxabi   = cxxstring_abi(compiler_abi(host_platform))
         if target_cxxabi !== host_cxxabi
             if host_cxxabi !== nothing
                 # This is a very unlikely situation as ideally the host
@@ -193,9 +193,9 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     ## Set up flag mappings
     function base_gcc_flags(p::Platform, FLAGS::String = "")
         # Force propler cxx11 string ABI usage w00t w00t
-        if compiler_abi(p).cxxstring_abi == :cxx11
+        if cxxstring_abi(compiler_abi(p)) == :cxx11
             FLAGS *= " -D_GLIBCXX_USE_CXX11_ABI=1"
-        elseif compiler_abi(p).cxxstring_abi == :cxx03
+        elseif cxxstring_abi(compiler_abi(p)) == :cxx03
             FLAGS *= " -D_GLIBCXX_USE_CXX11_ABI=0"
         end
 
