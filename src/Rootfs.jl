@@ -577,6 +577,11 @@ function replace_cxxstring_abi(p::Platform, cxxstring_abi::Symbol)
     return typeof(p)(arch(p); libc=libc(p), call_abi=call_abi(p), compiler_abi=new_cabi)
 end
 
+replace_libgfortran_version(ep::ExtendedPlatform, libgfortran_version::VersionNumber) =
+    ExtendedPlatform(replace_libgfortran_version(ep.p, libgfortran_version), ep.ext)
+replace_cxxstring_abi(ep::ExtendedPlatform, cxxstring_abi::Symbol) =
+    ExtendedPlatform(replace_cxxstring_abi(ep.p, cxxstring_abi), ep.ext)
+
 """
     expand_gfortran_versions(p::Platform)
 
