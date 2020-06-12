@@ -29,8 +29,8 @@ function get_concrete_platform(platform::Platform, shards::Vector{CompilerShard}
     # `package()` to be more specific than it is.
     concrete_platform = platform
     gccboostrap_shard_idx = findfirst(x -> x.name == "GCCBootstrap" &&
-                                      x.target.arch == platform.arch &&
-                                      x.target.libc == platform.libc,
+                                      arch(x.target) == arch(platform) &&
+                                      libc(x.target) == libc(platform),
                                       shards)
     if !isnothing(gccboostrap_shard_idx)
         libgfortran_version = preferred_libgfortran_version(platform, shards[gccboostrap_shard_idx])
