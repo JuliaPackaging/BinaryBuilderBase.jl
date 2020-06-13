@@ -644,6 +644,8 @@ supported microarchitectures, a 1-element vector containing the given platform
 is returned.
 
 ```jldoctest
+julia> using BinaryBuilderBase
+
 julia> expand_marchs(FreeBSD(:x86_64))
 4-element Array{Platform,1}:
  ExtendedPlatform(FreeBSD(:x86_64); march="x86_64")
@@ -690,6 +692,8 @@ end
 Expand all platforms in the given vector with the supported microarchitectures.
 
 ```jldoctest
+julia> using BinaryBuilderBase
+
 julia> expand_marchs(filter!(p -> p isa Linux && libc(p) == :glibc, supported_platforms()))
 12-element Array{Platform,1}:
  Linux(:i686, libc=:glibc)

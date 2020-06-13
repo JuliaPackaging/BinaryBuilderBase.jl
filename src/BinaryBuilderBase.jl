@@ -3,6 +3,13 @@ module BinaryBuilderBase
 using Pkg, Pkg.BinaryPlatforms, Pkg.PlatformEngines, Pkg.Artifacts, Random, Libdl
 using JSON, OutputCollectors
 
+# Re-export useful stuff from Pkg:
+export platform_key_abi, platform_dlext, valid_dl_path, arch, libc, compiler_abi,
+       libgfortran_version, libstdcxx_version, cxxstring_abi, parse_dl_name_version,
+       detect_libgfortran_version, detect_libstdcxx_version, detect_cxxstring_abi,
+       call_abi, wordsize, triplet, select_platform, platforms_match,
+       CompilerABI, Platform, UnknownPlatform, Linux, MacOS, Windows, FreeBSD
+
 export AbstractSource, AbstractDependency, SetupSource, PatchSource,
     resolve_jlls, coerce_dependency, coerce_source, Runner,
     generate_compiler_wrappers!, preferred_runner, CompilerShard, UserNSRunner,
