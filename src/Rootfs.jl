@@ -1,4 +1,4 @@
-export supported_platforms, expand_gfortran_versions, expand_cxxstring_abis
+export supported_platforms, expand_gfortran_versions, expand_cxxstring_abis, expand_marchs
 
 import Pkg.Artifacts: load_artifacts_toml, ensure_all_artifacts_installed
 
@@ -629,6 +629,84 @@ end
 function expand_cxxstring_abis(ps::Vector{<:Platform})
     return Platform[p for p in Iterators.flatten(expand_cxxstring_abis.(ps))]
 end
+
+"""
+    expand_marchs(p::Platform)
+
+Given a `Platform`, returns a vector of `Platforms` with a spread of identical
+`ExtendedPlatform` entries with the exception of the microarchitectures.  If the
+given `Platform` is already an `ExtendedPlatform` with a `march` feature, only
+that platform is returned.
+
+Currently, only platforms with architecture `x86_64`, `amrv7l` or `aarch64` have
+supported microarchitectures.  If the architecture of the platform does not have
+supported microarchitectures, a 1-element vector containing the given platform
+is returned.
+
+```jldoctest
+julia> expand_marchs(FreeBSD(:x86_64))
+4-element Array{Platform,1}:
+ ExtendedPlatform(FreeBSD(:x86_64); march="x86_64")
+ ExtendedPlatform(FreeBSD(:x86_64); march="avx")
+ ExtendedPlatform(FreeBSD(:x86_64); march="avx2")
+ ExtendedPlatform(FreeBSD(:x86_64); march="avx512")
+
+julia> expand_marchs(Linux(:armv7l))
+3-element Array{Platform,1}:
+ ExtendedPlatform(Linux(:armv7l, libc=:glibc, call_abi=:eabihf); march="armv7l")
+ ExtendedPlatform(Linux(:armv7l, libc=:glibc, call_abi=:eabihf); march="neon")
+ ExtendedPlatform(Linux(:armv7l, libc=:glibc, call_abi=:eabihf); march="vfp4")
+
+julia> expand_marchs(Linux(:aarch64))
+3-element Array{Platform,1}:
+ ExtendedPlatform(Linux(:aarch64, libc=:glibc); march="armv8")
+ ExtendedPlatform(Linux(:aarch64, libc=:glibc); march="thunderx2")
+ ExtendedPlatform(Linux(:aarch64, libc=:glibc); march="carmel")
+
+julia> expand_marchs(Windows(:i686))
+1-element Array{Windows,1}:
+ Windows(:i686)
+```
+"""
+function expand_marchs(p::Platform)
+    if p isa ExtendedPlatform && haskey(p.ext, "march")
+        return [p]
+    elseif arch(p) == :x86_64 && !isa(p, AnyPlatform)
+        # x86-64 (aka generic), avx (aka sandybridge), avx2 (aka haswell),
+        # avx512 (aka skylake-avx512 or skylakex)
+        return Platform[ExtendedPlatform(p; march=march) for march in ["x86_64", "avx", "avx2", "avx512"]]
+    elseif arch(p) == :armv7l
+        return Platform[ExtendedPlatform(p; march=march) for march in ["armv7l", "neon", "vfp4"]]
+    elseif arch(p) == :aarch64
+        return Platform[ExtendedPlatform(p; march=march) for march in ["armv8", "thunderx2", "carmel"]]
+    else
+        return [p]
+    end
+end
+
+"""
+    expand_marchs(ps::Vector{<:Platform})
+
+Expand all platforms in the given vector with the supported microarchitectures.
+
+```jldoctest
+julia> expand_marchs(filter!(p -> p isa Linux && libc(p) == :glibc, supported_platforms()))
+12-element Array{Platform,1}:
+ Linux(:i686, libc=:glibc)
+ ExtendedPlatform(Linux(:x86_64, libc=:glibc); march="x86_64")
+ ExtendedPlatform(Linux(:x86_64, libc=:glibc); march="avx")
+ ExtendedPlatform(Linux(:x86_64, libc=:glibc); march="avx2")
+ ExtendedPlatform(Linux(:x86_64, libc=:glibc); march="avx512")
+ ExtendedPlatform(Linux(:aarch64, libc=:glibc); march="armv8")
+ ExtendedPlatform(Linux(:aarch64, libc=:glibc); march="thunderx2")
+ ExtendedPlatform(Linux(:aarch64, libc=:glibc); march="carmel")
+ ExtendedPlatform(Linux(:armv7l, libc=:glibc, call_abi=:eabihf); march="armv7l")
+ ExtendedPlatform(Linux(:armv7l, libc=:glibc, call_abi=:eabihf); march="neon")
+ ExtendedPlatform(Linux(:armv7l, libc=:glibc, call_abi=:eabihf); march="vfp4")
+ Linux(:powerpc64le, libc=:glibc)
+```
+"""
+expand_marchs(ps::Vector{<:Platform}) = Platform[p for p in Iterators.flatten(expand_marchs.(ps))]
 
 """
     preferred_libgfortran_version(platform::Platform, shard::CompilerShard;
