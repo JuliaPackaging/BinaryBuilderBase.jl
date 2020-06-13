@@ -1,4 +1,4 @@
-using Pkg.BinaryPlatforms
+using Pkg.BinaryPlatforms, Logging
 
 export AnyPlatform, ExtendedPlatform
 
@@ -69,138 +69,35 @@ function Base.show(io::IO, ep::ExtendedPlatform)
     print(io, ")")
 end
 
-# Vendor Pkg.BinaryPlatforms.platform_key_abi, with a different name.  The
-# difference with the original version is that if the triplet can't be parse we
-# return `nothing`, wthout issuing a warning
 function tryparse_standard_platform(machine::AbstractString)
-    # We're going to build a mondo regex here to parse everything:
-    arch_mapping = Dict(
-        :x86_64 => "(x86_|amd)64",
-        :i686 => "i\\d86",
-        :aarch64 => "aarch64",
-        :armv7l => "arm(v7l)?", # if we just see `arm-linux-gnueabihf`, we assume it's `armv7l`
-        :armv6l => "armv6l",
-        :powerpc64le => "p(ower)?pc64le",
-    )
-    platform_mapping = Dict(
-        :darwin => "-apple-darwin[\\d\\.]*",
-        :freebsd => "-(.*-)?freebsd[\\d\\.]*",
-        :mingw32 => "-w64-mingw32",
-        :linux => "-(.*-)?linux",
-    )
-    libc_mapping = Dict(
-        :libc_nothing => "",
-        :glibc => "-gnu",
-        :musl => "-musl",
-    )
-    call_abi_mapping = Dict(
-        :call_abi_nothing => "",
-        :eabihf => "eabihf",
-    )
-    libgfortran_version_mapping = Dict(
-        :libgfortran_nothing => "",
-        :libgfortran3 => "(-libgfortran3)|(-gcc4)", # support old-style `gccX` versioning
-        :libgfortran4 => "(-libgfortran4)|(-gcc7)",
-        :libgfortran5 => "(-libgfortran5)|(-gcc8)",
-    )
-    libstdcxx_version_mapping = Dict(
-        :libstdcxx_nothing => "",
-        # This is sadly easier than parsing out the digit directly
-        (Symbol("libstdcxx$(idx)") => "-libstdcxx$(idx)" for idx in 18:26)...,
-    )
-    cxxstring_abi_mapping = Dict(
-        :cxxstring_nothing => "",
-        :cxx03 => "-cxx03",
-        :cxx11 => "-cxx11",
-    )
-
-    # Helper function to collapse dictionary of mappings down into a regex of
-    # named capture groups joined by "|" operators
-    c(mapping) = string("(",join(["(?<$k>$v)" for (k, v) in mapping], "|"), ")")
-
-    triplet_regex = Regex(string(
-        "^",
-        c(arch_mapping),
-        c(platform_mapping),
-        c(libc_mapping),
-        c(call_abi_mapping),
-        c(libgfortran_version_mapping),
-        c(libstdcxx_version_mapping),
-        c(cxxstring_abi_mapping),
-        "\$",
-    ))
-
-    m = match(triplet_regex, machine)
-    if m !== nothing
-        # Helper function to find the single named field within the giant regex
-        # that is not `nothing` for each mapping we give it.
-        get_field(m, mapping) = begin
-            for k in keys(mapping)
-                if m[k] !== nothing
-                    strk = string(k)
-                    # Convert our sentinel `nothing` values to actual `nothing`
-                    if endswith(strk, "_nothing")
-                        return nothing
-                    end
-                    # Convert libgfortran/libstdcxx version numbers
-                    if startswith(strk, "libgfortran")
-                        return VersionNumber(parse(Int,strk[12:end]))
-                    elseif startswith(strk, "libstdcxx")
-                        return VersionNumber(3, 4, parse(Int,strk[10:end]))
-                    else
-                        return k
-                    end
-                end
-            end
-        end
-
-        # Extract the information we're interested in:
-        arch = get_field(m, arch_mapping)
-        platform = get_field(m, platform_mapping)
-        libc = get_field(m, libc_mapping)
-        call_abi = get_field(m, call_abi_mapping)
-        libgfortran_version = get_field(m, libgfortran_version_mapping)
-        libstdcxx_version = get_field(m, libstdcxx_version_mapping)
-        cxxstring_abi = get_field(m, cxxstring_abi_mapping)
-
-        # First, figure out what platform we're dealing with, then sub that off
-        # to the appropriate constructor.  If a constructor runs into trouble,
-        # catch the error and return `UnknownPlatform()` here to be nicer to client code.
-        ctors = Dict(:darwin => MacOS, :mingw32 => Windows, :freebsd => FreeBSD, :linux => Linux)
-        try
-            T = ctors[platform]
-            compiler_abi = CompilerABI(;
-                libgfortran_version=libgfortran_version,
-                libstdcxx_version=libstdcxx_version,
-                cxxstring_abi=cxxstring_abi
-            )
-            return T(arch, libc=libc, call_abi=call_abi, compiler_abi=compiler_abi)
-        catch
-        end
+    p = with_logger(NullLogger()) do
+        BinaryPlatforms.platform_key_abi(machine)
     end
-
-    return nothing
+    if isa(p, UnknownPlatform)
+        return nothing
+    end
+    return p
 end
 
 function Base.tryparse(::Type{ExtendedPlatform}, str::AbstractString)
-    split_str = split(str, "-")
-    extra_str = String[]
-    base_platform = platform_key_abi()
-    # Try to parse the longest string possible with the standard parser
-    while length(split_str) > 0
-        base_platform = tryparse_standard_platform(join(split_str, '-'))
-        if base_platform !== nothing
-            break
-        end
-        push!(extra_str, pop!(split_str))
+    # Fast-track `AnyPlatform`
+    if str == "any"
+        return AnyPlatform()
     end
+    split_str = split(str, "-")
+    idx = findfirst(str -> occursin("+", str), split_str)
+    if idx === nothing
+        # There are no key-value pairs, parse the entire string with
+        # `tryparse_standard_platform`
+        return tryparse_standard_platform(str)
+    end
+    base_platform = tryparse_standard_platform(join(split_str[1:max(1, idx - 1)], '-'))
     if base_platform === nothing
-        # We couldn't find a standard platform in the string, give up
         return nothing
     end
     extra = Dict{String,String}()
     # Build up the extra features
-    for kv in extra_str
+    for kv in split_str[idx:end]
         # Split the extra feature with the delimiter we expect between the key
         # and the value
         key_value = split(kv, '+')

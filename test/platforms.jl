@@ -117,8 +117,16 @@ end
     @test endswith(repr(p), ")")
     @test parse(ExtendedPlatform, triplet(p)) == p
 
+    # Parse `"any"` as `AnyPlatform`
+    @test tryparse(ExtendedPlatform, "any") == AnyPlatform()
+    # AnyPlatform shouldn't be extended
+    @test isnothing(tryparse(ExtendedPlatform, "any-march+avx"))
+    # This is valid standard platform
+    @test tryparse(ExtendedPlatform, "x86_64-unknown-freebsd11.1") == FreeBSD(:x86_64)
     # This string doesn't contain any platform at all
     @test isnothing(tryparse(ExtendedPlatform, "abcde"))
+    # What comes before the first key-value pair is not a valid platform
+    @test isnothing(tryparse(ExtendedPlatform, "armv7l-linux-musleabihf-this-is+not-valid"))
     # This string doesn't contain valid key-value pairs in the extra part
     @test_throws ArgumentError parse(ExtendedPlatform, "x86_64-linux-gnu-this+is-not-valid")
 
