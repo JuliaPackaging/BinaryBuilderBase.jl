@@ -19,13 +19,37 @@ Base.show(io::IO, ::AnyPlatform) = print(io, "AnyPlatform()")
 
 ## The extended platforms, to represent platforms beyond the standard ones in
 ## Pkg.BinaryPlatforms.
+"""
+    ExtendedPlatform(p::Platform; kwargs...)
 
+Extend the given platform with extra information.  The key and the value can be
+arbitrary, with the conditions that they should only use alhanumerical
+characters, the underscore, or the dot (the latter only for the value).
+
+This type is, for example, used to tag a standard platform from
+`Pkg.BinaryPlatforms` with additional features besides the C library or the
+compiler ABI.
+
+```jldoctest
+julia> ExtendedPlatform(Linux(:x86_64; libc=:glibc, compiler_abi=CompilerABI(; libgfortran_version=v"4")); march = "avx", cuda = "9.2")
+ExtendedPlatform(Linux(:x86_64, libc=:glibc, compiler_abi=CompilerABI(libgfortran_version=v"4.0.0")); march="avx", cuda="9.2")
+```
+"""
 struct ExtendedPlatform{P<:Platform} <: Platform
     p::P
     ext::Dict{String,String}
 end
 ExtendedPlatform(p::Platform; kwargs...) =
     ExtendedPlatform(p, Dict(string(k) => string(v) for (k, v) in pairs(kwargs)))
+function ExtendedPlatform(p::ExtendedPlatform; kwargs...)
+    for (k, v) in pairs(kwargs)
+        key = String(k)
+        if haskey(p.ext, key) && p.ext[key] != v
+            error("The input platform has an incompatible feature $(key => p.ext[key])")
+        end
+    end
+    ExtendedPlatform(p.p, merge(p.ext, Dict(string(k) => string(v) for (k, v) in pairs(kwargs))))
+end
 
 Pkg.BinaryPlatforms.platform_name(::ExtendedPlatform) = "ExtendedPlatform"
 Pkg.BinaryPlatforms.arch(ep::ExtendedPlatform) = arch(ep.p)
@@ -213,4 +237,3 @@ Pkg.BinaryPlatforms.platforms_match(a::ExtendedPlatform{P1}, b::P2) where {P1<:P
 Pkg.BinaryPlatforms.platforms_match(a::P1, b::ExtendedPlatform{P2}) where {P1<:Platform, P2<:Platform} = false
 # Extending different platforms: do not match
 Pkg.BinaryPlatforms.platforms_match(a::ExtendedPlatform{P1}, b::ExtendedPlatform{P2}) where {P1<:Platform, P2<:Platform} = false
-

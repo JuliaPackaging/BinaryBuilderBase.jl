@@ -33,6 +33,9 @@ end
     @test replace_cxxstring_abi(p, :cxx03) == ExtendedPlatform(Linux(:x86_64; libc=:musl, compiler_abi=CompilerABI(; cxxstring_abi=:cxx03)); microarchitecture = :avx, cuda = "9.2")
     @test replace_libgfortran_version(p, v"4") == ExtendedPlatform(Linux(:x86_64; libc=:musl, compiler_abi=CompilerABI(; libgfortran_version=v"4")); microarchitecture = :avx, cuda = "9.2")
     @test get_concrete_platform(p; compilers = [:c], preferred_gcc_version = v"4.8", preferred_llvm_version = v"9") == ExtendedPlatform(Linux(:x86_64, libc=:musl, compiler_abi=CompilerABI(libgfortran_version=v"3", cxxstring_abi=:cxx03)); microarchitecture="avx", cuda="9.2")
+    @test ExtendedPlatform(p; cuda="9.2", foo="bar") == ExtendedPlatform(Linux(:x86_64, libc=:musl); microarchitecture="avx", cuda="9.2", foo="bar")
+    @test ExtendedPlatform(p; foo="bar") == ExtendedPlatform(Linux(:x86_64, libc=:musl); microarchitecture="avx", cuda="9.2", foo="bar")
+    @test_throws ErrorException ExtendedPlatform(p; cuda="10.1")
     # We have to split in this way the test on the representation of the type
     # because it may depend on the order with which the keys are extracted from
     # the dictionary
@@ -57,6 +60,9 @@ end
     @test abi_agnostic(p) == Linux(:powerpc64le, libc=:glibc)
     @test aatriplet(p) == "powerpc64le-linux-gnu"
     @test get_concrete_platform(p; compilers = [:c, :go], preferred_gcc_version = v"8", preferred_llvm_version = v"6") == ExtendedPlatform(Linux(:powerpc64le, libc=:glibc, compiler_abi=CompilerABI(libgfortran_version=v"5", cxxstring_abi=:cxx03)); microarchitecture="skylake_avx512", cuda_capability="52", cuda="10.1")
+    @test ExtendedPlatform(p; cuda="10.1", foo="bar") == ExtendedPlatform(Linux(:powerpc64le, libc=:glibc, compiler_abi=CompilerABI(libgfortran_version=v"5.0.0", cxxstring_abi=:cxx03)); microarchitecture="skylake_avx512", cuda_capability="52", cuda="10.1", foo="bar")
+    @test ExtendedPlatform(p; foo="bar") == ExtendedPlatform(Linux(:powerpc64le, libc=:glibc, compiler_abi=CompilerABI(libgfortran_version=v"5.0.0", cxxstring_abi=:cxx03)); microarchitecture="skylake_avx512", cuda_capability="52", cuda="10.1", foo="bar")
+    @test_throws ErrorException ExtendedPlatform(p; cuda="10.1", cuda_capability="80")
     @test startswith(repr(p), "ExtendedPlatform(Linux(:powerpc64le, libc=:glibc, compiler_abi=CompilerABI(libgfortran_version=v\"5.0.0\", cxxstring_abi=:cxx03)); ")
     @test occursin("microarchitecture=\"skylake_avx512\"", repr(p))
     @test occursin("cuda=\"10.1\"", repr(p))
@@ -78,6 +84,9 @@ end
     @test replace_cxxstring_abi(p, :cxx11) == p
     @test replace_libgfortran_version(p, v"5") == p
     @test get_concrete_platform(p; compilers = [:c], preferred_gcc_version = v"5", preferred_llvm_version = v"9") == ExtendedPlatform(Linux(:powerpc64le, libc=:glibc, compiler_abi=CompilerABI(libgfortran_version=v"5", cxxstring_abi=:cxx11)); microarchitecture="skylake_avx512", cuda_capability="52", cuda="10.1")
+    @test ExtendedPlatform(p; cuda="10.1", foo="bar") == ExtendedPlatform(Linux(:powerpc64le, libc=:glibc, compiler_abi=CompilerABI(libgfortran_version=v"5.0.0", cxxstring_abi=:cxx11)); microarchitecture="skylake_avx512", cuda_capability="52", cuda="10.1", foo="bar")
+    @test ExtendedPlatform(p; foo="bar") == ExtendedPlatform(Linux(:powerpc64le, libc=:glibc, compiler_abi=CompilerABI(libgfortran_version=v"5.0.0", cxxstring_abi=:cxx11)); microarchitecture="skylake_avx512", cuda_capability="52", cuda="10.1", foo="bar")
+    @test_throws ErrorException ExtendedPlatform(p; cuda="10.1", cuda_capability="80")
     @test startswith(repr(p), "ExtendedPlatform(Linux(:powerpc64le, libc=:glibc, compiler_abi=CompilerABI(libgfortran_version=v\"5.0.0\", cxxstring_abi=:cxx11)); ")
     @test occursin("microarchitecture=\"skylake_avx512\"", repr(p))
     @test occursin("cuda=\"10.1\"", repr(p))
@@ -99,6 +108,9 @@ end
     @test replace_cxxstring_abi(p, :cxx11) == ExtendedPlatform(Linux(:armv7l, libc=:glibc, call_abi=:eabihf, compiler_abi=CompilerABI(; cxxstring_abi=:cxx11, libstdcxx_version=v"3.4.24")); microarchitecture="sandybridge", cuda="11.1")
     @test replace_libgfortran_version(p, v"4") == ExtendedPlatform(Linux(:armv7l, libc=:glibc, call_abi=:eabihf, compiler_abi=CompilerABI(; libgfortran_version=v"4", libstdcxx_version=v"3.4.24")); microarchitecture="sandybridge", cuda="11.1")
     @test get_concrete_platform(p; compilers = [:c], preferred_gcc_version = v"7", preferred_llvm_version = v"9") == ExtendedPlatform(Linux(:armv7l, libc=:glibc, call_abi=:eabihf, compiler_abi=CompilerABI(libgfortran_version=v"4.0.0", libstdcxx_version=v"3.4.24", cxxstring_abi=:cxx11)); microarchitecture="sandybridge", cuda="11.1")
+    @test ExtendedPlatform(p; cuda="11.1", foo="bar") == ExtendedPlatform(Linux(:armv7l, libc=:glibc, call_abi=:eabihf, compiler_abi=CompilerABI(libstdcxx_version=v"3.4.24")); microarchitecture="sandybridge", cuda="11.1", foo="bar")
+    @test ExtendedPlatform(p; foo="bar") == ExtendedPlatform(Linux(:armv7l, libc=:glibc, call_abi=:eabihf, compiler_abi=CompilerABI(libstdcxx_version=v"3.4.24")); microarchitecture="sandybridge", cuda="11.1", foo="bar")
+    @test_throws ErrorException ExtendedPlatform(p; cuda="11.1", microarchitecture="haswell")
     @test startswith(repr(p), "ExtendedPlatform(Linux(:armv7l, libc=:glibc, call_abi=:eabihf, compiler_abi=CompilerABI(libstdcxx_version=v\"3.4.24\")); ")
     @test occursin("microarchitecture=\"sandybridge\"", repr(p))
     @test occursin("cuda=\"11.1\"", repr(p))
