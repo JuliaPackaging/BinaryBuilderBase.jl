@@ -32,6 +32,8 @@ This type is, for example, used to tag a standard platform from
 compiler ABI.
 
 ```jldoctest
+julia> using BinaryBuilderBase
+
 julia> ExtendedPlatform(Linux(:x86_64; libc=:glibc, compiler_abi=CompilerABI(; libgfortran_version=v"4")); march = "avx", cuda = "9.2")
 ExtendedPlatform(Linux(:x86_64, libc=:glibc, compiler_abi=CompilerABI(libgfortran_version=v"4.0.0")); march="avx", cuda="9.2")
 ```
