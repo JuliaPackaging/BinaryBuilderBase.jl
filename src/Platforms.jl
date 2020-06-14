@@ -22,9 +22,10 @@ Base.show(io::IO, ::AnyPlatform) = print(io, "AnyPlatform()")
 """
     ExtendedPlatform(p::Platform; kwargs...)
 
-Extend the given platform with extra information.  The key and the value can be
-arbitrary, with the conditions that they should only use alhanumerical
-characters, the underscore, or the dot (the latter only for the value).
+Extend a `Pkg.BinaryPlatforms.Platform` object with extra key-value mappings.
+Arbitrary `String` keys and values are supported, with the constraint that
+all strings should only use alphanumeric characters, the underscore, or the
+dot (the latter only for the value).
 
 This type is, for example, used to tag a standard platform from
 `Pkg.BinaryPlatforms` with additional features besides the C library or the
