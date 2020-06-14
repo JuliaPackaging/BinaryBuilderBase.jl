@@ -1,6 +1,30 @@
 import Base: strip
 abstract type Runner; end
 
+const ARCHITECTURE_FLAGS = begin
+    # Better be always explicit about `-march` & `-mtune`:
+    # https://lemire.me/blog/2018/07/25/it-is-more-complicated-than-i-thought-mtune-march-in-gcc/
+    march_flags(arch) = ["-m$(f)=$(arch)" for f in ("arch", "tune")]
+    Dict(
+        :x86_64 => Dict(
+            "x86_64" => march_flags("x86-64"),
+            "avx" => march_flags("sandybridge"),
+            "avx2" => march_flags("haswell"),
+            "avx512" => march_flags("skylake-avx512"),
+        ),
+        :armv7l => Dict(
+            "armv7l" => ["-march=armv7-a", "-mtune=generic-armv7-a"],
+            "neon" => ["-march=armv7-a+neon", "-mtune=generic-armv7-a"],
+            "vfp4" => ["-march=armv7-a+neon-vfpv4", "-mtune=generic-armv7-a"],
+        ),
+        :aarch64 => Dict(
+            "armv8" => ["-march=armv8-a", "-mtune=cortex-a57"],
+            "thunderx2" => ["-march=armv8.1-a", "-mtune=thunderx2t99"],
+            "carmel" => ["-march=armv8.2-a+crypto+fp16+sha2+aes", "-mtune=cortex-a75"],
+        ),
+    )
+end
+
 function nbits(p::Platform)
     if arch(p) in (:i686, :armv7l)
         return 32
@@ -23,13 +47,31 @@ function proc_family(p::Platform)
     end
 end
 
+function supported_marchs(p::Platform)
+    this_march = march(p)
+    if p isa ExtendedPlatform && this_march !== nothing
+        if this_march in keys(ARCHITECTURE_FLAGS[arch(p)])
+            return [this_march]
+        else
+            String[]
+        end
+    elseif !isa(p, AnyPlatform) && arch(p) in keys(ARCHITECTURE_FLAGS)
+        # Sort they entries, for deterministic output
+        return sort(collect(keys(ARCHITECTURE_FLAGS[arch(p)])))
+    else
+        return String[]
+    end
+end
+
 dlext(p::Windows) = "dll"
 dlext(p::MacOS) = "dylib"
 dlext(p::Union{Linux,FreeBSD}) = "so"
+dlext(p::ExtendedPlatform) = dlext(p.p)
 dlext(p::Platform) = error("Unknown dlext for platform $(p)")
 
 exeext(p::Windows) = ".exe"
 exeext(p::Union{Linux,FreeBSD,MacOS}) = ""
+exeext(p::ExtendedPlatform) = exeext(p.p)
 exeext(p::Platform) = error("Unknown exeext for platform $(p)")
 
 # Convert platform to a triplet, but strip out the ABI parts.
@@ -108,7 +150,8 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
                      compile_only_flags::Vector = String[],
                      link_only_flags::Vector = String[],
                      env::Dict{String,String} = Dict{String,String}(),
-                     unsafe_flags = String[])
+                     unsafe_flags = String[],
+                     no_marchs::Bool = true)
         write(io, """
         #!/bin/bash
         # This compiler wrapper script brought into existence by `generate_compiler_wrappers!()`
@@ -159,6 +202,17 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
 
         for (name, val) in env
             write(io, "export $(name)=\"$(val)\"\n")
+        end
+
+        # TODO: improve this check
+        if no_marchs
+            write(io, raw"""
+                      if [[ \"$@\" == *\"-march=\"* ]]; then
+                          echo \"Cannot force an architecture\" >&2
+                          exit 1
+                      fi
+                      """)
+            println(io)
         end
 
         if length(unsafe_flags) >= 1
@@ -235,6 +289,15 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         return FLAGS
     end
 
+    function march_flags(p::Platform)
+        # This is an extended platform, which specifies an architecture which we do support
+        if platform isa ExtendedPlatform && length(supported_marchs(platform)) > 0 && march(platform) in supported_marchs(platform)
+            return ARCHITECTURE_FLAGS[arch(platform)][march(platform)]
+        else
+            return String[]
+        end
+    end
+
     clang_targeting_laser(p::Platform) = "-target $(aatriplet(p)) --sysroot=/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root"
     # For MacOS and FreeBSD, we don't set `-rtlib`, and FreeBSD is special-cased within the LLVM source tree
     # to not allow for -gcc-toolchain, which means that we have to manually add the location of libgcc_s.  LE SIGH.
@@ -242,12 +305,12 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     # https://github.com/llvm-mirror/clang/blob/f3b7928366f63b51ffc97e74f8afcff497c57e8d/lib/Driver/ToolChains/FreeBSD.cpp
     clang_flags(p::Union{FreeBSD,MacOS}) = clang_targeting_laser(p)
 
-    clang_compile_flags(p::Platform) = String[]
+    clang_compile_flags(p::Platform) = march_flags(p)
     # Next, on MacOS, we need to override the typical C++ include search paths, because it always includes
     # the toolchain C++ headers first.  Valentin tracked this down to:
     # https://github.com/llvm/llvm-project/blob/0378f3a90341d990236c44f297b923a32b35fab1/clang/lib/Driver/ToolChains/Darwin.cpp#L1944-L1978
     # We also add `-Wno-unused-command-line-argument` so that if someone does something like `clang -Werror -o foo a.o b.o`, it doesn't complain.
-    clang_compile_flags(p::MacOS) = String["-Wno-unused-command-line-argument", "-nostdinc++", "-isystem", "/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root/usr/include/c++/v1"]
+    clang_compile_flags(p::MacOS) = vcat(march_flags(p), String["-Wno-unused-command-line-argument", "-nostdinc++", "-isystem", "/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root/usr/include/c++/v1"])
 
     # For everything else, there's MasterCard (TM) (.... also, we need to provide `-rtlib=libgcc` because clang-builtins are broken,
     # and we also need to provide `-stdlib=libstdc++` to match Julia on these platforms.)
@@ -271,9 +334,9 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     gfortran_link_flags(p::Platform) = gcc_link_flags(p)
 
     # C/C++/Fortran
-    gcc(io::IO, p::Platform)      = wrapper(io, "/opt/$(aatriplet(p))/bin/$(aatriplet(p))-gcc $(gcc_flags(p))"; hash_args=true, link_only_flags=gcc_link_flags(p), unsafe_flags = allow_unsafe_flags ? String[] : ["-Ofast", "-ffast-math", "-funsafe-math-optimizations"])
-    gxx(io::IO, p::Platform)      = wrapper(io, "/opt/$(aatriplet(p))/bin/$(aatriplet(p))-g++ $(gcc_flags(p))"; hash_args=true, link_only_flags=gcc_link_flags(p), unsafe_flags = allow_unsafe_flags ? String[] : ["-Ofast", "-ffast-math", "-funsafe-math-optimizations"])
-    gfortran(io::IO, p::Platform) = wrapper(io, "/opt/$(aatriplet(p))/bin/$(aatriplet(p))-gfortran $(fortran_flags(p))"; allow_ccache=false, link_only_flags=gfortran_link_flags(p), unsafe_flags = allow_unsafe_flags ? String[] : ["-Ofast", "-ffast-math", "-funsafe-math-optimizations"])
+    gcc(io::IO, p::Platform)      = wrapper(io, "/opt/$(aatriplet(p))/bin/$(aatriplet(p))-gcc $(gcc_flags(p))"; hash_args=true, compile_only_flags=march_flags(p), link_only_flags=gcc_link_flags(p), unsafe_flags = allow_unsafe_flags ? String[] : ["-Ofast", "-ffast-math", "-funsafe-math-optimizations"])
+    gxx(io::IO, p::Platform)      = wrapper(io, "/opt/$(aatriplet(p))/bin/$(aatriplet(p))-g++ $(gcc_flags(p))"; hash_args=true, compile_only_flags=march_flags(p), link_only_flags=gcc_link_flags(p), unsafe_flags = allow_unsafe_flags ? String[] : ["-Ofast", "-ffast-math", "-funsafe-math-optimizations"])
+    gfortran(io::IO, p::Platform) = wrapper(io, "/opt/$(aatriplet(p))/bin/$(aatriplet(p))-gfortran $(fortran_flags(p))"; allow_ccache=false, compile_only_flags=march_flags(p), link_only_flags=gfortran_link_flags(p), unsafe_flags = allow_unsafe_flags ? String[] : ["-Ofast", "-ffast-math", "-funsafe-math-optimizations"])
     clang(io::IO, p::Platform)    = wrapper(io, "/opt/$(host_target)/bin/clang $(clang_flags(p))"; compile_only_flags=clang_compile_flags(p), link_only_flags=clang_link_flags(p))
     clangxx(io::IO, p::Platform)  = wrapper(io, "/opt/$(host_target)/bin/clang++ $(clang_flags(p))"; compile_only_flags=clang_compile_flags(p), link_only_flags=clang_link_flags(p))
     objc(io::IO, p::Platform)     = wrapper(io, "/opt/$(host_target)/bin/clang -x objective-c $(clang_flags(p))"; compile_only_flags=clang_compile_flags(p), link_only_flags=clang_link_flags(p))

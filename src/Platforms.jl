@@ -1,6 +1,6 @@
-using Pkg.BinaryPlatforms, Logging
+using Pkg.Artifacts, Pkg.BinaryPlatforms, Logging
 
-export AnyPlatform, ExtendedPlatform
+export AnyPlatform, ExtendedPlatform, base_platform
 
 """
     AnyPlatform()
@@ -54,19 +54,45 @@ function ExtendedPlatform(p::ExtendedPlatform; kwargs...)
     ExtendedPlatform(p.p, merge(p.ext, Dict(string(k) => string(v) for (k, v) in pairs(kwargs))))
 end
 
+base_platform(p::Platform) = p
+base_platform(ep::ExtendedPlatform) = ep.p
+march(::Platform) = nothing
+march(p::ExtendedPlatform; default = nothing) = get(p.ext, "march", default)
+
+for f in (:isapple, :islinux, :iswindows, :isbsd)
+    @eval Sys.$f(ep::ExtendedPlatform) = Sys.$f(base_platform(ep))
+end
+
 Pkg.BinaryPlatforms.platform_name(::ExtendedPlatform) = "ExtendedPlatform"
-Pkg.BinaryPlatforms.arch(ep::ExtendedPlatform) = arch(ep.p)
-Pkg.BinaryPlatforms.libc(ep::ExtendedPlatform) = libc(ep.p)
-Pkg.BinaryPlatforms.call_abi(ep::ExtendedPlatform) = call_abi(ep.p)
-Pkg.BinaryPlatforms.compiler_abi(ep::ExtendedPlatform) = compiler_abi(ep.p)
+Pkg.BinaryPlatforms.arch(ep::ExtendedPlatform) = arch(base_platform(ep))
+Pkg.BinaryPlatforms.libc(ep::ExtendedPlatform) = libc(base_platform(ep))
+Pkg.BinaryPlatforms.call_abi(ep::ExtendedPlatform) = call_abi(base_platform(ep))
+Pkg.BinaryPlatforms.compiler_abi(ep::ExtendedPlatform) = compiler_abi(base_platform(ep))
 Pkg.BinaryPlatforms.triplet(ep::ExtendedPlatform) =
-    triplet(ep.p) * join(["-$(k)+$(ep.ext[k])" for k in sort(collect(keys(ep.ext)))])
+    triplet(base_platform(ep)) * join(["-$(k)+$(ep.ext[k])" for k in sort(collect(keys(ep.ext)))])
+Pkg.BinaryPlatforms.platform_dlext(p::ExtendedPlatform) = platform_dlext(base_platform(p))
+
+# Extending the same platform: match only if the base platforms match and the
+# same keys in the dictionaries have the same values
+Pkg.BinaryPlatforms.platforms_match(a::ExtendedPlatform{P}, b::ExtendedPlatform{P}) where {P<:Platform} =
+    platforms_match(base_platform(a), base_platform(b)) &&  all(a.ext[k] == b.ext[k] for k in keys(a.ext) ∩ keys(b.ext))
+# The wrapped platform is the same as the other one: the arguments match if the
+# wrapper platform and the other one match
+Pkg.BinaryPlatforms.platforms_match(a::ExtendedPlatform{P}, b::P) where {P<:Platform} = platforms_match(base_platform(a), b)
+Pkg.BinaryPlatforms.platforms_match(a::P, b::ExtendedPlatform{P}) where {P<:Platform} = platforms_match(a, base_platform(b))
+# Extending a platform different from the other one: do not match
+Pkg.BinaryPlatforms.platforms_match(a::ExtendedPlatform{P1}, b::P2) where {P1<:Platform, P2<:Platform} = false
+Pkg.BinaryPlatforms.platforms_match(a::P1, b::ExtendedPlatform{P2}) where {P1<:Platform, P2<:Platform} = false
+# Extending different platforms: do not match
+Pkg.BinaryPlatforms.platforms_match(a::ExtendedPlatform{P1}, b::ExtendedPlatform{P2}) where {P1<:Platform, P2<:Platform} = false
+
+Base.:(==)(a::ExtendedPlatform, b::ExtendedPlatform) = base_platform(a) == base_platform(b) && a.ext == b.ext
 
 # This function also strips out the extra features of the type
-abi_agnostic(ep::ExtendedPlatform) = abi_agnostic(ep.p)
+abi_agnostic(ep::ExtendedPlatform) = abi_agnostic(base_platform(ep))
 
 function Base.show(io::IO, ep::ExtendedPlatform)
-    print(io, BinaryPlatforms.platform_name(ep), "(", ep.p)
+    print(io, BinaryPlatforms.platform_name(ep), "(", base_platform(ep))
     length(ep.ext) > 0 && print(io, ";")
     join(io, [" $(k)=$(repr(v))" for (k, v) in ep.ext], ",")
     print(io, ")")
@@ -122,18 +148,9 @@ function Base.parse(T::Type{ExtendedPlatform}, str::AbstractString)
     return parsed
 end
 
-Base.:(==)(a::ExtendedPlatform, b::ExtendedPlatform) = a.p == b.p && a.ext == b.ext
-
-# Extending the same platform: match only if the base platforms match and the
-# same keys in the dictionaries have the same values
-Pkg.BinaryPlatforms.platforms_match(a::ExtendedPlatform{P}, b::ExtendedPlatform{P}) where {P<:Platform} =
-    platforms_match(a.p, b.p) &&  all(a.ext[k] == b.ext[k] for k in keys(a.ext) ∩ keys(b.ext))
-# The wrapped platform is the same as the other one: the arguments match if the
-# wrapper platform and the other one match
-Pkg.BinaryPlatforms.platforms_match(a::ExtendedPlatform{P}, b::P) where {P<:Platform} = platforms_match(a.p, b)
-Pkg.BinaryPlatforms.platforms_match(a::P, b::ExtendedPlatform{P}) where {P<:Platform} = platforms_match(a, b.p)
-# Extending a platform different from the other one: do not match
-Pkg.BinaryPlatforms.platforms_match(a::ExtendedPlatform{P1}, b::P2) where {P1<:Platform, P2<:Platform} = false
-Pkg.BinaryPlatforms.platforms_match(a::P1, b::ExtendedPlatform{P2}) where {P1<:Platform, P2<:Platform} = false
-# Extending different platforms: do not match
-Pkg.BinaryPlatforms.platforms_match(a::ExtendedPlatform{P1}, b::ExtendedPlatform{P2}) where {P1<:Platform, P2<:Platform} = false
+function Pkg.Artifacts.pack_platform!(meta::Dict, p::ExtendedPlatform)
+    Artifacts.pack_platform!(meta, base_platform(p))
+    if march(p) !== nothing && march(p) in supported_marchs(p)
+        meta["march"] = march(p)
+    end
+end

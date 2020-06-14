@@ -37,20 +37,20 @@ using BinaryBuilderBase
     # expand_marchs
     @test expand_marchs([AnyPlatform()]) == [AnyPlatform()]
     @test expand_marchs(ExtendedPlatform(Linux(:x86_64); cuda="10.1")) == [
-        ExtendedPlatform(Linux(:x86_64, libc=:glibc); march="x86_64", cuda="10.1"),
         ExtendedPlatform(Linux(:x86_64, libc=:glibc); march="avx", cuda="10.1"),
         ExtendedPlatform(Linux(:x86_64, libc=:glibc); march="avx2", cuda="10.1"),
         ExtendedPlatform(Linux(:x86_64, libc=:glibc); march="avx512", cuda="10.1"),
+        ExtendedPlatform(Linux(:x86_64, libc=:glibc); march="x86_64", cuda="10.1"),
     ]
     @test expand_marchs(filter!(p -> p isa Linux && libc(p) == :glibc, supported_platforms())) == [
         Linux(:i686, libc=:glibc),
-        ExtendedPlatform(Linux(:x86_64, libc=:glibc); march="x86_64"),
         ExtendedPlatform(Linux(:x86_64, libc=:glibc); march="avx"),
         ExtendedPlatform(Linux(:x86_64, libc=:glibc); march="avx2"),
         ExtendedPlatform(Linux(:x86_64, libc=:glibc); march="avx512"),
+        ExtendedPlatform(Linux(:x86_64, libc=:glibc); march="x86_64"),
         ExtendedPlatform(Linux(:aarch64, libc=:glibc); march="armv8"),
-        ExtendedPlatform(Linux(:aarch64, libc=:glibc); march="thunderx2"),
         ExtendedPlatform(Linux(:aarch64, libc=:glibc); march="carmel"),
+        ExtendedPlatform(Linux(:aarch64, libc=:glibc); march="thunderx2"),
         ExtendedPlatform(Linux(:armv7l, libc=:glibc, call_abi=:eabihf); march="armv7l"),
         ExtendedPlatform(Linux(:armv7l, libc=:glibc, call_abi=:eabihf); march="neon"),
         ExtendedPlatform(Linux(:armv7l, libc=:glibc, call_abi=:eabihf); march="vfp4"),
@@ -95,25 +95,39 @@ end
         @test_throws ErrorException preferred_libgfortran_version(platform, shard)
 
         # With no constraints, we should get them all back
-        @test gcc_version(CompilerABI(), available_gcc_builds) == getversion.(available_gcc_builds)
+        @test gcc_version(Linux(:x86_64), available_gcc_builds) == getversion.(available_gcc_builds)
 
         # libgfortran v3 and libstdcxx 22 restrict us to only v4.8, v5.2 and v6.1
         cabi = CompilerABI(;libgfortran_version=v"3", libstdcxx_version=v"3.4.22")
-        @test gcc_version(cabi, available_gcc_builds) == [v"4.8.5", v"5.2.0", v"6.1.0"]
+        p = Linux(:x86_64; compiler_abi=cabi)
+        @test gcc_version(p, available_gcc_builds) == [v"4.8.5", v"5.2.0", v"6.1.0"]
+        ep = ExtendedPlatform(p; march="avx")
+        @test gcc_version(ep, available_gcc_builds) == [v"5.2.0", v"6.1.0"]
 
         # Adding `:cxx11` eliminates `v"4.X"`:
         cabi = CompilerABI(cabi; cxxstring_abi=:cxx11)
-        @test gcc_version(cabi, available_gcc_builds) == [v"5.2.0", v"6.1.0"]
+        p = Linux(:x86_64; compiler_abi=cabi)
+        @test gcc_version(p, available_gcc_builds) == [v"5.2.0", v"6.1.0"]
+        ep = ExtendedPlatform(p; march="avx512")
+        @test gcc_version(ep, available_gcc_builds) == [v"6.1.0"]
 
         # Just libgfortran v3 allows GCC 6 as well though
         cabi = CompilerABI(;libgfortran_version=v"3")
-        @test gcc_version(cabi, available_gcc_builds) == [v"4.8.5", v"5.2.0", v"6.1.0"]
+        p = Linux(:x86_64; compiler_abi=cabi)
+        @test gcc_version(p, available_gcc_builds) == [v"4.8.5", v"5.2.0", v"6.1.0"]
 
         # Test libgfortran version v4, then splitting on libstdcxx_version:
         cabi = CompilerABI(;libgfortran_version=v"4")
-        @test gcc_version(cabi, available_gcc_builds) == [v"7.1.0"]
+        p = Linux(:x86_64; compiler_abi=cabi)
+        @test gcc_version(p, available_gcc_builds) == [v"7.1.0"]
         cabi = CompilerABI(cabi; libstdcxx_version=v"3.4.23")
-        @test gcc_version(cabi, available_gcc_builds) == [v"7.1.0"]
+        p = Linux(:x86_64; compiler_abi=cabi)
+        @test gcc_version(p, available_gcc_builds) == [v"7.1.0"]
+        ep = ExtendedPlatform(Linux(:aarch64; compiler_abi=cabi); march="thunderx2")
+        @test gcc_version(ep, available_gcc_builds) == [v"7.1.0"]
+
+        ep = ExtendedPlatform(Linux(:armv7l); march="neon")
+        @test gcc_version(ep, available_gcc_builds) == [v"8.1.0", v"9.1.0"]
     end
 
     @testset "Compiler wrappers" begin
