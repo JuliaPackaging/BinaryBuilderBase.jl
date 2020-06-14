@@ -2,6 +2,68 @@ using Test
 using Pkg.BinaryPlatforms
 using BinaryBuilderBase
 
+@testset "Expand platforms" begin
+    # expand_gfortran_versions
+    @test expand_gfortran_versions(Windows(:i686)) == [
+        Windows(:i686, compiler_abi=CompilerABI(libgfortran_version=v"3.0.0")),
+        Windows(:i686, compiler_abi=CompilerABI(libgfortran_version=v"4.0.0")),
+        Windows(:i686, compiler_abi=CompilerABI(libgfortran_version=v"5.0.0")),
+    ]
+    @test expand_gfortran_versions([Windows(:i686), Windows(:x86_64)]) == [
+        Windows(:i686, compiler_abi=CompilerABI(libgfortran_version=v"3.0.0")),
+        Windows(:i686, compiler_abi=CompilerABI(libgfortran_version=v"4.0.0")),
+        Windows(:i686, compiler_abi=CompilerABI(libgfortran_version=v"5.0.0")),
+        Windows(:x86_64, compiler_abi=CompilerABI(libgfortran_version=v"3.0.0")),
+        Windows(:x86_64, compiler_abi=CompilerABI(libgfortran_version=v"4.0.0")),
+        Windows(:x86_64, compiler_abi=CompilerABI(libgfortran_version=v"5.0.0")),
+    ]
+    @test expand_gfortran_versions([FreeBSD(:x86_64; compiler_abi=CompilerABI(; libgfortran_version=v"3"))]) ==
+        [FreeBSD(:x86_64; compiler_abi=CompilerABI(; libgfortran_version=v"3"))]
+
+    # expand_cxxstring_abis
+    @test expand_cxxstring_abis(Linux(:x86_64; libc=:musl)) == [
+        Linux(:x86_64, libc=:musl, compiler_abi=CompilerABI(cxxstring_abi=:cxx03)),
+        Linux(:x86_64, libc=:musl, compiler_abi=CompilerABI(cxxstring_abi=:cxx11)),
+    ]
+    @test expand_cxxstring_abis([FreeBSD(:x86_64), MacOS(:x86_64)]) == [
+        FreeBSD(:x86_64, compiler_abi=CompilerABI(cxxstring_abi=:cxx03)),
+        FreeBSD(:x86_64, compiler_abi=CompilerABI(cxxstring_abi=:cxx11)),
+        MacOS(:x86_64, compiler_abi=CompilerABI(cxxstring_abi=:cxx03)),
+        MacOS(:x86_64, compiler_abi=CompilerABI(cxxstring_abi=:cxx11)),
+    ]
+    @test expand_cxxstring_abis([Linux(:i686; compiler_abi=CompilerABI(; cxxstring_abi=:cxx11))]) ==
+        [Linux(:i686; compiler_abi=CompilerABI(; cxxstring_abi=:cxx11))]
+
+    # expand_marchs
+    @test expand_marchs([AnyPlatform()]) == [AnyPlatform()]
+    @test expand_marchs(ExtendedPlatform(Linux(:x86_64); cuda="10.1")) == [
+        ExtendedPlatform(Linux(:x86_64, libc=:glibc); march="x86_64", cuda="10.1"),
+        ExtendedPlatform(Linux(:x86_64, libc=:glibc); march="avx", cuda="10.1"),
+        ExtendedPlatform(Linux(:x86_64, libc=:glibc); march="avx2", cuda="10.1"),
+        ExtendedPlatform(Linux(:x86_64, libc=:glibc); march="avx512", cuda="10.1"),
+    ]
+    @test expand_marchs(filter!(p -> p isa Linux && libc(p) == :glibc, supported_platforms())) == [
+        Linux(:i686, libc=:glibc),
+        ExtendedPlatform(Linux(:x86_64, libc=:glibc); march="x86_64"),
+        ExtendedPlatform(Linux(:x86_64, libc=:glibc); march="avx"),
+        ExtendedPlatform(Linux(:x86_64, libc=:glibc); march="avx2"),
+        ExtendedPlatform(Linux(:x86_64, libc=:glibc); march="avx512"),
+        ExtendedPlatform(Linux(:aarch64, libc=:glibc); march="armv8"),
+        ExtendedPlatform(Linux(:aarch64, libc=:glibc); march="thunderx2"),
+        ExtendedPlatform(Linux(:aarch64, libc=:glibc); march="carmel"),
+        ExtendedPlatform(Linux(:armv7l, libc=:glibc, call_abi=:eabihf); march="armv7l"),
+        ExtendedPlatform(Linux(:armv7l, libc=:glibc, call_abi=:eabihf); march="neon"),
+        ExtendedPlatform(Linux(:armv7l, libc=:glibc, call_abi=:eabihf); march="vfp4"),
+        Linux(:powerpc64le, libc=:glibc),
+    ]
+    @test expand_marchs([ExtendedPlatform(Windows(:x86_64); cuda="10.1", march="avx")]) ==
+        [ExtendedPlatform(Windows(:x86_64); march="avx", cuda="10.1")]
+
+    # All of them together!
+    @test all(in(expand_marchs(expand_gfortran_versions(expand_cxxstring_abis(supported_platforms())))),
+              expand_cxxstring_abis(expand_gfortran_versions(expand_marchs(supported_platforms()))))
+end
+
 @testset "Compiler Shards" begin
     @test_throws ErrorException CompilerShard("GCCBootstrap", v"4", Linux(:x86_64), :invalid_archive_type)
 
