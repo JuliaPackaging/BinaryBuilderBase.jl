@@ -28,7 +28,7 @@ function supported_marchs(p::Platform)
     if p isa ExtendedPlatform && this_march !== nothing
         return [this_march]
     elseif !isa(p, AnyPlatform) && arch(p) in keys(ARCHITECTURE_FLAGS)
-        # Sort they entries, for deterministic output
+        # Sort the entries, for deterministic output
         return sort(collect(keys(ARCHITECTURE_FLAGS[arch(p)])))
     else
         return String[]
@@ -123,7 +123,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
                      link_only_flags::Vector = String[],
                      env::Dict{String,String} = Dict{String,String}(),
                      unsafe_flags = String[],
-                     no_marchs::Bool = true)
+                     lock_microarchitecture::Bool = true)
         write(io, """
         #!/bin/bash
         # This compiler wrapper script brought into existence by `generate_compiler_wrappers!()`
@@ -177,7 +177,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         end
 
         # TODO: improve this check
-        if no_marchs
+        if lock_microarchitecture
             write(io, raw"""
                       if [[ \"$@\" == *\"-march=\"* ]]; then
                           echo \"Cannot force an architecture\" >&2

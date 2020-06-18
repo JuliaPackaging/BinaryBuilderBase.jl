@@ -92,7 +92,7 @@ end
 
 base_platform(p::Platform) = p
 base_platform(ep::ExtendedPlatform) = ep.p
-march(::Platform) = nothing
+march(::Platform; default=nothing) = default
 march(p::ExtendedPlatform; default = nothing) = get(p.ext, "march", default)
 
 for f in (:isapple, :islinux, :iswindows, :isbsd)
