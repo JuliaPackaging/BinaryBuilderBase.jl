@@ -1,4 +1,4 @@
-export supported_platforms, expand_gfortran_versions, expand_cxxstring_abis, expand_marchs
+export supported_platforms, expand_gfortran_versions, expand_cxxstring_abis, expand_microarchitectures
 
 import Pkg.Artifacts: load_artifacts_toml, ensure_all_artifacts_installed
 
@@ -373,18 +373,22 @@ const available_llvm_builds = [
 ]
 
 """
-    gcc_version(cabi::CompilerABI, GCC_builds::Vector{GCCBuild})
+    gcc_version(p::Platform, , GCC_builds::Vector{GCCBuild})
 
-Returns the closest matching GCC version number for the given CompilerABI
-representing a particular platform, from the given set of options.  If no match
-is found, returns an empty list.  This method assumes that `cabi` represents a
-platform that binaries will be run on, and thus versions are always rounded
-down; e.g. if the platform supports a `libstdc++` version that corresponds to
-`GCC 5.1.0`, but the only GCC versions available to be picked from are `4.8.5`
-and `5.2.0`, it will return `4.8.5`, as binaries compiled with that version
-will run on this platform, whereas binaries compiled with `5.2.0` may not.
+Returns the closest matching GCC version number for the given particular
+platform, from the given set of options.  The compiler ABI and the
+microarchitecture of the platform will be taken into account.  If no match is
+found, returns an empty list.
+
+This method assumes that the compiler ABI of the platform represents a platform
+that binaries will be run on, and thus versions are always rounded down; e.g. if
+the platform supports a `libstdc++` version that corresponds to `GCC 5.1.0`, but
+the only GCC versions available to be picked from are `4.8.5` and `5.2.0`, it
+will return `4.8.5`, as binaries compiled with that version will run on this
+platform, whereas binaries compiled with `5.2.0` may not.
 """
-function gcc_version(cabi::CompilerABI, GCC_builds::Vector{GCCBuild})
+function gcc_version(p::Platform, GCC_builds::Vector{GCCBuild})
+    cabi = compiler_abi(p)
     # First, filter by libgfortran version.
     if libgfortran_version(cabi) !== nothing
         GCC_builds = filter(b -> libgfortran_version(getabi(b)) == libgfortran_version(cabi), GCC_builds)
@@ -407,6 +411,27 @@ function gcc_version(cabi::CompilerABI, GCC_builds::Vector{GCCBuild})
         GCC_builds = filter(b -> getversion(b) >= v"5", GCC_builds)
     end
 
+    # Filter the possible GCC versions depending on the microarchitecture
+    if march(p) !== nothing
+        if march(p) in ("avx", "avx2")
+            # "sandybridge" and "haswell" introduced in GCC v4.9.0:
+            # https://www.gnu.org/software/gcc/gcc-4.9/changes.html
+            GCC_builds = filter(b -> getversion(b) >= v"4.9", GCC_builds)
+        elseif march(p) == "avx512"
+            # "skylake-avx512" introduced in GCC v6.1:
+            # https://www.gnu.org/software/gcc/gcc-6/changes.html
+            GCC_builds = filter(b -> getversion(b) >= v"6.1", GCC_builds)
+        elseif march(p) == "thunderx2"
+            # "thunderx2t99" introduced in GCC v7.1:
+            # https://www.gnu.org/software/gcc/gcc-7/changes.html
+            GCC_builds = filter(b -> getversion(b) >= v"7.1", GCC_builds)
+        elseif march(p) in ("neon", "vfp4", "carmel")
+            # "+aes" and "+sha2" extensions for aarch64 introduced in GCC v8:
+            # https://www.gnu.org/software/gcc/gcc-8/changes.html
+            GCC_builds = filter(b -> getversion(b) >= v"8.1", GCC_builds)
+        end
+    end
+
     return getversion.(GCC_builds)
 end
 
@@ -415,7 +440,7 @@ function select_gcc_version(p::Platform,
              preferred_gcc_version::VersionNumber = getversion(GCC_builds[1]),
          )
     # Determine which GCC build we're going to match with this CompilerABI:
-    GCC_builds = gcc_version(compiler_abi(p), GCC_builds)
+    GCC_builds = gcc_version(p, GCC_builds)
 
     if isempty(GCC_builds)
         error("Impossible CompilerABI constraints $(cabi)!")
@@ -586,7 +611,7 @@ replace_cxxstring_abi(ep::ExtendedPlatform, cxxstring_abi::Symbol) =
     expand_gfortran_versions(p::Platform)
 
 Given a `Platform`, returns an array of `Platforms` with a spread of identical
-entries with the exception of the `gcc_version` member of the `CompilerABI`
+entries with the exception of the `gfortran_version` member of the `CompilerABI`
 struct within the `Platform`.  This is used to take, for example, a list of
 supported platforms and expand them to include multiple GCC versions for
 the purposes of ABI matching.  If the given `Platform` already specifies a
@@ -630,8 +655,30 @@ function expand_cxxstring_abis(ps::Vector{<:Platform})
     return Platform[p for p in Iterators.flatten(expand_cxxstring_abis.(ps))]
 end
 
+# This function is used only by `expand_microarchitectures`, but can probably be
+# useful in some occasions.
 """
-    expand_marchs(p::Platform)
+    supported_microarchitectures(p::Platform)
+
+Return a vector with the list of supported microarchitectures for the given
+platform, an empty vector if there are any.  If `p` is an
+[`ExtendedPlatform`](@ref) which already specifies a microarchitecture, returns
+a 1-element vector containing only that one.
+"""
+function supported_microarchitectures(p::Platform)
+    this_march = march(p)
+    if p isa ExtendedPlatform && this_march !== nothing
+        return [this_march]
+    elseif !isa(p, AnyPlatform) && arch(p) in keys(ARCHITECTURE_FLAGS)
+        # Sort the entries, for deterministic output
+        return sort(collect(keys(ARCHITECTURE_FLAGS[arch(p)])))
+    else
+        return String[]
+    end
+end
+
+"""
+    expand_microarchitectures(p::Platform)
 
 Given a `Platform`, returns a vector of `Platforms` with a spread of identical
 `ExtendedPlatform` entries with the exception of the microarchitectures.  If the
@@ -646,71 +693,68 @@ is returned.
 ```jldoctest
 julia> using BinaryBuilderBase
 
-julia> expand_marchs(FreeBSD(:x86_64))
+julia> expand_microarchitectures(FreeBSD(:x86_64))
 4-element Array{Platform,1}:
- ExtendedPlatform(FreeBSD(:x86_64); march="x86_64")
  ExtendedPlatform(FreeBSD(:x86_64); march="avx")
  ExtendedPlatform(FreeBSD(:x86_64); march="avx2")
  ExtendedPlatform(FreeBSD(:x86_64); march="avx512")
+ ExtendedPlatform(FreeBSD(:x86_64); march="x86_64")
 
-julia> expand_marchs(Linux(:armv7l))
+julia> expand_microarchitectures(Linux(:armv7l))
 3-element Array{Platform,1}:
  ExtendedPlatform(Linux(:armv7l, libc=:glibc, call_abi=:eabihf); march="armv7l")
  ExtendedPlatform(Linux(:armv7l, libc=:glibc, call_abi=:eabihf); march="neon")
  ExtendedPlatform(Linux(:armv7l, libc=:glibc, call_abi=:eabihf); march="vfp4")
 
-julia> expand_marchs(Linux(:aarch64))
+julia> expand_microarchitectures(Linux(:aarch64))
 3-element Array{Platform,1}:
  ExtendedPlatform(Linux(:aarch64, libc=:glibc); march="armv8")
- ExtendedPlatform(Linux(:aarch64, libc=:glibc); march="thunderx2")
  ExtendedPlatform(Linux(:aarch64, libc=:glibc); march="carmel")
+ ExtendedPlatform(Linux(:aarch64, libc=:glibc); march="thunderx2")
 
-julia> expand_marchs(Windows(:i686))
+julia> expand_microarchitectures(Windows(:i686))
 1-element Array{Windows,1}:
  Windows(:i686)
 ```
 """
-function expand_marchs(p::Platform)
-    if p isa ExtendedPlatform && haskey(p.ext, "march")
+function expand_microarchitectures(p::Platform)
+    if p isa ExtendedPlatform && march(p) !== nothing
+        # Nothing to expand if this has already a `march` entry
         return [p]
-    elseif arch(p) == :x86_64 && !isa(p, AnyPlatform)
-        # x86-64 (aka generic), avx (aka sandybridge), avx2 (aka haswell),
-        # avx512 (aka skylake-avx512 or skylakex)
-        return Platform[ExtendedPlatform(p; march=march) for march in ["x86_64", "avx", "avx2", "avx512"]]
-    elseif arch(p) == :armv7l
-        return Platform[ExtendedPlatform(p; march=march) for march in ["armv7l", "neon", "vfp4"]]
-    elseif arch(p) == :aarch64
-        return Platform[ExtendedPlatform(p; march=march) for march in ["armv8", "thunderx2", "carmel"]]
+    end
+    marchs = supported_microarchitectures(p)
+    if length(marchs) > 0
+        return Platform[ExtendedPlatform(p; march=march) for march in marchs]
     else
         return [p]
     end
 end
 
 """
-    expand_marchs(ps::Vector{<:Platform})
+    expand_microarchitectures(ps::Vector{<:Platform})
 
 Expand all platforms in the given vector with the supported microarchitectures.
 
 ```jldoctest
 julia> using BinaryBuilderBase
 
-julia> expand_marchs(filter!(p -> p isa Linux && libc(p) == :glibc, supported_platforms()))
+julia> expand_microarchitectures(filter!(p -> p isa Linux && libc(p) == :glibc, supported_platforms()))
 12-element Array{Platform,1}:
  Linux(:i686, libc=:glibc)
- ExtendedPlatform(Linux(:x86_64, libc=:glibc); march="x86_64")
  ExtendedPlatform(Linux(:x86_64, libc=:glibc); march="avx")
  ExtendedPlatform(Linux(:x86_64, libc=:glibc); march="avx2")
  ExtendedPlatform(Linux(:x86_64, libc=:glibc); march="avx512")
+ ExtendedPlatform(Linux(:x86_64, libc=:glibc); march="x86_64")
  ExtendedPlatform(Linux(:aarch64, libc=:glibc); march="armv8")
- ExtendedPlatform(Linux(:aarch64, libc=:glibc); march="thunderx2")
  ExtendedPlatform(Linux(:aarch64, libc=:glibc); march="carmel")
+ ExtendedPlatform(Linux(:aarch64, libc=:glibc); march="thunderx2")
  ExtendedPlatform(Linux(:armv7l, libc=:glibc, call_abi=:eabihf); march="armv7l")
  ExtendedPlatform(Linux(:armv7l, libc=:glibc, call_abi=:eabihf); march="neon")
  ExtendedPlatform(Linux(:armv7l, libc=:glibc, call_abi=:eabihf); march="vfp4")
  Linux(:powerpc64le, libc=:glibc)
 ```
 """
-expand_marchs(ps::Vector{<:Platform}) = Platform[p for p in Iterators.flatten(expand_marchs.(ps))]
+expand_microarchitectures(ps::Vector{<:Platform}) = Platform[p for p in Iterators.flatten(expand_microarchitectures.(ps))]
 
 """
     preferred_libgfortran_version(platform::Platform, shard::CompilerShard;
