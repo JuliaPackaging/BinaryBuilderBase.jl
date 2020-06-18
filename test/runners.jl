@@ -27,9 +27,6 @@ using BinaryBuilderBase: supported_marchs, dlext, exeext
     @test supported_marchs(Linux(:powerpc64le)) == []
     # This extended platform specifies a valid microarchitecture, so we support only the given architecture
     @test supported_marchs(ExtendedPlatform(Linux(:x86_64); march="avx")) == ["avx"]
-    # This extended platform specifies an invalid microarchitecture (it is valid
-    # for a different platform), so we don't support it
-    @test supported_marchs(ExtendedPlatform(Linux(:x86_64); march="carmel")) == []
     @test supported_marchs(AnyPlatform()) == []
     @test supported_marchs(UnknownPlatform()) == []
 

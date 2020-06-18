@@ -130,6 +130,9 @@ end
     Artifacts.pack_platform!(meta, p)
     @test meta == Dict("arch" => "armv7l","libc" => "glibc","march" => "armv7l","libstdcxx_version" => "3.4.24","os" => "linux")
 
+    # Extended platform with wrong microarchitecture
+    @test_throws ArgumentError ExtendedPlatform(Linux(:x86_64); march="carmel")
+
     # Parse `"any"` as `AnyPlatform`
     @test tryparse(ExtendedPlatform, "any") == AnyPlatform()
     # AnyPlatform shouldn't be extended

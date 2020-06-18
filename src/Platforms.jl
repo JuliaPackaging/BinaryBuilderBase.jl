@@ -19,6 +19,31 @@ Base.show(io::IO, ::AnyPlatform) = print(io, "AnyPlatform()")
 
 ## The extended platforms, to represent platforms beyond the standard ones in
 ## Pkg.BinaryPlatforms.
+
+const ARCHITECTURE_FLAGS = begin
+    # Better be always explicit about `-march` & `-mtune`:
+    # https://lemire.me/blog/2018/07/25/it-is-more-complicated-than-i-thought-mtune-march-in-gcc/
+    march_flags(arch) = ["-m$(f)=$(arch)" for f in ("arch", "tune")]
+    Dict(
+        :x86_64 => Dict(
+            "x86_64" => march_flags("x86-64"),
+            "avx" => march_flags("sandybridge"),
+            "avx2" => march_flags("haswell"),
+            "avx512" => march_flags("skylake-avx512"),
+        ),
+        :armv7l => Dict(
+            "armv7l" => ["-march=armv7-a", "-mtune=generic-armv7-a"],
+            "neon" => ["-march=armv7-a+neon", "-mtune=generic-armv7-a"],
+            "vfp4" => ["-march=armv7-a+neon-vfpv4", "-mtune=generic-armv7-a"],
+        ),
+        :aarch64 => Dict(
+            "armv8" => ["-march=armv8-a", "-mtune=cortex-a57"],
+            "thunderx2" => ["-march=armv8.1-a", "-mtune=thunderx2t99"],
+            "carmel" => ["-march=armv8.2-a+crypto+fp16+sha2+aes", "-mtune=cortex-a75"],
+        ),
+    )
+end
+
 """
     ExtendedPlatform(p::Platform; kwargs...)
 
@@ -41,7 +66,18 @@ ExtendedPlatform(Linux(:x86_64, libc=:glibc, compiler_abi=CompilerABI(libgfortra
 struct ExtendedPlatform{P<:Platform} <: Platform
     p::P
     ext::Dict{String,String}
+    function ExtendedPlatform{P}(p::P, ext::Dict{String,String}) where {P<:Platform}
+        for (k, v) in ext
+            # Validate special keys
+            if k === "march" && v ∉ keys(ARCHITECTURE_FLAGS[arch(p)])
+                throw(ArgumentError("Key \"$(k)\" cannot have value \"$(v)\" for platform $(p)"))
+            end
+        end
+        return new(p, ext)
+    end
 end
+ExtendedPlatform(p::P, ext::Dict{String,String}) where {P<:Platform} =
+    ExtendedPlatform{P}(p, ext)
 ExtendedPlatform(p::Platform; kwargs...) =
     ExtendedPlatform(p, Dict(string(k) => string(v) for (k, v) in pairs(kwargs)))
 function ExtendedPlatform(p::ExtendedPlatform; kwargs...)
@@ -150,7 +186,7 @@ end
 
 function Pkg.Artifacts.pack_platform!(meta::Dict, p::ExtendedPlatform)
     Artifacts.pack_platform!(meta, base_platform(p))
-    if march(p) !== nothing && march(p) in supported_marchs(p)
+    if march(p) !== nothing
         meta["march"] = march(p)
     end
 end

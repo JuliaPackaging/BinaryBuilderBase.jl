@@ -1,30 +1,6 @@
 import Base: strip
 abstract type Runner; end
 
-const ARCHITECTURE_FLAGS = begin
-    # Better be always explicit about `-march` & `-mtune`:
-    # https://lemire.me/blog/2018/07/25/it-is-more-complicated-than-i-thought-mtune-march-in-gcc/
-    march_flags(arch) = ["-m$(f)=$(arch)" for f in ("arch", "tune")]
-    Dict(
-        :x86_64 => Dict(
-            "x86_64" => march_flags("x86-64"),
-            "avx" => march_flags("sandybridge"),
-            "avx2" => march_flags("haswell"),
-            "avx512" => march_flags("skylake-avx512"),
-        ),
-        :armv7l => Dict(
-            "armv7l" => ["-march=armv7-a", "-mtune=generic-armv7-a"],
-            "neon" => ["-march=armv7-a+neon", "-mtune=generic-armv7-a"],
-            "vfp4" => ["-march=armv7-a+neon-vfpv4", "-mtune=generic-armv7-a"],
-        ),
-        :aarch64 => Dict(
-            "armv8" => ["-march=armv8-a", "-mtune=cortex-a57"],
-            "thunderx2" => ["-march=armv8.1-a", "-mtune=thunderx2t99"],
-            "carmel" => ["-march=armv8.2-a+crypto+fp16+sha2+aes", "-mtune=cortex-a75"],
-        ),
-    )
-end
-
 function nbits(p::Platform)
     if arch(p) in (:i686, :armv7l)
         return 32
@@ -50,11 +26,7 @@ end
 function supported_marchs(p::Platform)
     this_march = march(p)
     if p isa ExtendedPlatform && this_march !== nothing
-        if this_march in keys(ARCHITECTURE_FLAGS[arch(p)])
-            return [this_march]
-        else
-            String[]
-        end
+        return [this_march]
     elseif !isa(p, AnyPlatform) && arch(p) in keys(ARCHITECTURE_FLAGS)
         # Sort they entries, for deterministic output
         return sort(collect(keys(ARCHITECTURE_FLAGS[arch(p)])))
@@ -291,7 +263,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
 
     function march_flags(p::Platform)
         # This is an extended platform, which specifies an architecture which we do support
-        if platform isa ExtendedPlatform && length(supported_marchs(platform)) > 0 && march(platform) in supported_marchs(platform)
+        if platform isa ExtendedPlatform && march(platform) !== nothing
             return ARCHITECTURE_FLAGS[arch(platform)][march(platform)]
         else
             return String[]

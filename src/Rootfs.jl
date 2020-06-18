@@ -412,7 +412,7 @@ function gcc_version(p::Platform, GCC_builds::Vector{GCCBuild})
     end
 
     # Filter the possible GCC versions depending on the microarchitecture
-    if march(p) !== nothing && march(p) in supported_marchs(p)
+    if march(p) !== nothing
         if march(p) in ("avx", "avx2")
             # "sandybridge" and "haswell" introduced in GCC v4.9.0:
             # https://www.gnu.org/software/gcc/gcc-4.9/changes.html
