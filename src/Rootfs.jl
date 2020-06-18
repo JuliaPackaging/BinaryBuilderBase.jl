@@ -1,4 +1,4 @@
-export supported_platforms, expand_gfortran_versions, expand_cxxstring_abis, expand_marchs
+export supported_platforms, expand_gfortran_versions, expand_cxxstring_abis, expand_microarchitectures
 
 import Pkg.Artifacts: load_artifacts_toml, ensure_all_artifacts_installed
 
@@ -655,8 +655,30 @@ function expand_cxxstring_abis(ps::Vector{<:Platform})
     return Platform[p for p in Iterators.flatten(expand_cxxstring_abis.(ps))]
 end
 
+# This function is used only by `expand_microarchitectures`, but can probably be
+# useful in some occasions.
 """
-    expand_marchs(p::Platform)
+    supported_microarchitectures(p::Platform)
+
+Return a vector with the list of supported microarchitectures for the given
+platform, an empty vector if there are any.  If `p` is an
+[`ExtendedPlatform`](@ref) which already specifies a microarchitecture, returns
+a 1-element vector containing only that one.
+"""
+function supported_microarchitectures(p::Platform)
+    this_march = march(p)
+    if p isa ExtendedPlatform && this_march !== nothing
+        return [this_march]
+    elseif !isa(p, AnyPlatform) && arch(p) in keys(ARCHITECTURE_FLAGS)
+        # Sort the entries, for deterministic output
+        return sort(collect(keys(ARCHITECTURE_FLAGS[arch(p)])))
+    else
+        return String[]
+    end
+end
+
+"""
+    expand_microarchitectures(p::Platform)
 
 Given a `Platform`, returns a vector of `Platforms` with a spread of identical
 `ExtendedPlatform` entries with the exception of the microarchitectures.  If the
@@ -671,36 +693,36 @@ is returned.
 ```jldoctest
 julia> using BinaryBuilderBase
 
-julia> expand_marchs(FreeBSD(:x86_64))
+julia> expand_microarchitectures(FreeBSD(:x86_64))
 4-element Array{Platform,1}:
  ExtendedPlatform(FreeBSD(:x86_64); march="avx")
  ExtendedPlatform(FreeBSD(:x86_64); march="avx2")
  ExtendedPlatform(FreeBSD(:x86_64); march="avx512")
  ExtendedPlatform(FreeBSD(:x86_64); march="x86_64")
 
-julia> expand_marchs(Linux(:armv7l))
+julia> expand_microarchitectures(Linux(:armv7l))
 3-element Array{Platform,1}:
  ExtendedPlatform(Linux(:armv7l, libc=:glibc, call_abi=:eabihf); march="armv7l")
  ExtendedPlatform(Linux(:armv7l, libc=:glibc, call_abi=:eabihf); march="neon")
  ExtendedPlatform(Linux(:armv7l, libc=:glibc, call_abi=:eabihf); march="vfp4")
 
-julia> expand_marchs(Linux(:aarch64))
+julia> expand_microarchitectures(Linux(:aarch64))
 3-element Array{Platform,1}:
  ExtendedPlatform(Linux(:aarch64, libc=:glibc); march="armv8")
  ExtendedPlatform(Linux(:aarch64, libc=:glibc); march="carmel")
  ExtendedPlatform(Linux(:aarch64, libc=:glibc); march="thunderx2")
 
-julia> expand_marchs(Windows(:i686))
+julia> expand_microarchitectures(Windows(:i686))
 1-element Array{Windows,1}:
  Windows(:i686)
 ```
 """
-function expand_marchs(p::Platform)
+function expand_microarchitectures(p::Platform)
     if p isa ExtendedPlatform && march(p) !== nothing
         # Nothing to expand if this has already a `march` entry
         return [p]
     end
-    marchs = supported_marchs(p)
+    marchs = supported_microarchitectures(p)
     if length(marchs) > 0
         return Platform[ExtendedPlatform(p; march=march) for march in marchs]
     else
@@ -709,14 +731,14 @@ function expand_marchs(p::Platform)
 end
 
 """
-    expand_marchs(ps::Vector{<:Platform})
+    expand_microarchitectures(ps::Vector{<:Platform})
 
 Expand all platforms in the given vector with the supported microarchitectures.
 
 ```jldoctest
 julia> using BinaryBuilderBase
 
-julia> expand_marchs(filter!(p -> p isa Linux && libc(p) == :glibc, supported_platforms()))
+julia> expand_microarchitectures(filter!(p -> p isa Linux && libc(p) == :glibc, supported_platforms()))
 12-element Array{Platform,1}:
  Linux(:i686, libc=:glibc)
  ExtendedPlatform(Linux(:x86_64, libc=:glibc); march="avx")
@@ -732,7 +754,7 @@ julia> expand_marchs(filter!(p -> p isa Linux && libc(p) == :glibc, supported_pl
  Linux(:powerpc64le, libc=:glibc)
 ```
 """
-expand_marchs(ps::Vector{<:Platform}) = Platform[p for p in Iterators.flatten(expand_marchs.(ps))]
+expand_microarchitectures(ps::Vector{<:Platform}) = Platform[p for p in Iterators.flatten(expand_microarchitectures.(ps))]
 
 """
     preferred_libgfortran_version(platform::Platform, shard::CompilerShard;

@@ -48,9 +48,14 @@ end
     ExtendedPlatform(p::Platform; kwargs...)
 
 Extend a `Pkg.BinaryPlatforms.Platform` object with extra key-value mappings.
-Arbitrary `String` keys and values are supported, with the constraint that
-all strings should only use alphanumeric characters, the underscore, or the
-dot (the latter only for the value).
+Arbitrary `String` values are supported, with the following constraints:
+
+* the key cannot be any of "os", "arch", "libc", "libgfortran_version",
+  "libstdcxx_version", "cxxstring_abi";
+* if the key is called "march", only specific values are allowed, depending on
+  what is the base platform,
+* all strings should only use alphanumeric characters, the underscore, or the
+  dot (the latter only for the value).
 
 This type is, for example, used to tag a standard platform from
 `Pkg.BinaryPlatforms` with additional features besides the C library or the
@@ -68,9 +73,19 @@ struct ExtendedPlatform{P<:Platform} <: Platform
     ext::Dict{String,String}
     function ExtendedPlatform{P}(p::P, ext::Dict{String,String}) where {P<:Platform}
         for (k, v) in ext
+            if k in ("os", "arch", "libc", "libgfortran_version", "libstdcxx_version", "cxxstring_abi")
+                # Throw an error if the key has a special meaning that would
+                # make it ambiguous when running `Pkg.Artifacts.pack_platform!`.
+                # This is the list of keys that are used there
+                throw(ArgumentError("Invalid feature called \"$(k)\""))
+            end
             # Validate special keys
-            if k === "march" && v ∉ keys(ARCHITECTURE_FLAGS[arch(p)])
+            if k == "march" && (arch(p) ∉ keys(ARCHITECTURE_FLAGS) || v ∉ keys(ARCHITECTURE_FLAGS[arch(p)]))
                 throw(ArgumentError("Key \"$(k)\" cannot have value \"$(v)\" for platform $(p)"))
+            end
+            # Make sure the key and the value don't have '+' in them
+            if occursin('+', k) || occursin('+', v)
+                throw(ArgumentError("The key and the value cannot contain the + sign"))
             end
         end
         return new(p, ext)
@@ -185,8 +200,10 @@ function Base.parse(T::Type{ExtendedPlatform}, str::AbstractString)
 end
 
 function Pkg.Artifacts.pack_platform!(meta::Dict, p::ExtendedPlatform)
-    Artifacts.pack_platform!(meta, base_platform(p))
-    if march(p) !== nothing
-        meta["march"] = march(p)
+    for (k, v) in p.ext
+        meta[k] = v
     end
+    # We call this method at the end to make extra sure the keys above don't
+    # override the default ones
+    Artifacts.pack_platform!(meta, base_platform(p))
 end

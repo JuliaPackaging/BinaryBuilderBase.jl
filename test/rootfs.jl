@@ -1,6 +1,7 @@
 using Test
 using Pkg.BinaryPlatforms
 using BinaryBuilderBase
+using BinaryBuilderBase: supported_microarchitectures
 
 @testset "Expand platforms" begin
     # expand_gfortran_versions
@@ -34,15 +35,28 @@ using BinaryBuilderBase
     @test expand_cxxstring_abis([Linux(:i686; compiler_abi=CompilerABI(; cxxstring_abi=:cxx11))]) ==
         [Linux(:i686; compiler_abi=CompilerABI(; cxxstring_abi=:cxx11))]
 
-    # expand_marchs
-    @test expand_marchs([AnyPlatform()]) == [AnyPlatform()]
-    @test expand_marchs(ExtendedPlatform(Linux(:x86_64); cuda="10.1")) == [
+    # `supported_microarchitectures` is only used inside
+    # `expand_microarchitectures`, but it's better to have a unit test as well
+    @test supported_microarchitectures(Linux(:i686)) == []
+    @test supported_microarchitectures(Linux(:x86_64)) == ["avx", "avx2", "avx512", "x86_64"]
+    @test supported_microarchitectures(Linux(:armv7l)) == ["armv7l", "neon", "vfp4"]
+    # This extended platform doesn't specify a microarchitecture, so we can support all of them
+    @test supported_microarchitectures(ExtendedPlatform(Linux(:aarch64); cuda="10.1")) == ["armv8", "carmel", "thunderx2"]
+    @test supported_microarchitectures(Linux(:powerpc64le)) == []
+    # This extended platform specifies a valid microarchitecture, so we support only the given architecture
+    @test supported_microarchitectures(ExtendedPlatform(Linux(:x86_64); march="avx")) == ["avx"]
+    @test supported_microarchitectures(AnyPlatform()) == []
+    @test supported_microarchitectures(UnknownPlatform()) == []
+
+    # expand_microarchitectures
+    @test expand_microarchitectures([AnyPlatform()]) == [AnyPlatform()]
+    @test expand_microarchitectures(ExtendedPlatform(Linux(:x86_64); cuda="10.1")) == [
         ExtendedPlatform(Linux(:x86_64, libc=:glibc); march="avx", cuda="10.1"),
         ExtendedPlatform(Linux(:x86_64, libc=:glibc); march="avx2", cuda="10.1"),
         ExtendedPlatform(Linux(:x86_64, libc=:glibc); march="avx512", cuda="10.1"),
         ExtendedPlatform(Linux(:x86_64, libc=:glibc); march="x86_64", cuda="10.1"),
     ]
-    @test expand_marchs(filter!(p -> p isa Linux && libc(p) == :glibc, supported_platforms())) == [
+    @test expand_microarchitectures(filter!(p -> p isa Linux && libc(p) == :glibc, supported_platforms())) == [
         Linux(:i686, libc=:glibc),
         ExtendedPlatform(Linux(:x86_64, libc=:glibc); march="avx"),
         ExtendedPlatform(Linux(:x86_64, libc=:glibc); march="avx2"),
@@ -56,12 +70,12 @@ using BinaryBuilderBase
         ExtendedPlatform(Linux(:armv7l, libc=:glibc, call_abi=:eabihf); march="vfp4"),
         Linux(:powerpc64le, libc=:glibc),
     ]
-    @test expand_marchs([ExtendedPlatform(Windows(:x86_64); cuda="10.1", march="avx")]) ==
+    @test expand_microarchitectures([ExtendedPlatform(Windows(:x86_64); cuda="10.1", march="avx")]) ==
         [ExtendedPlatform(Windows(:x86_64); march="avx", cuda="10.1")]
 
     # All of them together!
-    @test all(in(expand_marchs(expand_gfortran_versions(expand_cxxstring_abis(supported_platforms())))),
-              expand_cxxstring_abis(expand_gfortran_versions(expand_marchs(supported_platforms()))))
+    @test all(in(expand_microarchitectures(expand_gfortran_versions(expand_cxxstring_abis(supported_platforms())))),
+              expand_cxxstring_abis(expand_gfortran_versions(expand_microarchitectures(supported_platforms()))))
 end
 
 @testset "Compiler Shards" begin

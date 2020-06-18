@@ -23,18 +23,6 @@ function proc_family(p::Platform)
     end
 end
 
-function supported_marchs(p::Platform)
-    this_march = march(p)
-    if p isa ExtendedPlatform && this_march !== nothing
-        return [this_march]
-    elseif !isa(p, AnyPlatform) && arch(p) in keys(ARCHITECTURE_FLAGS)
-        # Sort the entries, for deterministic output
-        return sort(collect(keys(ARCHITECTURE_FLAGS[arch(p)])))
-    else
-        return String[]
-    end
-end
-
 dlext(p::Windows) = "dll"
 dlext(p::MacOS) = "dylib"
 dlext(p::Union{Linux,FreeBSD}) = "so"
@@ -60,7 +48,8 @@ aatriplet(p::AnyPlatform) = aatriplet(Linux(:x86_64, libc=:musl))
                                 host_platform::Platform = Linux(:x86_64; libc=:musl),
                                 rust_platform::Platform = Linux(:x86_64; libc=:glibc),
                                 compilers::Vector{Symbol} = [:c],
-                                allow_unsafe_flags::Bool = false)
+                                allow_unsafe_flags::Bool = false,
+                                lock_microarchitecture::Bool = true)
 
 We generate a set of compiler wrapper scripts within our build environment to force all
 build systems to honor the necessary sets of compiler flags to build for our systems.
@@ -75,6 +64,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
                                      rust_platform::Platform = Linux(:x86_64; libc=:glibc),
                                      compilers::Vector{Symbol} = [:c],
                                      allow_unsafe_flags::Bool = false,
+                                     lock_microarchitecture::Bool = true,
                                      )
     global use_ccache
 
@@ -122,8 +112,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
                      compile_only_flags::Vector = String[],
                      link_only_flags::Vector = String[],
                      env::Dict{String,String} = Dict{String,String}(),
-                     unsafe_flags = String[],
-                     lock_microarchitecture::Bool = true)
+                     unsafe_flags = String[])
         write(io, """
         #!/bin/bash
         # This compiler wrapper script brought into existence by `generate_compiler_wrappers!()`

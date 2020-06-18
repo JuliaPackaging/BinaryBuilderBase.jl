@@ -1,6 +1,6 @@
 using Test
 using BinaryBuilderBase
-using BinaryBuilderBase: supported_marchs, dlext, exeext
+using BinaryBuilderBase: dlext, exeext
 
 @testset "Wrappers utilities" begin
     @test nbits(Linux(:i686)) == 32
@@ -18,17 +18,6 @@ using BinaryBuilderBase: supported_marchs, dlext, exeext
     @test proc_family(Linux(:powerpc64le)) == :power
     @test proc_family(AnyPlatform()) == :intel
     @test_throws ErrorException proc_family(UnknownPlatform())
-
-    @test supported_marchs(Linux(:i686)) == []
-    @test supported_marchs(Linux(:x86_64)) == ["avx", "avx2", "avx512", "x86_64"]
-    @test supported_marchs(Linux(:armv7l)) == ["armv7l", "neon", "vfp4"]
-    # This extended platform doesn't specify a microarchitecture, so we can support all of them
-    @test supported_marchs(ExtendedPlatform(Linux(:aarch64); cuda="10.1")) == ["armv8", "carmel", "thunderx2"]
-    @test supported_marchs(Linux(:powerpc64le)) == []
-    # This extended platform specifies a valid microarchitecture, so we support only the given architecture
-    @test supported_marchs(ExtendedPlatform(Linux(:x86_64); march="avx")) == ["avx"]
-    @test supported_marchs(AnyPlatform()) == []
-    @test supported_marchs(UnknownPlatform()) == []
 
     @test dlext(Linux(:i686)) == "so"
     @test dlext(FreeBSD(:x86_64)) == "so"
