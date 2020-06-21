@@ -1,7 +1,7 @@
 using Test
 using Pkg, Pkg.PlatformEngines, Pkg.BinaryPlatforms, Pkg.Artifacts
 using BinaryBuilderBase
-using BinaryBuilderBase: abi_agnostic, get_concrete_platform, march
+using BinaryBuilderBase: abi_agnostic, get_concrete_platform, march, get_cpu_features
 
 @testset "Supported Platforms" begin
     all = supported_platforms()
@@ -204,6 +204,31 @@ end
         @test !platforms_match(Linux(:i686), ExtendedPlatform(Windows(:x86_64); cuda="9.2"))
         # Extending different platforms
         @test !platforms_match(ExtendedPlatform(Linux(:i686); cuda="10.1"), ExtendedPlatform(FreeBSD(:x86_64); cuda="11.1"))
+    end
+
+    @testset "extended_platform_key_abi" begin
+        if VERSION >= v"1.4"
+            @test get_cpu_features() isa Vector{String}
+        else
+            @test_throws ErrorException get_cpu_features()
+        end
+
+        @test @test_logs (:warn, r"^Cannot determine the microarchitecture") march(String[]) === nothing
+        for (cpu_features, μarch) in (
+            (["mmx", "sse", "sse2"], "x86_64"),
+            # The following sets of CPU features are obtained on real machines
+            (["64bit", "aes", "avx", "cmov", "cx16", "fma4", "lzcnt", "mmx", "pclmul", "popcnt", "prfchw", "sahf", "sse", "sse2", "sse3", "sse4.1", "sse4.2", "sse4a", "ssse3", "xop", "xsave"], "avx"),
+            (["64bit", "aes", "avx", "avx2", "bmi", "bmi2", "cmov", "cx16", "cx8", "f16c", "fma", "fsgsbase", "fxsr", "invpcid", "lzcnt", "mmx", "movbe", "pclmul", "popcnt", "rdrnd", "sahf", "sse", "sse2", "sse3", "sse4.1", "sse4.2", "ssse3", "xsave", "xsaveopt"], "avx2"),
+            (["64bit", "aes", "avx", "avx2", "bmi", "bmi2", "cmov", "cx16", "f16c", "fma", "fsgsbase", "invpcid", "lzcnt", "mmx", "movbe", "pclmul", "popcnt", "rdrnd", "sahf", "sse", "sse2", "sse3", "sse4.1", "sse4.2", "ssse3", "xsave", "xsaveopt"], "avx2"),
+            (["64bit", "adx", "aes", "avx", "avx2", "bmi", "bmi2", "clflushopt", "clwb", "clzero", "cmov", "cx16", "f16c", "fma", "fsgsbase", "lzcnt", "mmx", "movbe", "mwaitx", "pclmul", "popcnt", "prfchw", "rdpid", "rdrnd", "rdseed", "sahf", "sha", "sse", "sse2", "sse3", "sse4.1", "sse4.2", "sse4a", "ssse3", "wbnoinvd", "xsave", "xsavec", "xsaveopt", "xsaves"], "avx2"),
+            (["64bit", "adx", "aes", "avx", "avx2", "avx512bw", "avx512cd", "avx512dq", "avx512f", "avx512vl", "avx512vnni", "bmi", "bmi2", "clflushopt", "clwb", "cmov", "cx16", "cx8", "f16c", "fma", "fsgsbase", "fxsr", "invpcid", "lzcnt", "mmx", "movbe", "mpx", "pclmul", "pku", "popcnt", "prfchw", "rdrnd", "rdseed", "rtm", "sahf", "sse", "sse2", "sse3", "sse4.1", "sse4.2", "ssse3", "xsave", "xsavec", "xsaveopt", "xsaves"], "avx512")
+        )
+            @test march(cpu_features) == μarch
+            p = Linux(:x86_64)
+            @test extended_platform_key_abi(; p=p, cpu_features=cpu_features) == ExtendedPlatform(p; march=μarch)
+        end
+        p = Linux(:i686)
+        @test extended_platform_key_abi(; p=p, cpu_features=String[]) == p
     end
 end
 

@@ -1,6 +1,6 @@
 using Pkg.Artifacts, Pkg.BinaryPlatforms, Logging
 
-export AnyPlatform, ExtendedPlatform, base_platform
+export AnyPlatform, ExtendedPlatform, base_platform, extended_platform_key_abi
 
 """
     AnyPlatform()
@@ -206,4 +206,56 @@ function Pkg.Artifacts.pack_platform!(meta::Dict, p::ExtendedPlatform)
     # We call this method at the end to make extra sure the keys above don't
     # override the default ones
     Artifacts.pack_platform!(meta, base_platform(p))
+end
+
+# Get the list of CPU features for the host system querying libLLVM
+function get_cpu_features()
+    if VERSION < v"1.4"
+        error("Cannot automatically detect the features of the CPU with this version of Julia!")
+    end
+    features = filter(f -> startswith(f, "+"),
+                      split(unsafe_string(ccall(:LLVMGetHostCPUFeatures, Cstring, ())),
+                            ","))
+    return sort!(replace.(features, r"^\+" => ""))
+end
+
+# Get the microarchitecture of a CPU from the list of its features.
+# TODO: support other architectures, like armv7l and aarch64.
+function march(cpu_features::Vector{String})
+    # List of CPU features from https://gcc.gnu.org/onlinedocs/gcc/x86-Options.html
+    if all(in(cpu_features), ("mmx", "sse", "sse2")) # Generic x86_64
+        if all(in(cpu_features), ("sse3", "ssse3", "sse4.1", "sse4.2", "popcnt", "avx", "aes", "pclmul")) # avx
+            if all(in(cpu_features), ("movbe", "avx2", "fsgsbase", "rdrnd", "fma", "bmi", "bmi2", "f16c")) # avx2
+                # Some names are different: ADCX -> ADX, PREFETCHW -> PRFCHW
+                if all(in(cpu_features), ("pku", "rdseed", "adx", "prfchw", "clflushopt", "xsavec", "xsaves", "avx512f", "clwb", "avx512vl", "avx512bw", "avx512dq", "avx512cd")) # avx512
+                    return "avx512"
+                end
+                return "avx2"
+            end
+            return "avx"
+        end
+        return "x86_64"
+    else
+        @warn "Cannot determine the microarchitecture for the given set of features!"
+        return nothing
+    end
+end
+
+# NOTE: the keyword arguments are *not* part of the public API, they're only
+# used for testing purposes and they may change in the future.
+"""
+    extended_platform_key_abi()
+
+Returns the `Platform` representing the current platform.  It is an
+[`ExtendedPlatform`](@ref) if it possible to detect additional features, like
+the microarchitecture.
+"""
+function extended_platform_key_abi(; p::Platform = platform_key_abi(),
+                                   cpu_features::Vector{String} = get_cpu_features())
+
+    if arch(p) == :x86_64
+        return ExtendedPlatform(p; march=march(cpu_features))
+    else
+        return p
+    end
 end
