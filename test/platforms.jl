@@ -205,6 +205,51 @@ end
         # Extending different platforms
         @test !platforms_match(ExtendedPlatform(Linux(:i686); cuda="10.1"), ExtendedPlatform(FreeBSD(:x86_64); cuda="11.1"))
     end
+
+    @testset "extended_platform_key_abi" begin
+        p = Linux(:i686)
+        @test extended_platform_key_abi(; p=p) == p
+        # The following sets of CPU features are taken from real machines
+        p = Linux(:x86_64)
+        cpu_features = [
+            :AES, :AHF64, :APIC, :APIC_, :AVX, :CLFSH, :CMOV, :CMOV_, :CMPLEG,
+            :CR8D, :CX16, :CX8, :CX8_, :DE, :DE_, :FFXSR, :FMA4, :FPU, :FPU_,
+            :FXSR, :FXSR_, :HYPVS, :LM, :LZCNT, :MCA, :MCA_, :MCE, :MCE_, :MMX,
+            :MMXEXT_, :MMX_, :MSR, :MSR_, :MTRR, :MTRR_, :NX, :OSVW, :OSXSV,
+            :PAE, :PAE_, :PAT, :PAT_, :PCLMUL, :PG1G, :PGE, :PGE_, :POPCNT,
+            :PREFETCHW, :PSE, :PSE36, :PSE36_, :PSE_, :SEP, :SSE, :SSE2, :SSE3,
+            :SSE41, :SSE42, :SSE4A, :SSEMISALIGN, :SSSE3, :SYSCALL, :TSC, :TSC_,
+            :VME, :VME_, :X2APIC, :XOP, :XSAVE
+        ]
+        @test extended_platform_key_abi(; p=p, cpu_features=cpu_features) == ExtendedPlatform(p; march="avx")
+        cpu_features = [
+            :ACPI, :AES, :AHF64, :APIC, :AVX, :AVX2, :BMI1, :BMI2, :CLFSH,
+            :CMOV, :CX16, :CX8, :DE, :DS, :DSCPL, :DTES64, :ERMS, :EST, :F16C,
+            :FMA3, :FP128, :FP256, :FPDPR, :FPU, :FSGS, :FXSR, :HTT, :INVPCID,
+            :LM, :LZCNT, :MCA, :MCE, :MMX, :MON, :MOVBE, :MOVU, :MSR, :MTRR,
+            :NX, :OSXSV, :PAE, :PAT, :PBE, :PCID, :PCLMUL, :PDCM, :PG1G, :PGE,
+            :POPCNT, :PSE, :PSE36, :RDRND, :RDTSCP, :SDBG, :SEP, :SMEP, :SMX,
+            :SS, :SSE, :SSE2, :SSE3, :SSE41, :SSE42, :SSSE3, :SYSCALL, :TM,
+            :TM2, :TSC, :TSCADJ, :TSCDL, :TSCINV, :VME, :VMX, :X2APIC, :XSAVE,
+            :XTPR
+        ]
+        @test extended_platform_key_abi(; p=p, cpu_features=cpu_features) == ExtendedPlatform(p; march="avx2")
+        cpu_features = [
+            :ACPI, :ADX, :AES, :AHF64, :APIC, :AVX, :AVX2, :AVX512BW, :AVX512CD,
+            :AVX512DQ, :AVX512F, :AVX512VL, :BMI1, :BMI2, :CLFLUSH, :CLFSH,
+            :CLWB, :CMOV, :CX16, :CX8, :DCA, :DE, :DS, :DSCPL, :DTES64, :ERMS,
+            :EST, :F16C, :FMA3, :FP256, :FPDPR, :FPU, :FSGS, :FXSR, :HLE, :HTT,
+            :INVPCID, :IPT, :LM, :LZCNT, :MCA, :MCE, :MMX, :MON, :MOVBE, :MPX,
+            :MSR, :MTRR, :NX, :OSPKE, :OSXSV, :PAE, :PAT, :PBE, :PCID, :PCLMUL,
+            :PDCM, :PG1G, :PGE, :PKU, :POPCNT, :PQE, :PQM, :PREFETCHW, :PSE,
+            :PSE36, :RDRND, :RDSEED, :RDTSCP, :RTM, :SDBG, :SEP, :SMAP, :SMEP,
+            :SMX, :SS, :SSE, :SSE2, :SSE3, :SSE41, :SSE42, :SSSE3, :SYSCALL,
+            :TM, :TM2, :TSC, :TSCADJ, :TSCDL, :TSCINV, :VME, :VMX, :X2APIC,
+            :XSAVE, :XTPR
+        ]
+        @test extended_platform_key_abi(; p=p, cpu_features=cpu_features) == ExtendedPlatform(p; march="avx512")
+        @test extended_platform_key_abi(; p=p, cpu_features=Symbol[]) == ExtendedPlatform(p; march="x86_64")
+    end
 end
 
 @testset "AnyPlatform" begin

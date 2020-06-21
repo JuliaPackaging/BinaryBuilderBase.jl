@@ -1,6 +1,7 @@
 using Pkg.Artifacts, Pkg.BinaryPlatforms, Logging
+using CpuId
 
-export AnyPlatform, ExtendedPlatform, base_platform
+export AnyPlatform, ExtendedPlatform, base_platform, extended_platform_key_abi
 
 """
     AnyPlatform()
@@ -206,4 +207,39 @@ function Pkg.Artifacts.pack_platform!(meta::Dict, p::ExtendedPlatform)
     # We call this method at the end to make extra sure the keys above don't
     # override the default ones
     Artifacts.pack_platform!(meta, base_platform(p))
+end
+
+# NOTE: the keyword arguments are *not* part of the public API, they're only
+# used for testing purposes and they may change in the future.
+"""
+    extended_platform_key_abi()
+
+Returns the `Platform` representing the current platform.  It is an
+[`ExtendedPlatform`](@ref) if it possible to detect additional features, like
+the microarchitecture.
+"""
+function extended_platform_key_abi(; p::Platform = platform_key_abi(),
+                                   cpu_features::Vector{Symbol} = cpufeatures())
+    function get_x86_64_march(cpu_features)
+        # List of CPU features from https://gcc.gnu.org/onlinedocs/gcc/x86-Options.html
+        if all(in(cpu_features), (:MMX, :SSE, :SSE2, :SSE3, :SSSE3, :SSE41, :SSE42, :POPCNT, :AVX, :AES, :PCLMUL))
+            # Some names are different: FSGSBASE -> FSGS, FMA -> FMA3, BMI -> BMI1
+            if all(in(cpu_features), (:MOVBE, :AVX2, :FSGS, :RDRND, :FMA3, :BMI1, :BMI2, :F16C))
+                # Some names are different: ADCX -> ADX, CLFLUSHOPT -> CLFLUSH, XSAVEC and XSAVES -> :XSAVE
+                if all(in(cpu_features), (:PKU, :RDSEED, :ADX, :PREFETCHW, :CLFLUSH, :XSAVE, :AVX512F, :CLWB, :AVX512VL, :AVX512BW, :AVX512DQ, :AVX512CD))
+                    return "avx512"
+                end
+                return "avx2"
+            end
+            return "avx"
+        end
+        # Generic fallback
+        return "x86_64"
+    end
+
+    if arch(p) == :x86_64
+        return ExtendedPlatform(p; march=get_x86_64_march(cpu_features))
+    else
+        return p
+    end
 end
