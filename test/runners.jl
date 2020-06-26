@@ -79,4 +79,52 @@ end
             @test split(String(read(iobuff)), "\n")[2] == "test"
         end
     end
+
+    @testset "Compilation" begin
+        mktempdir() do dir
+            ur = preferred_runner()(dir; platform=Linux(:x86_64; libc=:musl))
+            iobuff = IOBuffer()
+            @test run(ur, `/bin/bash -c "echo 'int main() {return 0;}' | cc -x c -"`, iobuff; tee_stream=devnull)
+            seekstart(iobuff)
+            @test split(String(read(iobuff)), "\n")[2] == ""
+        end
+    end
+
+    @testset "Locking microarchitecture" begin
+        mktempdir() do dir
+            platform = Linux(:x86_64; libc=:musl)
+            cmd = `/bin/bash -c "echo 'int main() {return 0;}' | cc -x c -march=native -"`
+            ur = preferred_runner()(dir; platform=platform, lock_microarchitecture=true)
+            iobuff = IOBuffer()
+            @test !run(ur, cmd, iobuff; tee_stream=devnull)
+            seekstart(iobuff)
+            @test split(String(read(iobuff)), "\n")[2] == "Cannot force an architecture"
+
+            ur = preferred_runner()(dir; platform=platform, lock_microarchitecture=false)
+            iobuff = IOBuffer()
+            @test run(ur, cmd, iobuff; tee_stream=devnull)
+            seekstart(iobuff)
+            @test split(String(read(iobuff)), "\n")[2] == ""
+        end
+    end
+
+    @testset "Unsafe flags" begin
+        mktempdir() do dir
+            platform = Linux(:x86_64; libc=:musl)
+            cmd = `/bin/bash -c "echo 'int main() {return 0;}' | cc -x c -Ofast -"`
+            ur = preferred_runner()(dir; platform=platform, allow_unsafe_flags=false)
+            iobuff = IOBuffer()
+            @test !run(ur, cmd, iobuff; tee_stream=devnull)
+            seekstart(iobuff)
+            lines = split(String(read(iobuff)), "\n")
+            @test lines[2] == "You used one or more of the unsafe flags: -Ofast, -ffast-math, -funsafe-math-optimizations"
+            @test lines[3] == "Please repent."
+
+            ur = preferred_runner()(dir; platform=platform, allow_unsafe_flags=true)
+            iobuff = IOBuffer()
+            @test run(ur, cmd, iobuff; tee_stream=devnull)
+            seekstart(iobuff)
+            @test split(String(read(iobuff)), "\n")[2] == ""
+        end
+    end
 end
