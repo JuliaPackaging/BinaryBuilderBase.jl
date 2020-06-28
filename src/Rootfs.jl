@@ -212,7 +212,7 @@ function mount(cs::CompilerShard, build_prefix::AbstractString; verbose::Bool = 
     # environment variable BINARYBUILDER_AUTOMATIC_APPLE has been set to `true`
     # or if the SDK has been downloaded in the past.
     global automatic_apple
-    if typeof(cs.target) <: MacOS && !automatic_apple && !macos_sdk_already_installed()
+    if typeof(cs.target) <: MacOS && !automatic_apple[] && !macos_sdk_already_installed()
         if !isinteractive()
             msg = strip("""
             This is not an interactive Julia session, so we will not prompt you

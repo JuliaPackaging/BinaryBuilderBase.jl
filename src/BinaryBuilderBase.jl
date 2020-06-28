@@ -51,7 +51,7 @@ ccache_dir() = storage_dir("ccache")
 # the rootfs to, and where we're unpacking it.  These constants are initialized
 # by `__init__()` to allow for environment variable overrides from the user.
 storage_cache = ""
-automatic_apple = false
+const automatic_apple = Ref(false) # Can be modified in BinaryBuilder
 use_squashfs = false
 allow_ecryptfs = false
 use_ccache = false
@@ -71,7 +71,7 @@ function __init__()
     # If the user has signalled that they really want us to automatically
     # accept apple EULAs, do that.
     if get(ENV, "BINARYBUILDER_AUTOMATIC_APPLE", "") == "true"
-        automatic_apple = true
+        automatic_apple[] = true
     end
 
     # If the user has overridden our runner selection algorithms, honor that
