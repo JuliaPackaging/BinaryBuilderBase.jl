@@ -47,18 +47,27 @@ function storage_dir(args::AbstractString...)
 end
 ccache_dir() = storage_dir("ccache")
 
+"""
+    enable_apple_file()
+
+Return the path to file that, if exists, indicates that the user accepts to
+download macOS SDK.  The file is automatically created when the package is
+loaded if the environment variable `BINARYBUILDER_AUTOMATIC_APPLE` is set to
+`"true"`.
+"""
+enable_apple_file() = storage_dir("enable_apple")
+
 # These globals store important information such as where we're downloading
 # the rootfs to, and where we're unpacking it.  These constants are initialized
 # by `__init__()` to allow for environment variable overrides from the user.
 storage_cache = ""
-automatic_apple = false
 use_squashfs = false
 allow_ecryptfs = false
 use_ccache = false
 bootstrap_list = Symbol[]
 
 function __init__()
-    global runner_override, use_squashfs, automatic_apple, allow_ecryptfs
+    global runner_override, use_squashfs, allow_ecryptfs
     global use_ccache, storage_cache
 
     # Pkg does this lazily; do it explicitly here.
@@ -71,7 +80,7 @@ function __init__()
     # If the user has signalled that they really want us to automatically
     # accept apple EULAs, do that.
     if get(ENV, "BINARYBUILDER_AUTOMATIC_APPLE", "") == "true"
-        automatic_apple = true
+        touch(enable_apple_file())
     end
 
     # If the user has overridden our runner selection algorithms, honor that
