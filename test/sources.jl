@@ -37,15 +37,27 @@ using JSON
                 # Fetch again the repo to make sure cache works
                 @test @test_logs (:info, r"^Cached repository found in") download_source(gs; verbose = true, downloads_dir = dir) == sgs
                 # Fetch the temp directory as a `DirectorySource`
-                ds = DirectorySource("./bundled")
-                patchdir = abspath(joinpath(dir, ds.path, "patches"))
+                ds_follow = DirectorySource("./bundled_follow"; follow_symlinks=true)
+                patchdir = abspath(joinpath(dir, ds_follow.path, "patches_follow"))
                 mkpath(patchdir)
                 write(abspath(joinpath(patchdir, "fix-windows-headers.patch")), "This is a patch file")
                 # Create a symlink.  We'll want to check that `setup` follows symlinks
                 link = joinpath(patchdir, "link.patch")
                 symlink("fix-windows-headers.patch", link)
                 @test islink(link)
-                sds = @test_logs (:info, r"^Directory .* found") download_source(ds; verbose = true)
+                sds_follow = @test_logs (:info, r"^Directory .* found") download_source(ds_follow; verbose = true)
+                # Try to fetch a non-existing directory
+                @test_throws ErrorException download_source(DirectorySource(joinpath(dir, "does_not_exist")); verbose = true)
+                # Another directory source, which doesn't follow symlinks
+                ds_nofollow = DirectorySource("./bundled_nofollow")
+                patchdir = abspath(joinpath(dir, ds_nofollow.path, "patches_nofollow"))
+                mkpath(patchdir)
+                write(abspath(joinpath(patchdir, "fix-windows-headers.patch")), "This is a patch file")
+                # Create a symlink.  We'll want to check that `setup` follows symlinks
+                link = joinpath(patchdir, "link.patch")
+                symlink("fix-windows-headers.patch", link)
+                @test islink(link)
+                sds_nofollow = @test_logs (:info, r"^Directory .* found") download_source(ds_nofollow; verbose = true)
                 # Try to fetch a non-existing directory
                 @test_throws ErrorException download_source(DirectorySource(joinpath(dir, "does_not_exist")); verbose = true)
 
@@ -60,21 +72,29 @@ using JSON
                 target = joinpath(srcdir, gs.unpack_target)
                 @test_logs (:info, "Cloning ARCHDefs.git to ARCHDefs...") setup(sgs, target, true)
                 @test isdir(target)
-                target = abspath(joinpath(srcdir, "patches"))
-                @test_logs (:info, "Copying content of bundled in srcdir...") setup(sds, srcdir, true)
+                # Setup directory source with links to follow
+                target = abspath(joinpath(srcdir, "patches_follow"))
+                @test_logs (:info, "Copying content of bundled_follow in srcdir...") setup(sds_follow, srcdir, true)
                 @test isdir(target)
                 # Make sure that the symlinks are followed
                 @test isfile(joinpath(target, "link.patch"))
                 @test !islink(joinpath(target, "link.patch"))
+                # Setup directory source with links to not follow
+                target = abspath(joinpath(srcdir, "patches_nofollow"))
+                @test_logs (:info, "Copying content of bundled_nofollow in srcdir...") setup(sds_nofollow, srcdir, true)
+                @test isdir(target)
+                # Make sure that the symlinks are not followed
+                @test isfile(joinpath(target, "link.patch"))
+                @test islink(joinpath(target, "link.patch"))
 
                 # Make sure in srcdir there are all files and directories we expect
-                @test Set(readdir(srcdir)) == Set(["ARCHDefs", "ARCHDefs-2.0.3x", fs.filename, "patches"])
+                @test Set(readdir(srcdir)) == Set(["ARCHDefs", "ARCHDefs-2.0.3x", fs.filename, "patches_follow", "patches_nofollow"])
 
                 # Setup the sources with `setup_workspace`
                 workspace = joinpath(dir, "workspace")
                 mkpath(workspace)
-                prefix = @test_logs (:info, r"^Copying") (:info, r"^Copying") (:info, r"^Cloning") setup_workspace(workspace, [sfs, sds, sgs]; verbose=true)
-                @test Set(readdir(joinpath(prefix.path, "srcdir"))) == Set(["ARCHDefs", "file-source.tar.gz", "patches"])
+                prefix = @test_logs (:info, r"^Copying") (:info, r"^Copying") (:info, r"^Copying") (:info, r"^Cloning") setup_workspace(workspace, [sfs, sds_follow, sds_nofollow, sgs]; verbose=true)
+                @test Set(readdir(joinpath(prefix.path, "srcdir"))) == Set(["ARCHDefs", "file-source.tar.gz", "patches_follow", "patches_nofollow"])
             end
         end
     end
@@ -95,7 +115,7 @@ using JSON
         @test jgs == Dict("type" => "git", "url" => gs.url, "hash" => gs.hash, "unpack_target" => gs.unpack_target)
         @test sourcify(jgs) == gs
         jds = JSON.lower(ds)
-        @test jds == Dict("type" => "directory", "path" => ds.path, "target" => "")
+        @test jds == Dict("type" => "directory", "path" => ds.path, "target" => "", "follow_symlinks" => false)
         @test sourcify(jds) == ds
 
         @test_throws ErrorException sourcify(Dict("type" => "error"))
