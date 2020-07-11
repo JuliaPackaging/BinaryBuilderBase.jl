@@ -76,19 +76,25 @@ GitSource(url::String, hash::String; unpack_target::String = "") =
     GitSource(url, hash, unpack_target)
 
 """
-    DirectorySource(path::String; target::String = basename(path))
+    DirectorySource(path::String; target::String = basename(path), follow_symlinks=false)
 
 Specify a local directory to mount from `path`.
 
-The content of the directory will be mounted in `\${WORKSPACE}/srcdir`, or in its
-subdirectory pointed to by the optional keyword `target`, if provided.
+The content of the directory will be mounted in `\${WORKSPACE}/srcdir`, or in
+its subdirectory pointed to by the optional keyword `target`, if provided.
+Symbolic links are replaced by a copy of the target when `follow_symlinks` is
+`true`.
 """
 struct DirectorySource <: AbstractSource
     path::String
     target::String
+    follow_symlinks::Bool
 end
-DirectorySource(path::String; target::String = "") =
-    DirectorySource(path, target)
+# When setting up the source, by default we won't follow symlinks.  However,
+# there are cases where this is necessary, for example when we have symlink
+# patchsets across multiple versions of GCC, etc...
+DirectorySource(path::String; target::String = "", follow_symlinks::Bool=false) =
+    DirectorySource(path, target, follow_symlinks)
 
 # This is not meant to be used as source in the `build_tarballs.jl` scripts but
 # only to set up the source in the workspace.
@@ -96,7 +102,11 @@ struct SetupSource{T<:AbstractSource}
     path::String
     hash::String
     target::String
+    follow_symlinks::Bool
 end
+# `follow_symlinks` is used only for DirectorySource, let's have a method without it.
+SetupSource{T}(path::String, hash::String, target::String) where {T} =
+    SetupSource{T}(path, hash, target, false)
 # This is used in wizard/obtain_source.jl to automatically guess the parameter
 # of SetupSource from the URL
 function SetupSource(url::String, path::String, hash::String, target::String)
@@ -167,7 +177,7 @@ function download_source(source::DirectorySource; verbose::Bool = false)
         error("Could not find directory \"$(source.path)\".")
     end
     @info "Directory \"$(source.path)\" found"
-    return SetupSource{DirectorySource}(abspath(source.path), "", source.target)
+    return SetupSource{DirectorySource}(abspath(source.path), "", source.target, source.follow_symlinks)
 end
 
 """

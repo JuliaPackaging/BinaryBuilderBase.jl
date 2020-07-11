@@ -302,9 +302,9 @@ function setup(source::SetupSource{DirectorySource}, targetdir, verbose)
         @info "Copying content of $(basename(srcpath)) in $(basename(targetdir))..."
     end
     for file_dir in readdir(srcpath)
-        # Copy the content of the source directory to the destination. Note that we DO follow symlinks here!
-        # This is to support symlink patchsets across multiple versions of GCC, etc...
-        cp(joinpath(srcpath, file_dir), joinpath(targetdir, basename(file_dir)); follow_symlinks=true)
+        # Copy the content of the source directory to the destination
+        cp(joinpath(srcpath, file_dir), joinpath(targetdir, basename(file_dir));
+           follow_symlinks=source.follow_symlinks)
     end
 end
 
