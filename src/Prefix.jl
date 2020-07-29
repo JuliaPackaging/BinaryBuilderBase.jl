@@ -296,13 +296,12 @@ function setup(source::SetupSource{FileSource}, target, verbose)
 end
 
 function setup(source::SetupSource{DirectorySource}, targetdir, verbose)
+    mkpath(targetdir)
     # Need to strip the trailing separator also here
     srcpath = strip_backslash(source.path)
     if verbose
         @info "Copying content of $(basename(srcpath)) in $(basename(targetdir))..."
     end
-    # Create if missing. Will throw an IOError if targetdir is there, but not a directory.
-    mkpath(targetdir)
     for file_dir in readdir(srcpath)
         # Copy the content of the source directory to the destination
         cp(joinpath(srcpath, file_dir), joinpath(targetdir, basename(file_dir));
