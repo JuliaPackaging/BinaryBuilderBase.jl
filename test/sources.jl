@@ -58,6 +58,11 @@ using JSON
                 symlink("fix-windows-headers.patch", link)
                 @test islink(link)
                 sds_nofollow = @test_logs (:info, r"^Directory .* found") download_source(ds_nofollow; verbose = true)
+                # Yet another directory source, this time one that tries to unpack into a subdirectory
+                ds_target = DirectorySource("./bundled_subdir_target", target="ds_unpack_target")
+                filedir = mkpath(abspath(joinpath(dir, ds_target.path)))
+                write(abspath(joinpath(filedir, "fix-windows-headers.patch")), "This is a patch file")
+                sds_target = @test_logs (:info, r"^Directory .* found") download_source(ds_target; verbose = true)
                 # Try to fetch a non-existing directory
                 @test_throws ErrorException download_source(DirectorySource(joinpath(dir, "does_not_exist")); verbose = true)
 
@@ -93,8 +98,14 @@ using JSON
                 # Setup the sources with `setup_workspace`
                 workspace = joinpath(dir, "workspace")
                 mkpath(workspace)
-                prefix = @test_logs (:info, r"^Copying") (:info, r"^Copying") (:info, r"^Copying") (:info, r"^Cloning") setup_workspace(workspace, [sfs, sds_follow, sds_nofollow, sgs]; verbose=true)
-                @test Set(readdir(joinpath(prefix.path, "srcdir"))) == Set(["ARCHDefs", "file-source.tar.gz", "patches_follow", "patches_nofollow"])
+                prefix = @test_logs(
+                    (:info, r"^Copying"), (:info, r"^Copying"), (:info, r"^Copying"), (:info, r"^Copying"), (:info, r"^Cloning"),
+                    setup_workspace(workspace, [sfs, sds_follow, sds_nofollow, sds_target, sgs]; verbose=true)
+                )
+                @test Set(readdir(joinpath(prefix.path, "srcdir"))) == Set(
+                    ["ARCHDefs", "file-source.tar.gz", "patches_follow", "patches_nofollow", "ds_unpack_target"]
+                )
+                @test isfile(joinpath(prefix.path, "srcdir", "ds_unpack_target", "fix-windows-headers.patch"))
             end
         end
     end
