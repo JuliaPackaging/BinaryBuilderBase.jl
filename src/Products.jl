@@ -230,7 +230,7 @@ end
 A `FrameworkProduct` is a  [`Product`](@ref) that encapsulates a macOS Framework.
 It behaves mostly as a [`LibraryProduct`](@ref) for now, but is a distinct type.
 This implies that for cross-platform builds where a library is provided as a Framework
-on macOS and as a normal library on other platforms, two calls to [`build_tarballs`](@ref)
+on macOS and as a normal library on other platforms, two calls to BinaryBuilder's `build_tarballs`
 are needed: one with the `LibraryProduct` and all non-macOS platforms, and one with the `FrameworkProduct`
 and the `MacOS` platforms.
 """
