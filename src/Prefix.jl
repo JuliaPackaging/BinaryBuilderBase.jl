@@ -296,6 +296,7 @@ function setup(source::SetupSource{FileSource}, target, verbose)
 end
 
 function setup(source::SetupSource{DirectorySource}, targetdir, verbose)
+    mkpath(targetdir)
     # Need to strip the trailing separator also here
     srcpath = strip_backslash(source.path)
     if verbose
