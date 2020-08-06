@@ -123,6 +123,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
             vrun() { echo -e "\\e[96m\$@\\e[0m" >&2; "\$@"; }
         fi
 
+        ARGS=( "\$@" )
         PRE_FLAGS=()
         POST_FLAGS=()
         """)
@@ -136,7 +137,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
 
         if !isempty(compile_only_flags)
             println(io)
-            println(io, "if [[ \" \$@ \" != *' -x assembler '* ]]; then")
+            println(io, "if [[ \" \${ARGS[@]} \" != *' -x assembler '* ]]; then")
             for cf in compile_only_flags
                 println(io, "    PRE_FLAGS+=( '$cf' )")
             end
@@ -147,7 +148,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         # If we're given link-only flags, include them only if `-c` or other link-disablers are not provided.
         if !isempty(link_only_flags)
             println(io)
-            println(io, "if [[ \" \$@ \" != *' -c '* ]] && [[ \" \$@ \" != *' -E '* ]] && [[ \" \$@ \" != *' -M '* ]] && [[ \" \$@ \" != *' -fsyntax-only '* ]]; then")
+            println(io, "if [[ \" \${ARGS[@]} \" != *' -c '* ]] && [[ \" \${ARGS[@]} \" != *' -E '* ]] && [[ \" \${ARGS[@]} \" != *' -M '* ]] && [[ \" \${ARGS[@]} \" != *' -fsyntax-only '* ]]; then")
             for lf in link_only_flags
                 println(io, "    POST_FLAGS+=( '$lf' )")
             end
@@ -168,8 +169,8 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         # TODO: improve this check
         if lock_microarchitecture
             write(io, raw"""
-                      if [[ \"$@\" == *\"-march=\"* ]]; then
-                          echo \"Cannot force an architecture\" >&2
+                      if [[ " ${ARGS[@]} " == *"-march="* ]]; then
+                          echo "Cannot force an architecture" >&2
                           exit 1
                       fi
                       """)
@@ -178,7 +179,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
 
         if length(unsafe_flags) >= 1
             write(io, """
-            if [[ \"\$@\" =~ \"$(join(unsafe_flags, "\"|\""))\" ]]; then
+            if [[ "\${ARGS[@]}" =~ \"$(join(unsafe_flags, "\"|\""))\" ]]; then
                 echo -e \"You used one or more of the unsafe flags: $(join(unsafe_flags, ", "))\\nPlease repent.\" >&2
                 exit 1
             fi
@@ -189,14 +190,14 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         if allow_ccache
             write(io, """
             if [ \${USE_CCACHE} == "true" ]; then
-                vrun ccache $(prog) "\${PRE_FLAGS[@]}" "\$@" "\${POST_FLAGS[@]}"
+                vrun ccache $(prog) "\${PRE_FLAGS[@]}" "\${ARGS[@]}" "\${POST_FLAGS[@]}"
             else
-                vrun $(prog) "\${PRE_FLAGS[@]}" "\$@" "\${POST_FLAGS[@]}"
+                vrun $(prog) "\${PRE_FLAGS[@]}" "\${ARGS[@]}" "\${POST_FLAGS[@]}"
             fi
             """)
         else
             write(io, """
-            vrun $(prog) "\${PRE_FLAGS[@]}" "\$@" "\${POST_FLAGS[@]}"
+            vrun $(prog) "\${PRE_FLAGS[@]}" "\${ARGS[@]}" "\${POST_FLAGS[@]}"
             """)
         end
     end
@@ -380,7 +381,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         extra_cmds = ""
         if isa(p, Linux) && arch(p) in (:aarch64, :powerpc64le)
             extra_cmds = raw"""
-            if [[ " $@ " != *'--page-size'* ]]; then
+            if [[ " ${ARGS[@]} " != *'--page-size'* ]]; then
                 PRE_FLAGS+=( '--page-size' '65536' )
             fi
             """
@@ -395,11 +396,33 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
             ar_name = "llvm-ar"
         end
         extra_cmds = raw"""
-        if [[ " $@ " != *'-U'* ]]; then
-            PRE_FLAGS+=( '-D' )
+        if [[ " ${ARGS[0]} " != *'U'* ]]; then
+            # Eliminate the `u` option, as it's incompatible with `D` and is just an optimization
+            if [[ " ${ARGS[0]} " == *'u'* ]]; then
+                ARGS[0]=$(echo "${ARGS[0]}" | tr -d u)
+            fi
+
+            # Add -D for "Deterministic mode"
+            ARGS[0]="${ARGS[0]}D"
+        else
+            echo "Non-reproducibility alert: This 'ar' invocation uses the '-U' flag which embeds timestamps." >&2
+            echo "ar flags: ${ARGS[@]}" >&2
+            echo "Continuing build, but please repent." >&2
         fi
         """
         wrapper(io, string("/opt/", aatriplet(p), "/bin/", ar_name); allow_ccache=false, extra_cmds=extra_cmds)
+    end
+
+    function ranlib(io::IO, p::Platform)
+        extra_cmds = raw"""
+        if [[ " ${ARGS[@]} " =~ "-[hHvVt]*U" ]]; then
+            echo "Non-reproducibility alert: This `ranlib` invocation uses the `-U` flag which embeds timestamps." >&2
+            echo "ranlib flags: ${ARGS[@]}" >&2
+            echo "Continuing build, but please repent." >&2
+        else
+            PRE_FLAGS+=( '-D' )
+        fi
+        """
     end
 
     # Default these tools to the "target tool" versions, will override later
