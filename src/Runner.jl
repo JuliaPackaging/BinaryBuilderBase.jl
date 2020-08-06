@@ -388,8 +388,22 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         wrapper(io, "/usr/bin/patchelf"; allow_ccache=false, extra_cmds=extra_cmds)
     end
 
+    # We pass `-D` to all `ar` invocations (unless `-U` is explicitly passed) for reproducibility
+    function ar(io::IO, p::Platform)
+        ar_name = string(aatriplet(p), "-ar")
+        if isa(p, MacOS)
+            ar_name = "llvm-ar"
+        end
+        extra_cmds = raw"""
+        if [[ " $@ " != *'-U'* ]]; then
+            PRE_FLAGS+=( '-D' )
+        fi
+        """
+        wrapper(io, string("/opt/", aatriplet(p), "/bin/", ar_name); allow_ccache=false, extra_cmds=extra_cmds)
+    end
+
     # Default these tools to the "target tool" versions, will override later
-    for tool in (:ar, :as, :cpp, :ld, :nm, :libtool, :objcopy, :objdump, :otool,
+    for tool in (:as, :cpp, :ld, :nm, :libtool, :objcopy, :objdump, :otool,
                  :ranlib, :readelf, :strip, :install_name_tool, :dlltool, :windres, :winmc, :lipo)
         @eval $(tool)(io::IO, p::Platform) = $(wrapper)(io, string("/opt/", aatriplet(p), "/bin/", aatriplet(p), "-", $(string(tool))); allow_ccache=false)
     end
@@ -399,7 +413,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     cxxfilt(io::IO, p::MacOS) = wrapper(io, string("/opt/", aatriplet(p), "/bin/llvm-cxxfilt"); allow_ccache=false)
 
     # Overrides for macOS binutils because Apple is always so "special"
-    for tool in (:ar, :ranlib, :dsymutil)
+    for tool in (:ranlib, :dsymutil)
         @eval $(tool)(io::IO, p::MacOS) = $(wrapper)(io, string("/opt/", aatriplet(p), "/bin/llvm-", $tool))
     end
     # macOS doesn't have a readelf; default to using the host version
