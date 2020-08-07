@@ -392,7 +392,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     # We pass `-D` to all `ar` invocations (unless `-U` is explicitly passed) for reproducibility
     function ar(io::IO, p::Platform)
         ar_name = string(aatriplet(p), "-ar")
-        if isa(p, MacOS)
+        if Sys.isapple(p)
             ar_name = "llvm-ar"
         end
         extra_cmds = raw"""
@@ -414,20 +414,35 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     end
 
     function ranlib(io::IO, p::Platform)
-        extra_cmds = raw"""
-        if [[ " ${ARGS[@]} " =~ "-[hHvVt]*U" ]]; then
-            echo "Non-reproducibility alert: This `ranlib` invocation uses the `-U` flag which embeds timestamps." >&2
-            echo "ranlib flags: ${ARGS[@]}" >&2
-            echo "Continuing build, but please repent." >&2
+        if !Sys.isapple(p)
+            ranlib_name = string(aatriplet(p), "-ranlib")
+            extra_cmds = raw"""
+            if [[ " ${ARGS[@]} " =~ "-[hHvVt]*U" ]]; then
+                echo "Non-reproducibility alert: This `ranlib` invocation uses the `-U` flag which embeds timestamps." >&2
+                echo "ranlib flags: ${ARGS[@]}" >&2
+                echo "Continuing build, but please repent." >&2
+            else
+                PRE_FLAGS+=( '-D' )
+            fi
+            """
         else
-            PRE_FLAGS+=( '-D' )
-        fi
+            # llvm-ranlib is always reproducible
+            ranlib_name = "llvm-ranlib"
+            extra_cmds = ""
+        end
+        wrapper(io, string("/opt/", aatriplet(p), "/bin/", ranlib_name); allow_ccache=false, extra_cmds=extra_cmds)
+    end
+
+    function dlltool(io::IO, p::Platform)
+        extra_cmds = raw"""
+        PRE_FLAGS+=( --temp-prefix /tmp/dlltool-${ARGS_HASH} )
         """
+        wrapper(io, string("/opt/", aatriplet(p), "/bin/", string(aatriplet(p), "-dlltool")); allow_ccache=false, extra_cmds=extra_cmds, hash_args=true)
     end
 
     # Default these tools to the "target tool" versions, will override later
     for tool in (:as, :cpp, :ld, :nm, :libtool, :objcopy, :objdump, :otool,
-                 :ranlib, :readelf, :strip, :install_name_tool, :dlltool, :windres, :winmc, :lipo)
+                 :readelf, :strip, :install_name_tool, :dlltool, :windres, :winmc, :lipo)
         @eval $(tool)(io::IO, p::Platform) = $(wrapper)(io, string("/opt/", aatriplet(p), "/bin/", aatriplet(p), "-", $(string(tool))); allow_ccache=false)
     end
  
@@ -436,7 +451,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     cxxfilt(io::IO, p::MacOS) = wrapper(io, string("/opt/", aatriplet(p), "/bin/llvm-cxxfilt"); allow_ccache=false)
 
     # Overrides for macOS binutils because Apple is always so "special"
-    for tool in (:ranlib, :dsymutil)
+    for tool in (:dsymutil,)
         @eval $(tool)(io::IO, p::MacOS) = $(wrapper)(io, string("/opt/", aatriplet(p), "/bin/llvm-", $tool))
     end
     # macOS doesn't have a readelf; default to using the host version
