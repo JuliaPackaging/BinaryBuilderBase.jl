@@ -126,9 +126,10 @@ end
 
 function dlopen_flags_str(p::LibraryProduct)
     if length(p.dlopen_flags) > 0
-        return ", $(join(p.dlopen_flags, " | "))"
+        return join(p.dlopen_flags, " | ")
     else
-        return ""
+        # This is the default if no flags are specified
+        return "RTLD_LAZY | RTLD_DEEPBIND"
     end
 end
 
