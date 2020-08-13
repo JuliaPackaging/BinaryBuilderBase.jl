@@ -183,7 +183,7 @@ end
     @test fp.libraryproduct.dlopen_flags == [:RTLD_GLOBAL, :RTLD_NOLOAD]
     for p in (lp, fp)
         flag_str = BinaryBuilderBase.dlopen_flags_str(p)
-        @test flag_str == ", RTLD_GLOBAL | RTLD_NOLOAD"
-        @test Libdl.eval(Meta.parse(flag_str[3:end])) == (Libdl.RTLD_NOLOAD | Libdl.RTLD_GLOBAL)
+        @test flag_str == "RTLD_GLOBAL | RTLD_NOLOAD"
+        @test Libdl.eval(Meta.parse(flag_str)) == (Libdl.RTLD_NOLOAD | Libdl.RTLD_GLOBAL)
     end
 end
