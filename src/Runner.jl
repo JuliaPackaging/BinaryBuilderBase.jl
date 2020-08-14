@@ -396,7 +396,10 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
             ar_name = "llvm-ar"
         end
         extra_cmds = raw"""
-        if [[ " ${ARGS[0]} " != *'U'* ]]; then
+        if [[ " ${ARGS[0]} " =~ --* ]]; then
+            # do nothing, it's probably --version or something
+            true
+        elif [[ " ${ARGS[0]} " != *'U'* ]]; then
             # Eliminate the `u` option, as it's incompatible with `D` and is just an optimization
             if [[ " ${ARGS[0]} " == *'u'* ]]; then
                 ARGS[0]=$(echo "${ARGS[0]}" | tr -d u)
