@@ -607,7 +607,7 @@ function platform_envs(platform::Platform, src_name::AbstractString; host_platfo
         libdir = "$(prefix)/lib"
     end
 
-    if Base.have_color
+    if get(stdout, :color, false)
         PS1 = string(
             raw"\[",
             Base.text_colors[:light_blue],
