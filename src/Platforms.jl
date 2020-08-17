@@ -26,7 +26,7 @@ const ARCHITECTURE_FLAGS = begin
     march_flags(arch) = ["-m$(f)=$(arch)" for f in ("arch", "tune")]
     Dict(
         :x86_64 => Dict(
-            "x86_64" => march_flags("x86-64"),
+            "x86_64" => ["-march=x86-64", "-mtune=generic"],
             "avx" => march_flags("sandybridge"),
             "avx2" => march_flags("haswell"),
             "avx512" => march_flags("skylake-avx512"),
