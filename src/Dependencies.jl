@@ -47,11 +47,6 @@ getpkg(d::AbstractDependency) = d.pkg
 getname(x::PkgSpec) = x.name
 getname(x::AbstractDependency) = getname(getpkg(x))
 
-# compatibility for Julia 1.3-
-if VERSION < v"1.4"
-    Pkg.Types.registry_resolve!(ctx::Pkg.Types.Context, deps) = Pkg.Types.registry_resolve!(ctx.env, deps)
-end
-
 # Wrapper around `Pkg.Types.registry_resolve!` which keeps the type of the
 # dependencies.  TODO: improve this
 function registry_resolve!(ctx, dependencies::Vector{<:AbstractDependency})
