@@ -362,7 +362,7 @@ end
 
 
 """
-    setup_dependencies(prefix::Prefix, dependencies::Vector{PackageSpec})
+    setup_dependencies(prefix::Prefix, dependencies::Vector{PackageSpec}, platform::Platform; verbose::Bool = false)
 
 Given a list of JLL package specifiers, install their artifacts into the build prefix.
 The artifacts are installed into the global artifact store, then copied into a temporary location,
@@ -373,7 +373,7 @@ to modify the dependent artifact files, and (c) keeping a record of what files a
 dependencies as opposed to the package being built, in the form of symlinks to a specific artifacts
 directory.
 """
-function setup_dependencies(prefix::Prefix, dependencies::Vector{PkgSpec}, platform::Platform)
+function setup_dependencies(prefix::Prefix, dependencies::Vector{PkgSpec}, platform::Platform; verbose::Bool = false)
     artifact_paths = String[]
     if isempty(dependencies)
         return artifact_paths
@@ -393,13 +393,16 @@ function setup_dependencies(prefix::Prefix, dependencies::Vector{PkgSpec}, platf
     # it, then create symlinks from those installed products to our build prefix
 
     # Update registry first, in case the jll packages we're looking for have just been registered/updated
+    ctx = Pkg.Types.Context()
+    outs = verbose ? stdout : devnull
+    update_registry(ctx, outs)
     Pkg.Registry.update()
 
     mkpath(joinpath(prefix, "artifacts"))
     deps_project = joinpath(prefix, ".project")
     Pkg.activate(deps_project) do
         # Add all dependencies
-        Pkg.add(dependencies; platform=platform)
+        Pkg.add(dependencies; platform=platform, io=outs)
 
         # Get all JLL packages within the current project
         ctx = Pkg.Types.Context()
