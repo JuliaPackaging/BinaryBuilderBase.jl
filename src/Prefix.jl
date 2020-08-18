@@ -431,7 +431,7 @@ function setup_dependencies(prefix::Prefix, dependencies::Vector{PkgSpec}, platf
             # Get the path to the main artifact
             artifact_hash = Pkg.Artifacts.artifact_hash(name[1:end-4], artifacts_toml; platform=platform)
             if artifact_hash === nothing
-                @warn("Dependency $(name) does not have a mapping for $(name[1:end-4])!")
+                @warn("Dependency $(name) does not have a mapping for artifact $(name[1:end-4]) for platform $(platform)")
                 continue
             end
 

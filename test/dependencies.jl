@@ -69,7 +69,7 @@ end
                 Dependency("LibOSXUnwind_jll")
             ]
             platform = Linux(:i686, libc=:musl)
-            @test_logs (:warn, "Dependency LibOSXUnwind_jll does not have a mapping for LibOSXUnwind!") setup_dependencies(prefix, getpkg.(dependencies), platform)
+            @test_logs (:warn, "Dependency LibOSXUnwind_jll does not have a mapping for artifact LibOSXUnwind for platform Linux(:i686, libc=:musl)") setup_dependencies(prefix, getpkg.(dependencies), platform)
             @test "destdir" ∉ readdir(joinpath(dir))
         end
     end
