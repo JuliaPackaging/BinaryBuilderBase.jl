@@ -36,7 +36,7 @@ ArchiveSource(url::String, hash::String; unpack_target::String = "") =
 
 # List of optionally compressed TAR archives that we know how to deal with
 const tar_extensions = [".tar", ".tar.gz", ".tgz", ".tar.bz", ".tar.bz2",
-                        ".tar.xz", ".tar.Z", ".txz"]
+                        ".tar.xz", ".tar.Z", ".txz", ".tar.zst"]
 # List of general archives that we know about
 const archive_extensions = vcat(tar_extensions, ".zip")
 
