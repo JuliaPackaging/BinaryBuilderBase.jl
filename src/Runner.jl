@@ -699,10 +699,12 @@ function platform_envs(platform::Platform, src_name::AbstractString; host_platfo
         ), ":"),
 
         "LD_LIBRARY_PATH" => join((
-           # Start with the default musl ld path
-           "/usr/local/lib64:/usr/local/lib:/usr/local/lib:/usr/lib",
+           # Start with a default path
+           "/usr/local/lib64:/usr/local/lib:/usr/lib64:/usr/lib",
             # Add our loader directories
             "/lib64:/lib",
+            # Add our CSL libraries for all architectures that can natively run within this environment
+            join(["/usr/lib/csl-$(libc)-$(arch)" for libc in ("glibc", "musl"), arch in ("x86_64", "i686")], ":"),
             # Add our target/host-specific library directories for compiler support libraries
             target_lib_dir(host_platform),
             target_lib_dir(rust_host),
