@@ -460,8 +460,8 @@ consists of four shards, but that may not always be the case.
 """
 function choose_shards(p::Platform;
             compilers::Vector{Symbol} = [:c],
-            rootfs_build::VersionNumber=v"2020.08.17",
-            ps_build::VersionNumber=v"2020.08.17",
+            rootfs_build::VersionNumber=v"2020.08.19",
+            ps_build::VersionNumber=v"2020.08.19",
             GCC_builds::Vector{GCCBuild}=available_gcc_builds,
             LLVM_builds::Vector{LLVMBuild}=available_llvm_builds,
             Rust_build::VersionNumber=v"1.18.3",
