@@ -439,12 +439,18 @@ function is_ecryptfs(path::AbstractString; verbose::Bool=false)
 
     # Fast-path asking for a mountpoint directly (e.g. not a subdirectory)
     direct_path = [m[1] == path for m in mounts]
-    parent = if any(direct_path)
-        mounts[findfirst(direct_path)]
+    local parent
+    if any(direct_path)
+        parent = mounts[findfirst(direct_path)]
     else
         # Find the longest prefix mount:
         parent_mounts = [m for m in mounts if startswith(path, m[1])]
-        parent_mounts[argmax(map(m->length(m[1]), parent_mounts))]
+        if isempty(parent_mounts)
+            # This is weird; this means that we can't find any mountpoints that
+            # hold the given path.  I've only ever seen this in `chroot`'ed scenarios.
+            return false, path
+        end
+        parent = parent_mounts[argmax(map(m->length(m[1]), parent_mounts))]
     end
 
     # Return true if this mountpoint is an ecryptfs mount
