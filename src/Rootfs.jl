@@ -76,7 +76,7 @@ end
 
 # The inverse of `artifact_name(cs)`
 function CompilerShard(art_name::String)
-    m = match(r"^([^-]+)(?:-(.+))?\.(v[\d\.]+)\.([^0-9].+-.+)\.(\w+)", art_name)
+    m = match(r"^([^-]+)(?:-(.+))?\.(v[\d\.]+(?:-[^\.]+)?)\.([^0-9].+-.+)\.(\w+)", art_name)
     if m === nothing
         error("Unable to parse '$(art_name)'")
     end
