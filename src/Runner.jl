@@ -260,7 +260,12 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         end
     end
 
-    clang_targeting_laser(p::Platform) = "-target $(aatriplet(p)) --sysroot=/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root"
+    clang_target_triplet(p::Platform) = aatriplet(p)
+    # For now this is required for Clang, since apple spells aarch64 "arm64".
+    # Should probably be fixed upstream, but will do for now
+    clang_target_triplet(p::MacOS) = replace(aatriplet(p), "aarch64" => "arm64")
+
+    clang_targeting_laser(p::Platform) = "-target $(clang_target_triplet(p)) --sysroot=/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root"
     # For MacOS and FreeBSD, we don't set `-rtlib`, and FreeBSD is special-cased within the LLVM source tree
     # to not allow for -gcc-toolchain, which means that we have to manually add the location of libgcc_s.  LE SIGH.
     # We do that within `clang_linker_flags()`, so that we don't get "unused argument" warnings all over the place.
