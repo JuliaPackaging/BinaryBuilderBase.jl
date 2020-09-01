@@ -476,10 +476,18 @@ function choose_shards(p::Platform;
             preferred_llvm_version::VersionNumber = getversion(LLVM_builds[end]),
         )
 
-    GCC_build = select_gcc_version(p, GCC_builds, preferred_gcc_version)
-    LLVM_build = select_closest_version(preferred_llvm_version, getversion.(LLVM_builds))
     # Our host platform is x86_64-linux-musl
     host_platform = Linux(:x86_64; libc=:musl)
+
+    make_gcc_shard(GCC_build, target) = CompilerShard("GCCBootstrap", GCC_build, host_platform, archive_type; target=target)
+
+    this_platform_GCC_builds = filter(GCC_builds) do GCC_build
+        make_gcc_shard(getversion(GCC_build), p) in all_compiler_shards() &&
+        make_gcc_shard(getversion(GCC_build), host_platform) in all_compiler_shards()
+    end
+
+    GCC_build = select_gcc_version(p, this_platform_GCC_builds, preferred_gcc_version)
+    LLVM_build = select_closest_version(preferred_llvm_version, getversion.(LLVM_builds))
 
     shards = CompilerShard[]
     if isempty(bootstrap_list)
@@ -492,14 +500,14 @@ function choose_shards(p::Platform;
         platform_match(a, b) = ((typeof(a) <: typeof(b)) && (arch(a) == arch(b)) && (libc(a) == libc(b)))
         if :c in compilers
             append!(shards, [
-                CompilerShard("GCCBootstrap", GCC_build, host_platform, archive_type; target=p),
+                make_gcc_shard(GCC_build, p),
                 CompilerShard("LLVMBootstrap", LLVM_build, host_platform, archive_type),
             ])
             # If we're not building for the host platform, then add host shard for host tools
             if !platform_match(p, host_platform)
                 append!(shards, [
                     CompilerShard("PlatformSupport", ps_build, host_platform, archive_type; target=host_platform),
-                    CompilerShard("GCCBootstrap", GCC_build, host_platform, archive_type; target=host_platform),
+                    make_gcc_shard(GCC_build, host_platform)
                 ])
             end
         end
@@ -517,7 +525,7 @@ function choose_shards(p::Platform;
 
                 # We have to add these as well for access to linkers and whatnot for Rust.  Sigh.
                 push!(shards, CompilerShard("PlatformSupport", ps_build, host_platform, archive_type; target=Rust_host))
-                push!(shards, CompilerShard("GCCBootstrap", GCC_build, host_platform, archive_type; target=Rust_host))
+                push!(shards, make_gcc_shard(GCC_build, Rust_host))
             end
             if !platform_match(p, host_platform)
                 push!(shards, CompilerShard("RustToolchain", Rust_build, Rust_host, archive_type; target=host_platform))
@@ -532,6 +540,7 @@ function choose_shards(p::Platform;
             versions = [cs.version for cs in all_compiler_shards()
                 if cs.name == name && cs.archive_type == archive_type && (something(cs.target, p) == p)
             ]
+            isempty(versions) && error("No latest shard found for $name")
             return maximum(versions)
         end
 
