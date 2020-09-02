@@ -141,7 +141,7 @@ end
         @test gcc_version(ep, available_gcc_builds) == [v"7.1.0"]
 
         ep = ExtendedPlatform(Linux(:armv7l); march="neon")
-        @test gcc_version(ep, available_gcc_builds) == [v"8.1.0", v"9.1.0"]
+        @test gcc_version(ep, available_gcc_builds) == [v"8.1.0", v"9.1.0", v"11.0.0-iains"]
     end
 
     @testset "Compiler wrappers" begin
