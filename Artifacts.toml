@@ -1859,18 +1859,12 @@ lazy = true
 libc = "musl"
 os = "linux"
 
-    [["PlatformSupport-aarch64-apple-darwin14.v2020.8.19.x86_64-linux-musl.squashfs".download]]
-    sha256 = "0543ea0f91658d7f8e002c9f769ea971b619ca2d1df3da3cd324873dbb5ce1da"
-
 [["PlatformSupport-aarch64-apple-darwin14.v2020.8.19.x86_64-linux-musl.unpacked"]]
 arch = "x86_64"
 git-tree-sha1 = "fa4195cad9954efdea1c6c670b043a5ddca9a48b"
 lazy = true
 libc = "musl"
 os = "linux"
-
-    [["PlatformSupport-aarch64-apple-darwin14.v2020.8.19.x86_64-linux-musl.unpacked".download]]
-    sha256 = "4739cf439cae3ff8ac4dfb696f0fc166b2dd342b8c6223b82d7eb8a3c3343857"
 
 [["PlatformSupport-aarch64-linux-gnu.v2020.8.19.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
