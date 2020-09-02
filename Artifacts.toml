@@ -1339,18 +1339,12 @@ lazy = true
 libc = "musl"
 os = "linux"
 
-    [["GCCBootstrap-x86_64-linux-musl.v11.0.0-iains.x86_64-linux-musl.squashfs".download]]
-    sha256 = "ca30a84b512be1b57fde3d1aee2a49836bbd58023c18624e799eb9affbaca849"
-
 [["GCCBootstrap-x86_64-linux-musl.v11.0.0-iains.x86_64-linux-musl.unpacked"]]
 arch = "x86_64"
 git-tree-sha1 = "a1999c031cd6d255819cf34981f7d12af21e6e33"
 lazy = true
 libc = "musl"
 os = "linux"
-
-    [["GCCBootstrap-x86_64-linux-musl.v11.0.0-iains.x86_64-linux-musl.unpacked".download]]
-    sha256 = "cb6b9de632fa1645b3e6f0cd9a70d4257926f4ad9da69d64f4c2c06118a50049"
 
 [["GCCBootstrap-x86_64-linux-musl.v4.8.5.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
