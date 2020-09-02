@@ -1,3 +1,23 @@
+[["GCCBootstrap-aarch64-apple-darwin14.v11.0.0-iains.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "64c870e506f0f6e6004e784c830884fbc3fb056f"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-aarch64-apple-darwin14.v11.0.0-iains.x86_64-linux-musl.squashfs".download]]
+    sha256 = "01841200867b41e8f9905562cdee5669a734852340f53df96f0b175fe64318e1"
+
+[["GCCBootstrap-aarch64-apple-darwin14.v11.0.0-iains.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "c1fbed7cf7be10fe7fb973e1dc7865b973226108"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-aarch64-apple-darwin14.v11.0.0-iains.x86_64-linux-musl.unpacked".download]]
+    sha256 = "7d90eba68938065b3b7762be175442dbb5062bb80aab975cd3dbc7405d4b8311"
+
 [["GCCBootstrap-aarch64-linux-gnu.v4.8.5.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
 git-tree-sha1 = "e1afa7a52a0c7dd9ef1f22007686e2c617fcc4f7"
@@ -1318,6 +1338,26 @@ os = "linux"
     sha256 = "f4550645592653d21ffcaf1fc67bba734105aaa541fc0468193e358ec303ae2e"
     url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v9.1.0+2/GCCBootstrap-x86_64-linux-gnu.v9.1.0.x86_64-linux-musl.unpacked.tar.gz"
 
+[["GCCBootstrap-x86_64-linux-musl.v11.0.0-iains.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "9e9300a7d0cfa7aa9a26b027e43a1d4bbf3c8f6d"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-x86_64-linux-musl.v11.0.0-iains.x86_64-linux-musl.squashfs".download]]
+    sha256 = "ca30a84b512be1b57fde3d1aee2a49836bbd58023c18624e799eb9affbaca849"
+
+[["GCCBootstrap-x86_64-linux-musl.v11.0.0-iains.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "a1999c031cd6d255819cf34981f7d12af21e6e33"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-x86_64-linux-musl.v11.0.0-iains.x86_64-linux-musl.unpacked".download]]
+    sha256 = "cb6b9de632fa1645b3e6f0cd9a70d4257926f4ad9da69d64f4c2c06118a50049"
+
 [["GCCBootstrap-x86_64-linux-musl.v4.8.5.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
 git-tree-sha1 = "46836728a90139d3969322fc5c62e627b91ffa70"
@@ -1823,6 +1863,26 @@ os = "linux"
     [["LLVMBootstrap.v9.0.1.x86_64-linux-musl.unpacked".download]]
     sha256 = "80c9869b8421b7efdba72f13ec2c24c7ef77b533ad75d8c72739a312adcaef75"
     url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/LLVMBootstrap-v9.0.1+0/LLVMBootstrap.v9.0.1.x86_64-linux-musl.unpacked.tar.gz"
+
+[["PlatformSupport-aarch64-apple-darwin14.v2020.8.19.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "d168a4a6ae2d9bbd4b342131df44b5654815d558"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["PlatformSupport-aarch64-apple-darwin14.v2020.8.19.x86_64-linux-musl.squashfs".download]]
+    sha256 = "0543ea0f91658d7f8e002c9f769ea971b619ca2d1df3da3cd324873dbb5ce1da"
+
+[["PlatformSupport-aarch64-apple-darwin14.v2020.8.19.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "fa4195cad9954efdea1c6c670b043a5ddca9a48b"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["PlatformSupport-aarch64-apple-darwin14.v2020.8.19.x86_64-linux-musl.unpacked".download]]
+    sha256 = "4739cf439cae3ff8ac4dfb696f0fc166b2dd342b8c6223b82d7eb8a3c3343857"
 
 [["PlatformSupport-aarch64-linux-gnu.v2020.8.19.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
