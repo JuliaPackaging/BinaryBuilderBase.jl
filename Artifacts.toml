@@ -5,18 +5,12 @@ lazy = true
 libc = "musl"
 os = "linux"
 
-    [["GCCBootstrap-aarch64-apple-darwin14.v11.0.0-iains.x86_64-linux-musl.squashfs".download]]
-    sha256 = "01841200867b41e8f9905562cdee5669a734852340f53df96f0b175fe64318e1"
-
 [["GCCBootstrap-aarch64-apple-darwin14.v11.0.0-iains.x86_64-linux-musl.unpacked"]]
 arch = "x86_64"
 git-tree-sha1 = "c1fbed7cf7be10fe7fb973e1dc7865b973226108"
 lazy = true
 libc = "musl"
 os = "linux"
-
-    [["GCCBootstrap-aarch64-apple-darwin14.v11.0.0-iains.x86_64-linux-musl.unpacked".download]]
-    sha256 = "7d90eba68938065b3b7762be175442dbb5062bb80aab975cd3dbc7405d4b8311"
 
 [["GCCBootstrap-aarch64-linux-gnu.v4.8.5.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
