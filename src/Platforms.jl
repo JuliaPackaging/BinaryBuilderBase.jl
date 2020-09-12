@@ -20,7 +20,7 @@ Base.show(io::IO, ::AnyPlatform) = print(io, "AnyPlatform()")
 ## The extended platforms, to represent platforms beyond the standard ones in
 ## Pkg.BinaryPlatforms.
 
-const ARCHITECTURE_FLAGS = begin
+const ARCHITECTURE_FLAGS = let
     # Better be always explicit about `-march` & `-mtune`:
     # https://lemire.me/blog/2018/07/25/it-is-more-complicated-than-i-thought-mtune-march-in-gcc/
     march_flags(arch) = ["-m$(f)=$(arch)" for f in ("arch", "tune")]
