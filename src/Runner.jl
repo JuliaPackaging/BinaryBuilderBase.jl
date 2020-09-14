@@ -286,8 +286,11 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
 
     # On macos, we want to use a particular linker with clang.  But we want to avoid warnings about unused
     # flags when just compiling, so we put it into "linker-only flags".
-    clang_link_flags(p::Platform) = String["-fuse-ld=$(aatriplet(p))"]
-    clang_link_flags(p::Union{FreeBSD,MacOS}) = ["-L/opt/$(aatriplet(p))/$(aatriplet(p))/lib", "-fuse-ld=$(aatriplet(p))"]
+    clang_link_flags(p::Platform) = ["-fuse-ld=$(aatriplet(p))"]
+    clang_link_flags(p::FreeBSD) = ["-L/opt/$(aatriplet(p))/$(aatriplet(p))/lib", "-fuse-ld=$(aatriplet(p))"]
+    # We need to pass `-headerpad_max_install_names` to the macOS linker because
+    # we use `install_name_tool` during audit.
+    clang_link_flags(p::MacOS) = ["-L/opt/$(aatriplet(p))/$(aatriplet(p))/lib", "-fuse-ld=$(aatriplet(p))", "-headerpad_max_install_names"]
 
     gcc_link_flags(p::Platform) = String[]
     function gcc_link_flags(p::Linux)
@@ -298,6 +301,8 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         end
         return String[]
     end
+    # Same reason to use `-headerpad_max_install_names` as above.
+    gcc_link_flags(p::MacOS) = ["-headerpad_max_install_names"]
     gfortran_link_flags(p::Platform) = gcc_link_flags(p)
 
     # C/C++/Fortran
