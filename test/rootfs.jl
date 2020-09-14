@@ -27,6 +27,10 @@ using BinaryBuilderBase: supported_microarchitectures
         Linux(:x86_64, libc=:musl, compiler_abi=CompilerABI(cxxstring_abi=:cxx11)),
     ]
     @test expand_cxxstring_abis([FreeBSD(:x86_64), MacOS(:x86_64)]) == [
+        FreeBSD(:x86_64),
+        MacOS(:x86_64),
+    ]
+    @test expand_cxxstring_abis([FreeBSD(:x86_64), MacOS(:x86_64)]; skip_freebsd_macos=false) == [
         FreeBSD(:x86_64, compiler_abi=CompilerABI(cxxstring_abi=:cxx03)),
         FreeBSD(:x86_64, compiler_abi=CompilerABI(cxxstring_abi=:cxx11)),
         MacOS(:x86_64, compiler_abi=CompilerABI(cxxstring_abi=:cxx03)),

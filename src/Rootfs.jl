@@ -641,18 +641,21 @@ function expand_gfortran_versions(ps::Vector{<:Platform})
 end
 
 """
-    expand_cxxstring_abis(p::Platform)
+    expand_cxxstring_abis(p::Platform; skip_freebsd_macos::Bool=true)
 
 Given a `Platform`, returns an array of `Platforms` with a spread of identical
 entries with the exception of the `cxxstring_abi` member of the `CompilerABI`
 struct within the `Platform`.  This is used to take, for example, a list of
 supported platforms and expand them to include multiple GCC versions for
-the purposes of ABI matching.  If the given `Platform` already specifies a
-GCC version (as opposed to `nothing`) only that `Platform` is returned.
+the purposes of ABI matching.
+
+If the given `Platform` already specifies a GCC version (as opposed to
+`nothing`) only that `Platform` is returned.  If `skip_freebsd_macos` is `true`,
+FreeBSD and MacOS platforms are left as they are.
 """
-function expand_cxxstring_abis(p::Platform)
+function expand_cxxstring_abis(p::Platform; skip_freebsd_macos::Bool=true)
     # If this platform cannot be expanded, then exit out fast here.
-    if cxxstring_abi(compiler_abi(p)) != nothing
+    if cxxstring_abi(compiler_abi(p)) !== nothing || (skip_freebsd_macos && Sys.isbsd(p))
         return [p]
     end
 
@@ -660,8 +663,8 @@ function expand_cxxstring_abis(p::Platform)
     gcc_versions = [:cxx03, :cxx11]
     return replace_cxxstring_abi.(Ref(p), gcc_versions)
 end
-function expand_cxxstring_abis(ps::Vector{<:Platform})
-    return Platform[p for p in Iterators.flatten(expand_cxxstring_abis.(ps))]
+function expand_cxxstring_abis(ps::Vector{<:Platform}; kwargs...)
+    return Platform[p for p in Iterators.flatten(expand_cxxstring_abis.(ps; kwargs...))]
 end
 
 # This function is used only by `expand_microarchitectures`, but can probably be
