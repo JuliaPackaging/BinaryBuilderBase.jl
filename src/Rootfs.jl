@@ -553,6 +553,11 @@ function choose_shards(p::Platform;
                 push!(shards, CompilerShard("PlatformSupport", find_latest_version("PlatformSupport"), host_platform, archive_type; target=target))
             end
         end
+        if :glibc in bootstrap_list
+            for target in supported_platforms()
+                push!(shards, make_gcc_shard(GCC_build, target))
+            end
+        end
     end
     return shards
 end
