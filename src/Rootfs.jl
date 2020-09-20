@@ -39,7 +39,7 @@ struct CompilerShard
         # to use, but once we're at this level we only care about the
         # larger-scale things, not the ABI).
         host = abi_agnostic(host)
-        if target != nothing
+        if target !== nothing
             target = abi_agnostic(target)
         end
 
@@ -549,7 +549,9 @@ function choose_shards(p::Platform;
             push!(shards, CompilerShard("Rootfs", find_latest_version("Rootfs"), host_platform, archive_type))
         end
         if :platform_support in bootstrap_list
-            push!(shards, CompilerShard("PlatformSupport", find_latest_version("PlatformSupport"), host_platform, archive_type; target=p))
+            for target in supported_platforms()
+                push!(shards, CompilerShard("PlatformSupport", find_latest_version("PlatformSupport"), host_platform, archive_type; target=target))
+            end
         end
     end
     return shards
