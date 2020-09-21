@@ -388,11 +388,17 @@ function setup_dependencies(prefix::Prefix, dependencies::Vector{PkgSpec}, platf
     end
     dependencies = filter_redundant_version.(dependencies)
 
+    # Get julia version specificity, if it exists, from the `Platform` object
+    julia_version = nothing
+    if haskey(platform, "julia_version")
+        julia_version = VersionNumber(platform["julia_version"])
+    end
+
     # We're going to create a project and install all dependent packages within
     # it, then create symlinks from those installed products to our build prefix
 
     # Update registry first, in case the jll packages we're looking for have just been registered/updated
-    ctx = Pkg.Types.Context()
+    ctx = Pkg.Types.Context(;julia_version = julia_version)
     outs = verbose ? stdout : devnull
     update_registry(ctx, outs)
 
@@ -400,10 +406,9 @@ function setup_dependencies(prefix::Prefix, dependencies::Vector{PkgSpec}, platf
     deps_project = joinpath(prefix, ".project")
     Pkg.activate(deps_project) do
         # Add all dependencies
-        Pkg.add(dependencies; platform=platform, io=outs)
+        Pkg.add(ctx, dependencies; platform=platform, io=outs)
 
         # Get all JLL packages within the current project
-        ctx = Pkg.Types.Context()
         installed_jlls = [
             Pkg.Types.PackageSpec(name=p.name, uuid=u, tree_hash=p.tree_hash) for (u, p) in ctx.env.manifest if endswith(p.name, "_jll")
         ]
