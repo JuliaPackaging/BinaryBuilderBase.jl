@@ -1,16 +1,16 @@
 using Test
-using Pkg.BinaryPlatforms
+using Base.BinaryPlatforms
 import Libdl
 using BinaryBuilderBase
 using BinaryBuilderBase: template
 
 # The platform we're running on
-const platform = platform_key_abi()
+const platform = HostPlatform()
 
 @testset "Products" begin
     @test template(raw"$libdir/foo-$arch/$nbits/bar-$target", Platform("x86_64)", "windows") ==
         "bin/foo-x86_64/64/bar-x86_64-w64-mingw32"
-    @test template(raw"$target/$nbits/$arch/$libdir", Linux(:x86_64; libc = :musl)) ==
+    @test template(raw"$target/$nbits/$arch/$libdir", Platform("x86_64", "linux"; libc = "musl")) ==
         "x86_64-linux-musl/64/x86_64/lib"
 
     lp = LibraryProduct("libfakechroot", :libfakechroot, "lib/fakechroot")

@@ -41,7 +41,7 @@ end
 
 """
     satisfied(p::Product;
-              platform::Platform = platform_key_abi(),
+              platform::Platform = HostPlatform(),
               verbose::Bool = false,
               isolate::Bool = false)
 
@@ -150,7 +150,7 @@ end
 """
     locate(lp::LibraryProduct, prefix::Prefix;
            verbose::Bool = false,
-           platform::Platform = platform_key_abi())
+           platform::Platform = HostPlatform())
 
 If the given library exists (under any reasonable name) and is `dlopen()`able,
 (assuming it was built for the current platform) return its location.  Note
@@ -158,7 +158,7 @@ that the `dlopen()` test is only run if the current platform matches the given
 `platform` keyword argument, as cross-compiled libraries cannot be `dlopen()`ed
 on foreign platforms.
 """
-function locate(lp::LibraryProduct, prefix::Prefix; platform::Platform = platform_key_abi(),
+function locate(lp::LibraryProduct, prefix::Prefix; platform::Platform = HostPlatform(),
                 verbose::Bool = false, isolate::Bool = true, skip_dlopen::Bool=false, kwargs...)
     dir_paths = joinpath.(prefix.path, template.(lp.dir_paths, Ref(platform)))
     append!(dir_paths, libdirs(prefix, platform))
@@ -193,7 +193,7 @@ function locate(lp::LibraryProduct, prefix::Prefix; platform::Platform = platfor
                     end
 
                     # If it does, try to `dlopen()` it if the current platform is good
-                    if (!lp.dont_dlopen && !skip_dlopen) && platforms_match(platform, platform_key_abi())
+                    if (!lp.dont_dlopen && !skip_dlopen) && platforms_match(platform, HostPlatform())
                         if isolate
                             # Isolated dlopen is a lot slower, but safer
                             if success(`$(Base.julia_cmd()) --startup-file=no -e "import Libdl; Libdl.dlopen(\"$dl_path\")"`)
@@ -264,7 +264,7 @@ repr(p::FrameworkProduct) = "Framework" * repr(p.libraryproduct)[8:end]
 
 variable_name(fp::FrameworkProduct) = variable_name(fp.libraryproduct)
 
-function locate(fp::FrameworkProduct, prefix::Prefix; platform::Platform = platform_key_abi(), verbose::Bool = false, kwargs...)
+function locate(fp::FrameworkProduct, prefix::Prefix; platform::Platform = HostPlatform(), verbose::Bool = false, kwargs...)
     dir_paths = joinpath.(prefix.path, template.(fp.libraryproduct.dir_paths, Ref(platform)))
     append!(dir_paths, libdirs(prefix, platform))
     for dir_path in dir_paths
@@ -353,7 +353,7 @@ end
 
 """
     locate(ep::ExecutableProduct, prefix::Prefix;
-           platform::Platform = platform_key_abi(),
+           platform::Platform = HostPlatform(),
            verbose::Bool = false,
            isolate::Bool = false)
 
@@ -364,7 +364,7 @@ file.  On non-Windows platforms, it will check for the executable bit being set.
 On Windows platforms, it will check that the file ends with ".exe", (adding it
 on automatically, if it is not already present).
 """
-function locate(ep::ExecutableProduct, prefix::Prefix; platform::Platform = platform_key_abi(),
+function locate(ep::ExecutableProduct, prefix::Prefix; platform::Platform = HostPlatform(),
                 verbose::Bool = false, isolate::Bool = false, kwargs...)
     for binname in ep.binnames
         # On windows, we always slap an .exe onto the end if it doesn't already
@@ -431,7 +431,7 @@ repr(p::FileProduct) = "FileProduct($(repr(p.paths)), $(repr(p.variable_name)))"
 
 """
     locate(fp::FileProduct, prefix::Prefix;
-           platform::Platform = platform_key_abi(),
+           platform::Platform = HostPlatform(),
            verbose::Bool = false,
            isolate::Bool = false)
 
@@ -441,7 +441,7 @@ we support a limited number of custom variable expansions such as `\${target}`,
 and `\${nbits}`, so that the detection of files within target-specific folders
 named things like `/lib32/i686-linux-musl` is simpler.
 """
-function locate(fp::FileProduct, prefix::Prefix; platform::Platform = platform_key_abi(),
+function locate(fp::FileProduct, prefix::Prefix; platform::Platform = HostPlatform(),
                 verbose::Bool = false, isolate::Bool = false, kwargs...)
     for path in fp.paths
         expanded = joinpath(prefix, template(path, platform))

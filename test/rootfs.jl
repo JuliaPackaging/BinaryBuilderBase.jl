@@ -1,5 +1,5 @@
 using Test
-using Pkg.BinaryPlatforms
+using Base.BinaryPlatforms
 using BinaryBuilderBase
 using BinaryBuilderBase: supported_microarchitectures
 

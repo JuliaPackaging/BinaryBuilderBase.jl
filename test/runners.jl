@@ -59,7 +59,7 @@ end
 
     @testset "hello world" begin
         mktempdir() do dir
-            ur = preferred_runner()(dir; platform=Linux(:x86_64; libc=:musl))
+            ur = preferred_runner()(dir; platform=Platform("x86_64", "linux"; libc="musl"))
             iobuff = IOBuffer()
             @test run(ur, `/bin/bash -c "echo test"`, iobuff)
             seek(iobuff, 0)
@@ -70,7 +70,7 @@ end
 
     @testset "Compilation" begin
         mktempdir() do dir
-            ur = preferred_runner()(dir; platform=Linux(:x86_64; libc=:musl))
+            ur = preferred_runner()(dir; platform=Platform("x86_64", "linux"; libc="musl"))
             iobuff = IOBuffer()
             @test run(ur, `/bin/bash -c "echo 'int main() {return 0;}' | cc -x c -"`, iobuff; tee_stream=devnull)
             seekstart(iobuff)
@@ -80,7 +80,7 @@ end
 
     @testset "Locking microarchitecture" begin
         mktempdir() do dir
-            platform = Linux(:x86_64; libc=:musl)
+            platform = Platform("x86_64", "linux"; libc="musl")
             cmd = `/bin/bash -c "echo 'int main() {return 0;}' | cc -x c -march=native -"`
             ur = preferred_runner()(dir; platform=platform, lock_microarchitecture=true)
             iobuff = IOBuffer()
@@ -98,7 +98,7 @@ end
 
     @testset "Unsafe flags" begin
         mktempdir() do dir
-            platform = Linux(:x86_64; libc=:musl)
+            platform = Platform("x86_64", "linux"; libc="musl")
             cmd = `/bin/bash -c "echo 'int main() {return 0;}' | cc -x c -Ofast -"`
             ur = preferred_runner()(dir; platform=platform, allow_unsafe_flags=false)
             iobuff = IOBuffer()

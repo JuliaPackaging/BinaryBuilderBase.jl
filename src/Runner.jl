@@ -37,8 +37,8 @@ aatriplet(p::AnyPlatform) = aatriplet(Platform("x86_64", "linux"; libc="musl"))
 
 """
     generate_compiler_wrappers!(platform::Platform; bin_path::AbstractString,
-                                host_platform::Platform = Linux(:x86_64; libc=:musl),
-                                rust_platform::Platform = Linux(:x86_64; libc=:glibc),
+                                host_platform::Platform = Platform("x86_64", "linux"; libc="musl"),
+                                rust_platform::Platform = Platform("x86_64", "linux"; libc="glibc"),
                                 compilers::Vector{Symbol} = [:c],
                                 allow_unsafe_flags::Bool = false,
                                 lock_microarchitecture::Bool = true)
@@ -52,8 +52,8 @@ difficult to override, as the flags embedded in these wrappers are absolutely ne
 and even simple programs will not compile without them.
 """
 function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractString,
-                                     host_platform::Platform = Linux(:x86_64; libc=:musl),
-                                     rust_platform::Platform = Linux(:x86_64; libc=:glibc),
+                                     host_platform::Platform = Platform("x86_64", "linux"; libc="musl"),
+                                     rust_platform::Platform = Platform("x86_64", "linux"; libc="glibc"),
                                      compilers::Vector{Symbol} = [:c],
                                      allow_unsafe_flags::Bool = false,
                                      lock_microarchitecture::Bool = true,
@@ -361,11 +361,21 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     objc(io::IO, p::Platform)     = clang_wrapper(io, "clang", p, ["-x objective-c"])
 
     # Our general `cc`  points to `gcc` for most systems, but `clang` for MacOS and FreeBSD
-    cc(io::IO, p::Platform) = gcc(io, p)
-    cxx(io::IO, p::Platform) = gxx(io, p)
+    function cc(io::IO, p::Platform)
+        if Sys.isbsd(p)
+            return clang(io, p)
+        else
+            return gcc(io, p)
+        end
+    end
+    function cxx(io::IO, p::Platform)
+        if Sys.isbsd(p)
+            return clangxx(io, p)
+        else
+            return gxx(io, p)
+        end
+    end
     fc(io::IO, p::Platform) = gfortran(io, p)
-    cc(io::IO, p::Union{MacOS,FreeBSD}) = clang(io, p)
-    cxx(io::IO, p::Union{MacOS,FreeBSD}) = clangxx(io, p)
     
     # Go stuff where we build an environment mapping each time we invoke `go-${target}`
     function GOOS(p::Platform)
@@ -573,7 +583,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         write_wrapper(cxxfilt, p, "$(t)-c++filt")
         write_wrapper(ld, p, "$(t)-ld")
         # ld wrappers for clang's `-fuse-ld=$(target)`
-        if isa(p, MacOS)
+        if Sys.isapple(p)
             write_wrapper(ld, p, "ld64.$(t)")
         else
             write_wrapper(ld, p, "ld.$(t)")
@@ -587,7 +597,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         write_wrapper(strip, p, "$(t)-strip")
 
         # Special mac stuff
-        if isa(p, MacOS)
+        if Sys.isapple(p)
             write_wrapper(install_name_tool, p, "$(t)-install_name_tool")
             write_wrapper(lipo, p, "$(t)-lipo")
             write_wrapper(dsymutil, p, "$(t)-dsymutil")
@@ -595,7 +605,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         end
 
         # Special Windows stuff
-        if isa(p, Windows)
+        if Sys.iswindows(p)
             write_wrapper(dlltool, p, "$(t)-dlltool")
             write_wrapper(windres, p, "$(t)-windres")
             write_wrapper(winmc, p, "$(t)-winmc")
@@ -634,9 +644,9 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         "patchelf",
     ]
 
-    if platform isa MacOS
+    if Sys.isapple(platform)
         append!(default_tools, ("dsymutil", "lipo", "otool", "install_name_tool"))
-    elseif platform isa Windows
+    elseif Sys.iswindows(platform)
         append!(default_tools, ("dlltool", "windres", "winmc"))
     end
 
@@ -679,13 +689,18 @@ variables to be set within the build environment to force compiles toward the
 defined target architecture.  Examples of things set are `PATH`, `CC`,
 `RANLIB`, as well as nonstandard things like `target`.
 """
-function platform_envs(platform::Platform, src_name::AbstractString; host_platform = Linux(:x86_64; libc=:musl), bootstrap::Bool=!isempty(bootstrap_list), verbose::Bool = false)
+function platform_envs(platform::Platform, src_name::AbstractString;
+                       host_platform = Platform("x86_64", "linux"; libc="musl"),
+                       bootstrap::Bool=!isempty(bootstrap_list),
+                       verbose::Bool = false)
     global use_ccache
 
     # Convert platform to a triplet, but strip out the ABI parts
     target = aatriplet(platform)
     host_target = aatriplet(host_platform)
-    rust_host = Linux(:x86_64; libc=:glibc)
+
+    # Rust has a different host, because it doesn't run on `musl` properly yet.
+    rust_host = Platform("x86_64", "linux"; libc="glibc")
 
     # Prefix, libdir, etc...
     prefix = "/workspace/destdir"
@@ -763,11 +778,11 @@ function platform_envs(platform::Platform, src_name::AbstractString; host_platfo
     # puts things in slightly different place.
     function target_lib_dir(p::Platform)
         t = aatriplet(p)
-        return "/opt/$(t)/$(t)/lib64:/opt/$(t)/$(t)/lib"
-    end
-    function target_lib_dir(p::MacOS)
-        t = aatriplet(p)
-        return "/opt/$(t)/$(t)/lib:/opt/$(t)/lib"
+        if Sys.isapple(p)
+            return "/opt/$(t)/$(t)/lib:/opt/$(t)/lib"
+        else
+            return "/opt/$(t)/$(t)/lib64:/opt/$(t)/$(t)/lib"
+        end
     end
 
     merge!(mapping, Dict(
@@ -843,7 +858,7 @@ function platform_envs(platform::Platform, src_name::AbstractString; host_platfo
     ))
 
     # If we're on macOS, we give a hint to things like `configure` that they should use this as the linker
-    if isa(platform, MacOS)
+    if Sys.isapple(platform)
         mapping["LD"] = "/opt/$(target)/bin/ld64.macos"
         mapping["MACOSX_DEPLOYMENT_TARGET"] = "10.8"
     end
@@ -906,12 +921,12 @@ function preferred_runner()
 end
 
 """
-    runshell(platform::Platform = platform_key_abi())
+    runshell(platform::Platform = HostPlatform())
 
 Launch an interactive shell session within the user namespace, with environment
 setup to target the given `platform`.
 """
-function runshell(platform::Platform = platform_key_abi(); kwargs...)
+function runshell(platform::Platform = HostPlatform(); kwargs...)
     runshell(preferred_runner(), platform; kwargs...)
 end
 
@@ -919,6 +934,6 @@ function runshell(r::Runner, args...; kwargs...)
     run_interactive(r, `/bin/bash -l`, args...; kwargs...)
 end
 
-function runshell(::Type{R}, platform::Platform = platform_key_abi(); verbose::Bool=false,kwargs...) where {R <: Runner}
+function runshell(::Type{R}, platform::Platform = HostPlatform(); verbose::Bool=false,kwargs...) where {R <: Runner}
     return runshell(R(pwd(); cwd="/workspace/", platform=platform, verbose=verbose, kwargs...); verbose=verbose)
 end

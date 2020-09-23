@@ -6,7 +6,7 @@ using Downloads
 using JSON, OutputCollectors
 
 # Re-export useful stuff from Base.BinaryPlatforms:
-export platform_key_abi, platform_dlext, valid_dl_path, arch, libc,
+export HostPlatform, platform_dlext, valid_dl_path, arch, libc,
        libgfortran_version, libstdcxx_version, cxxstring_abi,
        detect_libgfortran_version, detect_libstdcxx_version, detect_cxxstring_abi,
        call_abi, wordsize, triplet, select_platform, platforms_match,
@@ -71,9 +71,6 @@ bootstrap_list = Symbol[]
 function __init__()
     global runner_override, use_squashfs, allow_ecryptfs
     global use_ccache, storage_cache
-
-    # Pkg does this lazily; do it explicitly here.
-    Pkg.PlatformEngines.probe_platform_engines!()
 
     # Allow the user to override the default value for `storage_dir`
     storage_cache = get(ENV, "BINARYBUILDER_STORAGE_DIR",

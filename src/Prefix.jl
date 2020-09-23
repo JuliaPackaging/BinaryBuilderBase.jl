@@ -5,7 +5,6 @@ import Base: convert, joinpath, show
 using SHA, CodecZlib
 
 export Prefix, bindir, libdirs, includedir, logdir, temp_prefix
-import Pkg.PlatformEngines: package
 
 """
     temp_prefix(func::Function)
@@ -83,12 +82,12 @@ function bindir(prefix::Prefix)
 end
 
 """
-    libdirs(prefix::Prefix, platform = platform_key_abi())
+    libdirs(prefix::Prefix, platform = HostPlatform())
 
 Returns the library directories for the given `prefix` (note that this differs
 between unix systems and windows systems, and between 32- and 64-bit systems).
 """
-function libdirs(prefix::Prefix, platform = platform_key_abi())
+function libdirs(prefix::Prefix, platform = HostPlatform())
     if Sys.iswindows(platform)
         return [joinpath(prefix, "bin")]
     else
@@ -121,7 +120,7 @@ end
 """
     package(prefix::Prefix, output_base::AbstractString,
             version::VersionNumber;
-            platform::Platform = platform_key_abi(),
+            platform::Platform = HostPlatform(),
             verbose::Bool = false, force::Bool = false)
 
 Build a tarball of the `prefix`, storing the tarball at `output_base`,
@@ -132,7 +131,7 @@ the SHA256 hash and the git tree SHA1 of the generated tarball.
 function package(prefix::Prefix,
                  output_base::AbstractString,
                  version::VersionNumber;
-                 platform::Platform = platform_key_abi(),
+                 platform::Platform = HostPlatform(),
                  verbose::Bool = false,
                  force::Bool = false)
     # Calculate output path

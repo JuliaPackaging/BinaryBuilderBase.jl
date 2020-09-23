@@ -1,5 +1,5 @@
 using Test
-using Pkg, Pkg.BinaryPlatforms
+using Pkg, Base.BinaryPlatforms
 using BinaryBuilderBase
 using BinaryBuilderBase: getname, getpkg, dependencify, dlext
 using JSON
@@ -50,7 +50,7 @@ end
             dependencies = [
                 Dependency("Zlib_jll")
             ]
-            platform = platform_key_abi()
+            platform = HostPlatform()
             ap = @test_logs setup_dependencies(prefix, getpkg.(dependencies), platform)
             @test "libz." * platform_dlext(platform) in readdir(last(libdirs(Prefix(joinpath(dir, "destdir")))))
             @test "zlib.h" in readdir(joinpath(dir, "destdir", "include"))
@@ -69,8 +69,9 @@ end
                 Dependency("LibOSXUnwind_jll")
             ]
             platform = Platform("i686", "linux"; libc="musl")
-            @test_logs (:warn, "Dependency LibOSXUnwind_jll does not have a mapping for artifact LibOSXUnwind for platform Platform(\"i686\", \"linux\"; libc=\"musl\")"
-            setup_dependencies(prefix, getpkg.(dependencies), platform)
+            @test_logs (:warn, r"Dependency LibOSXUnwind_jll does not have a mapping for artifact LibOSXUnwind for platform") begin
+                setup_dependencies(prefix, getpkg.(dependencies), platform)
+            end
             @test "destdir" ∉ readdir(joinpath(dir))
         end
     end

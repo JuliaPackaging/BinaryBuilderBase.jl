@@ -3,6 +3,20 @@ using Base.BinaryPlatforms
 export AnyPlatform
 
 """
+    AnyPlatform()
+
+A special platform to be used to build platform-independent tarballs, like those
+containing only header files.  [`FileProduct`](@ref) is the only product type
+allowed with this platform.
+"""
+struct AnyPlatform <: AbstractPlatform end
+Base.BinaryPlatforms.tags(p::AnyPlatform) = Dict{String,String}()
+Base.BinaryPlatforms.triplet(::AnyPlatform) = "any"
+Base.BinaryPlatforms.arch(::AnyPlatform) = "any"
+Base.BinaryPlatforms.os(::AnyPlatform) = "any"
+Base.show(io::IO, ::AnyPlatform) = print(io, "AnyPlatform()")
+
+"""
     abi_agnostic(p::AbstractPlatform)
 
 Strip out any tags that are not the basic annotations like `libc` and `call_abi`.
@@ -14,19 +28,6 @@ function abi_agnostic(p::Platform)
 end
 abi_agnostic(p::AnyPlatform) = p
 
-"""
-    AnyPlatform()
-
-A special platform to be used to build platform-independent tarballs, like those
-containing only header files.  [`FileProduct`](@ref) is the only product type
-allowed with this platform.
-"""
-struct AnyPlatform <: AbstractPlatform end
-tags(p::AnyPlatform) = Dict{String,String}()
-Base.BinaryPlatforms.triplet(::AnyPlatform) = "any"
-Base.BinaryPlatforms.arch(::AnyPlatform) = "any"
-Base.BinaryPlatforms.os(::AnyPlatform) = "any"
-Base.show(io::IO, ::AnyPlatform) = print(io, "AnyPlatform()")
 
 """
     platform_exeext(p::Platform)
@@ -79,7 +80,7 @@ const ARCHITECTURE_FLAGS = Dict(
     "common" => Dict(
         "i686" => Dict(
             # Only one for i686, because we only support one.  :P
-            "i686" => ["-march=prescott", "-mtune=generic"],
+            "prescott" => ["-march=prescott", "-mtune=generic"],
         ),
         "x86_64" => Dict(
             # Better be always explicit about `-march` & `-mtune`:
@@ -90,9 +91,7 @@ const ARCHITECTURE_FLAGS = Dict(
             "avx512" => ["-march=skylake-avx512", "-mtune=skylake-avx512"],
         ),
         "armv6l" => Dict(
-            # Base armv6 architecture
-            "armv6l" => ["-march=armv6", "-mtune=arm6", "-mfpu=vfp"],
-            # Raspberry Pi Zero W architecture; important enough that it gets its own entry.  ;)
+            # This is the only known armv6l chip that runs Julia, so it's the only one we care about.
             "arm1176jzfs" => ["-mcpu=arm1176jzf-s", "-mfpu=vfp"],
         ),
         "armv7l" => Dict(

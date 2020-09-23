@@ -1,5 +1,5 @@
 using Test
-using Pkg.PlatformEngines, Pkg.BinaryPlatforms
+using Base.BinaryPlatforms
 using SHA
 using BinaryBuilderBase
 using CodecZlib

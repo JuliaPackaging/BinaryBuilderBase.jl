@@ -1,6 +1,6 @@
 export supported_platforms, expand_gfortran_versions, expand_cxxstring_abis, expand_microarchitectures
 
-import Pkg.Artifacts: load_artifacts_toml, ensure_all_artifacts_installed
+using Pkg.Artifacts: load_artifacts_toml, ensure_all_artifacts_installed
 
 # This is a type that encompasses a shard; it makes it easy to pass it around,
 # get its download url, extraction url, mounting url, etc...
@@ -28,10 +28,10 @@ struct CompilerShard
 
         # If host or target are unparsed, parse them:
         if isa(host, AbstractString)
-            host = platform_key_abi(host)
+            host = parse(Platform, host)
         end
         if isa(target, AbstractString)
-            target = platform_key_abi(target)
+            target = parse(Platform, target)
         end
 
         # Ensure the platforms have no ABI portion (that is only used
@@ -202,7 +202,7 @@ function mount(cs::CompilerShard, build_prefix::AbstractString; verbose::Bool = 
     # they must accept the Xcode EULA.  This will be skipped if either the
     # environment variable BINARYBUILDER_AUTOMATIC_APPLE has been set to `true`
     # or if the SDK has been downloaded in the past.
-    if typeof(cs.target) <: MacOS && !isfile(enable_apple_file()) && !macos_sdk_already_installed()
+    if Sys.isapple(cs.target) && !isfile(enable_apple_file()) && !macos_sdk_already_installed()
         if !isinteractive()
             msg = strip("""
             This is not an interactive Julia session, so we will not prompt you
@@ -308,14 +308,14 @@ Returns `true` if any piece of the MacOS SDK is already installed.
 function macos_sdk_already_installed()
     # Get all compiler shards we know about
     css = all_compiler_shards()
-    macos_artifact_names = artifact_name.(filter(cs -> isa(cs.target, MacOS), css))
+    macos_artifact_names = artifact_name.(filter(cs -> Sys.isapple(cs.target), css))
 
-    host_platform = Linux(:x86_64; libc=:musl)
+    host_platform = Platform("x86_64", "linux"; libc="musl")
     artifacts_toml = joinpath(dirname(@__DIR__), "Artifacts.toml")
     macos_artifact_hashes = artifact_hash.(macos_artifact_names, artifacts_toml; platform=host_platform)
 
     # The Rust shards will return `nothing` above (so we filter them out here) since they
-    # are TECHNICALLY `Linux(:x86_64; libc=:glibc)`-hosted.  Whatever. You need to download
+    # are TECHNICALLY `Platform("x86_64", "linux"; libc="glibc")`-hosted.  Whatever. You need to download
     # one of the `PlatformSupport` shards for this anyway, so we don't really care.
     macos_artifact_hashes = filter(x -> x != nothing, macos_artifact_hashes)
 
@@ -342,19 +342,19 @@ struct LLVMBuild <: CompilerBuild
     version::VersionNumber
     abi::NamedTuple
 end
-LLVMBuild(v::VersionNumber) = LLVMBuild(v, ())
+LLVMBuild(v::VersionNumber) = LLVMBuild(v, (;))
 
 getversion(c::CompilerBuild) = c.version
 getabi(c::CompilerBuild) = c.abi
 
 const available_gcc_builds = [
-    GCCBuild(v"4.8.5", (libgfortran_version = v"3", libstdcxx_version = v"3.4.19"),
-    GCCBuild(v"5.2.0", (libgfortran_version = v"3", libstdcxx_version = v"3.4.21"),
-    GCCBuild(v"6.1.0", (libgfortran_version = v"3", libstdcxx_version = v"3.4.22"),
-    GCCBuild(v"7.1.0", (libgfortran_version = v"4", libstdcxx_version = v"3.4.23"),
-    GCCBuild(v"8.1.0", (libgfortran_version = v"5", libstdcxx_version = v"3.4.25"),
-    GCCBuild(v"9.1.0", (libgfortran_version = v"5", libstdcxx_version = v"3.4.26"),
-    GCCBuild(v"11-iains", (libgfortran_version = v"5", libstdcxx_version = v"3.4.26"),
+    GCCBuild(v"4.8.5", (libgfortran_version = v"3", libstdcxx_version = v"3.4.19")),
+    GCCBuild(v"5.2.0", (libgfortran_version = v"3", libstdcxx_version = v"3.4.21")),
+    GCCBuild(v"6.1.0", (libgfortran_version = v"3", libstdcxx_version = v"3.4.22")),
+    GCCBuild(v"7.1.0", (libgfortran_version = v"4", libstdcxx_version = v"3.4.23")),
+    GCCBuild(v"8.1.0", (libgfortran_version = v"5", libstdcxx_version = v"3.4.25")),
+    GCCBuild(v"9.1.0", (libgfortran_version = v"5", libstdcxx_version = v"3.4.26")),
+    GCCBuild(v"11-iains", (libgfortran_version = v"5", libstdcxx_version = v"3.4.26")),
 ]
 const available_llvm_builds = [
     LLVMBuild(v"6.0.1"),
@@ -379,7 +379,6 @@ will return `4.8.5`, as binaries compiled with that version will run on this
 platform, whereas binaries compiled with `5.2.0` may not.
 """
 function gcc_version(p::Platform, GCC_builds::Vector{GCCBuild})
-    cabi = compiler_abi(p)
     # First, filter by libgfortran version.
     if libgfortran_version(p) !== nothing
         GCC_builds = filter(b -> getabi(b).libgfortran_version == libgfortran_version(p), GCC_builds)
@@ -438,20 +437,20 @@ function select_compiler_versions(p::Platform,
             preferred_llvm_version::VersionNumber = getversion(LLVM_builds[end]),
         )
     # Determine which GCC/LLVM build we're going to match with this Platform:
-    GCC_builds = gcc_version(p, GCC_builds)
-    if isempty(GCC_builds)
-        error("Impossible compiler constraints $(p)!")
+    filtered_gcc_builds = gcc_version(p, GCC_builds)
+    if isempty(filtered_gcc_builds)
+        error("Impossible compiler constraints $(p) upon $(GCC_builds)!")
     end
 
-    LLVM_builds = llvm_version(p, LLVM_builds)
-    if isempty(GCC_builds)
-        error("Impossible compiler constraints $(p)!")
+    filtered_llvm_builds = llvm_version(p, LLVM_builds)
+    if isempty(filtered_llvm_builds)
+        error("Impossible compiler constraints $(p) upon $(LLVM_builds)!")
     end
 
     # Otherwise, choose the version that is closest to our preferred version
-    gcc_version = select_closest_version(preferred_gcc_version, GCC_builds)
-    llvm_version = select_closest_version(preferred_llvm_version, LLVM_builds)
-    return gcc_verison, llvm_version
+    gccv = select_closest_version(preferred_gcc_version, filtered_gcc_builds)
+    llvmv = select_closest_version(preferred_llvm_version, filtered_llvm_builds)
+    return gccv, llvmv
 end
 
 
@@ -463,7 +462,7 @@ This method chooses, given a `Platform`, which shards to download, extract and
 mount, returning a list of `CompilerShard` objects.  At the moment, this always
 consists of four shards, but that may not always be the case.
 """
-function choose_shards(p::Platform;
+function choose_shards(p::AbstractPlatform;
             compilers::Vector{Symbol} = [:c],
             rootfs_build::VersionNumber=v"2020.08.19",
             ps_build::VersionNumber=v"2020.08.19",
@@ -482,22 +481,34 @@ function choose_shards(p::Platform;
         )
 
     # Our host platform is x86_64-linux-musl
-    host_platform = Linux(:x86_64; libc=:musl)
-
-    make_gcc_shard(GCC_build, target) = CompilerShard("GCCBootstrap", GCC_build, host_platform, archive_type; target=target)
+    host_platform = Platform("x86_64", "linux"; libc="musl")
 
     # select GCC builds that can build for this platform.  Normally this is homogenous,
     # however we added support for sparse platform support in order to compile for aarch64-darwin
     # back when we only had a GCC 11 prerelease branch for it.
+    function shard_exists(name, version, target, archive_type)
+        return !isempty(filter(cs -> cs.name == name &&
+                            cs.version == version &&
+                            cs.target == target &&
+                            cs.archive_type == archive_type,
+                      all_compiler_shards()))
+    end
     this_platform_GCC_builds = filter(GCC_builds) do GCC_build
-        make_gcc_shard(getversion(GCC_build), p) in all_compiler_shards() &&
-        make_gcc_shard(getversion(GCC_build), host_platform) in all_compiler_shards()
+        if !isa(p, AnyPlatform)
+            if !shard_exists("GCCBootstrap", getversion(GCC_build), p, archive_type)
+                return false
+            end
+        end
+        if !shard_exists("GCCBootstrap", getversion(GCC_build), host_platform, archive_type)
+            return false
+        end
+        return true
     end
 
     # Select GCC and LLVM versions given the compiler ABI and target requirements given in `p`
-    GCC_build, LLVM_build = select_compiler_versions(p
+    GCC_build, LLVM_build = select_compiler_versions(p,
         this_platform_GCC_builds,
-        this_platform_LLVM_builds,
+        LLVM_builds,
         preferred_gcc_version,
         preferred_llvm_version,
     )
@@ -513,21 +524,21 @@ function choose_shards(p::Platform;
         platform_match(a, b) = ((typeof(a) <: typeof(b)) && (arch(a) == arch(b)) && (libc(a) == libc(b)))
         if :c in compilers
             append!(shards, [
-                make_gcc_shard(GCC_build, p),
+                CompilerShard("GCCBootstrap", GCC_build, p, archive_type),
                 CompilerShard("LLVMBootstrap", LLVM_build, host_platform, archive_type),
             ])
             # If we're not building for the host platform, then add host shard for host tools
             if !platform_match(p, host_platform)
                 append!(shards, [
                     CompilerShard("PlatformSupport", ps_build, host_platform, archive_type; target=host_platform),
-                    make_gcc_shard(GCC_build, host_platform)
+                    CompilerShard("GCCBootstrap", GCC_build, host_platform, archive_type),
                 ])
             end
         end
 
         if :rust in compilers
-            # Our rust base shard is technically x86_64-linux-gnu, not x86_64-linux-musl, since rust is broken  when hosted on `musl`:
-            Rust_host = Linux(:x86_64; libc=:glibc)
+            # Our rust base shard is technically x86_64-linux-gnu, not x86_64-linux-musl, since rust is broken when hosted on `musl`:
+            Rust_host = Platform("x86_64", "linux"; libc="glibc")
             append!(shards, [
                 CompilerShard("RustBase", Rust_build, Rust_host, archive_type),
                 CompilerShard("RustToolchain", Rust_build, Rust_host, archive_type; target=p),
@@ -656,7 +667,7 @@ dependence on `libstdc++` and not needing this compatibility shim.
 """
 function expand_cxxstring_abis(platform::Platform; skip_freebsd_macos::Bool=true)
     # If this platform cannot/should not be expanded, then exit out fast here.
-    if cxxstring_abi(compiler_abi(platform)) !== nothing || (skip_freebsd_macos && Sys.isbsd(platform))
+    if cxxstring_abi(platform) !== nothing || (skip_freebsd_macos && Sys.isbsd(platform))
         return [platform]
     end
 
@@ -761,10 +772,10 @@ function preferred_libgfortran_version(platform::Platform, shard::CompilerShard;
         error("Incompatible platform and shard target")
     end
 
-    if libgfortran_version(compiler_abi(platform)) != nothing
+    if libgfortran_version(platform) != nothing
         # Here we can't use `shard.target` because the shard always has the
         # target as ABI-agnostic, thus we have also to ask for the platform.
-        return libgfortran_version(compiler_abi(platform))
+        return libgfortran_version(platform)
     else
         idx = findfirst(b -> getversion(b) == shard.version, available_gcc_builds)
         if isnothing(idx)
@@ -791,10 +802,10 @@ function preferred_cxxstring_abi(platform::Platform, shard::CompilerShard;
         error("Incompatible platform and shard target")
     end
 
-    if cxxstring_abi(compiler_abi(platform)) != nothing
+    if cxxstring_abi(platform) != nothing
         # Here we can't use `shard.target` because the shard always has the
         # target as ABI-agnostic, thus we have also to ask for the platform.
-        return cxxstring_abi(compiler_abi(platform))
+        return cxxstring_abi(platform)
     else
         idx = findfirst(b -> getversion(b) == shard.version, available_gcc_builds)
         if isnothing(idx)
@@ -816,8 +827,8 @@ function download_all_artifacts(; verbose::Bool = false)
     artifacts_toml = joinpath(dirname(@__DIR__), "Artifacts.toml")
     # First, download all the "normal" shards, then all the rust shards (this will become
     # less clunky once Rust actually supports hosting on `musl`)
-    host_platform = Linux(:x86_64; libc=:musl)
-    Rust_host = Linux(:x86_64; libc=:glibc)
+    host_platform = Platform("x86_64", "linux"; libc="musl")
+    Rust_host = Platform("x86_64", "linux"; libc="glibc")
     for platform in (host_platform, Rust_host)    
         ensure_all_artifacts_installed(
             artifacts_toml;

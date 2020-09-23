@@ -61,12 +61,12 @@ function import_docker_image(rootfs::CompilerShard, workspace_root::String; verb
 end
 
 # Helper function to delete a previously-imported docker image
-delete_docker_image() = delete_docker_image(first(choose_shards(platform_key_abi())))
+delete_docker_image() = delete_docker_image(first(choose_shards(HostPlatform())))
 delete_docker_image(rootfs::CompilerShard) = success(`docker rmi -f $(docker_image(rootfs))`)
 
 function DockerRunner(workspace_root::String;
                       cwd = nothing,
-                      platform::Platform = platform_key_abi(),
+                      platform::Platform = HostPlatform(),
                       workspaces::Vector = [],
                       extra_env=Dict{String, String}(),
                       verbose::Bool = false,

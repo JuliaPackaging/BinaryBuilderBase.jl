@@ -1,21 +1,29 @@
 using Test
-using BinaryPlatforms
+using Base.BinaryPlatforms
 using BinaryBuilderBase
 using BinaryBuilderBase: abi_agnostic, get_concrete_platform, march
 
 @testset "Supported Platforms" begin
     all = supported_platforms()
-    opt_out_specific = supported_platforms(exclude=[Platform("x86_64", "linux"; libc="glibc)]")
-    islin(x) = typeof(x) == Linux
-    opt_out_fx = supported_platforms(exclude=islin)
+    opt_out_specific = supported_platforms(exclude=[Platform("x86_64", "linux"; libc="glibc")])
+    opt_out_fx = supported_platforms(exclude=Sys.islinux)
 
     @test length(all) == length(opt_out_specific)+1
-    @test any(opt_out_specific .== [Linux(:i686 , libc=:glibc)])
-    @test !any(opt_out_fx .== [Linux(:i686 , libc=:glibc)])
+    @test any(opt_out_specific .== [Platform("i686", "linux", libc="glibc")])
+    @test !any(opt_out_fx .== [Platform("i686", "linux", libc="glibc")])
 
-    @test sort([Platform("x86_64", "windows"), Platform("i686", "linux"; libc="musl"), Platform("i686", "linux"; libc="glibc"), Platform("x86_64", "macos")],
-               by = triplet) ==
-                   [Platform("i686", "linux"; libc="glibc"), Platform("i686", "linux"; libc="musl"), Platform("x86_64", "macos"), Platform("x86_64", "windows")]
+    @test sort(
+        [
+            Platform("x86_64", "windows"),
+            Platform("i686", "linux"; libc="musl"),
+            Platform("i686", "linux"; libc="glibc"),
+            Platform("x86_64", "macos")
+        ], by = triplet) == [
+            Platform("i686", "linux"; libc="glibc"),
+            Platform("i686", "linux"; libc="musl"),
+            Platform("x86_64", "macos"),
+            Platform("x86_64", "windows"),
+        ]
 end
 
 @testset "abi_agnostic" begin
@@ -27,12 +35,21 @@ end
     # Test some AnyPlatform properties
     @test triplet(AnyPlatform()) == "any"
     @test abi_agnostic(AnyPlatform()) === AnyPlatform()
-    @test arch(AnyPlatform()) == :x86_64
+    @test arch(AnyPlatform()) == "any"
     @test repr(AnyPlatform()) == "AnyPlatform()"
 
     # In the build environment we want AnyPlatform to look like x86_64-linux-musl
-    @test get_concrete_platform(AnyPlatform(); compilers = [:c], preferred_gcc_version = v"7", preferred_llvm_version = v"9") ==
-        get_concrete_platform(Platform("x86_64", "linux"; libc="musl"); compilers = [:c], preferred_gcc_version = v"7", preferred_llvm_version = v"9")
+    @test get_concrete_platform(
+            AnyPlatform();
+            compilers = [:c],
+            preferred_gcc_version = v"7",
+            preferred_llvm_version = v"9",
+        ) == get_concrete_platform(
+            Platform("x86_64", "linux"; libc="musl");
+            compilers = [:c],
+            preferred_gcc_version = v"7",
+            preferred_llvm_version = v"9",
+        )
     @test BinaryBuilderBase.choose_shards(AnyPlatform()) == BinaryBuilderBase.choose_shards(Platform("x86_64", "linux"; libc="musl"))
     @test BinaryBuilderBase.aatriplet(AnyPlatform()) == BinaryBuilderBase.aatriplet(Platform("x86_64", "linux"; libc="musl"))
 end
@@ -43,19 +60,19 @@ end
     end
 
     for p in [Platform("x86_64", "linux"), Platform("x86_64", "windows"), Platform("aarch64", "linux"),
-              Platform("powerpc64le", "linux"), MacOS()]
+              Platform("powerpc64le", "linux"), Platform("x86_64", "macos")]
         @test BinaryBuilderBase.nbits(p) == 64
     end
 
-    for p in [Platform("x86_64", "linux"), MacOS(), Platform("i686", "windows")]
+    for p in [Platform("x86_64", "linux"), Platform("x86_64", "macos"), Platform("i686", "windows")]
         @test BinaryBuilderBase.proc_family(p) == :intel
     end
-    for p in [Linux(:aarch64; libc=:musl), Platform("armv7l", "linux")]
+    for p in [Platform("aarch64"; libc="musl"), Platform("armv7l", "linux")]
         @test BinaryBuilderBase.proc_family(p) == :arm
     end
     @test BinaryBuilderBase.proc_family(Platform("powerpc64le)", "linux") == :power
 
-    for p in [Platform("x86_64", "linux"), Platform("x86_64", "freebsd"), Platform("powerpc64le", "linux"), MacOS()]
+    for p in [Platform("x86_64", "linux"), Platform("x86_64", "freebsd"), Platform("powerpc64le", "linux"), Platform("x86_64", "macos")]
         @test BinaryBuilderBase.exeext(p) == ""
     end
     @test BinaryBuilderBase.exeext(Platform("x86_64", "windows") == ".exe"
