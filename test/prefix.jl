@@ -47,9 +47,9 @@ using CodecZlib
         # end
 
         # Test that we can control libdirs() via platform arguments
-        @test libdirs(prefix, Linux(:x86_64)) == [joinpath(prefix, "lib64"), joinpath(prefix, "lib")]
-        @test libdirs(prefix, Linux(:i686)) == [joinpath(prefix, "lib")]
-        @test libdirs(prefix, Windows(:i686)) == [joinpath(prefix, "bin")]
+        @test libdirs(prefix, Platform("x86_64", "linux")) == [joinpath(prefix, "lib64"), joinpath(prefix, "lib")]
+        @test libdirs(prefix, Platform("i686", "linux")) == [joinpath(prefix, "lib")]
+        @test libdirs(prefix, Platform("i686", "windows")) == [joinpath(prefix, "bin")]
         @test bindir(prefix) == joinpath(prefix, "bin")
         @test includedir(prefix) == joinpath(prefix, "include")
         @test logdir(prefix) == joinpath(prefix, "logs")

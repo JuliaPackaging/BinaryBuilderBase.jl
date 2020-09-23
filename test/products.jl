@@ -8,7 +8,7 @@ using BinaryBuilderBase: template
 const platform = platform_key_abi()
 
 @testset "Products" begin
-    @test template(raw"$libdir/foo-$arch/$nbits/bar-$target", Windows(:x86_64)) ==
+    @test template(raw"$libdir/foo-$arch/$nbits/bar-$target", Platform("x86_64)", "windows") ==
         "bin/foo-x86_64/64/bar-x86_64-w64-mingw32"
     @test template(raw"$target/$nbits/$arch/$libdir", Linux(:x86_64; libc = :musl)) ==
         "x86_64-linux-musl/64/x86_64/lib"
@@ -55,19 +55,19 @@ const platform = platform_key_abi()
         @test @test_logs (:info, r"^FileProduct .* found at") satisfied(ef, prefix; verbose=true)
         @static if !Sys.iswindows()
             # Windows doesn't care about executable bit, grumble grumble
-            @test @test_logs (:info, r"is not executable") (:info, r"does not exist") !satisfied(e, prefix; verbose=true, platform=Linux(:x86_64))
+            @test @test_logs (:info, r"is not executable") (:info, r"does not exist") !satisfied(e, prefix; verbose=true, platform=Platform("x86_64)", "linux")
         end
 
         # Make it executable and ensure this does satisfy the Executable
         chmod(e_path, 0o777)
-        @test @test_logs (:info, r"matches our search criteria") satisfied(e, prefix; verbose=true, platform=Linux(:x86_64))
+        @test @test_logs (:info, r"matches our search criteria") satisfied(e, prefix; verbose=true, platform=Platform("x86_64)", "linux")
 
         # Remove it and add a `$(path).exe` version to check again, this
         # time saying it's a Windows executable
         Base.rm(e_path; force=true)
         touch("$(e_path).exe")
         chmod("$(e_path).exe", 0o777)
-        @test locate(e, prefix; platform=Windows(:x86_64)) == "$(e_path).exe"
+        @test locate(e, prefix; platform=Platform("x86_64)", "windows") == "$(e_path).exe"
 
         # Test that simply creating a library file doesn't satisfy it if we are
         # testing something that matches the current platform's dynamic library
@@ -82,7 +82,7 @@ const platform = platform_key_abi()
         # But if it is from a different platform, simple existence will be
         # enough to satisfy a LibraryProduct
         @static if Sys.iswindows()
-            p = Linux(:x86_64)
+            p = Platform("x86_64", "linux")
             mkpath(last(libdirs(prefix, p)))
             l_path = joinpath(last(libdirs(prefix, p)), "libfoo.so")
             touch(l_path)
@@ -94,7 +94,7 @@ const platform = platform_key_abi()
             @test @test_logs (:info, r"^Found a valid") (:info, r"matches our search criteria") satisfied(ld, prefix; verbose=true, platform=p)
             @test @test_logs (:info, r"^Found a valid") (:info, r"matches our search criteria") satisfied(ld, prefix; verbose=true, platform=p, isolate=true)
         else
-            p = Windows(:x86_64)
+            p = Platform("x86_64", "windows")
             mkpath(last(libdirs(prefix, p)))
             l_path = joinpath(last(libdirs(prefix, p)), "libfoo.dll")
             touch(l_path)
@@ -110,12 +110,12 @@ const platform = platform_key_abi()
 
     # Ensure that the test suite thinks that these libraries are foreign
     # so that it doesn't try to `dlopen()` them:
-    foreign_platform = if platform == Linux(:aarch64)
+    foreign_platform = if platform == Platform("aarch64", "linux")
         # Arbitrary architecture that is not dlopen()'able
-        Linux(:powerpc64le)
+        Platform("powerpc64le", "linux")
     else
-        # If we're not Linux(:aarch64), then say the libraries are
-        Linux(:aarch64)
+        # If we're not Platform("aarch64", "linux"), then say the libraries are
+        Platform("aarch64", "linux")
     end
 
     # Test for valid library name permutations

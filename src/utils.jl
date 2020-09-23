@@ -27,15 +27,14 @@ function get_concrete_platform(platform::Platform, shards::Vector{CompilerShard}
     # `concrete_platform` is needed only to setup the dependencies and the
     # runner.  We _don't_ want the platform passed to `audit()` or
     # `package()` to be more specific than it is.
-    concrete_platform = platform
+    concrete_platform = deepcopy(platform)
     gccboostrap_shard_idx = findfirst(x -> x.name == "GCCBootstrap" &&
                                       arch(x.target) == arch(platform) &&
                                       libc(x.target) == libc(platform),
                                       shards)
     if !isnothing(gccboostrap_shard_idx)
-        libgfortran_version = preferred_libgfortran_version(platform, shards[gccboostrap_shard_idx])
-        cxxstring_abi = preferred_cxxstring_abi(platform, shards[gccboostrap_shard_idx])
-        concrete_platform = replace_cxxstring_abi(replace_libgfortran_version(platform, libgfortran_version), cxxstring_abi)
+        concrete_platform["libgfortran_version"] = preferred_libgfortran_version(platform, shards[gccboostrap_shard_idx])
+        concrete_platform["cxxstring_abi"] = preferred_cxxstring_abi(platform, shards[gccboostrap_shard_idx])
     end
     return concrete_platform
 end
@@ -62,4 +61,4 @@ end
 
 # XXX: we want the AnyPlatform to look like `x86_64-linux-musl`,
 get_concrete_platform(::AnyPlatform, shards::Vector{CompilerShard}) =
-    get_concrete_platform(Linux(:x86_64, libc=:musl), shards)
+    get_concrete_platform(Platform("x86_64", "linux"; libc="musl"), shards)

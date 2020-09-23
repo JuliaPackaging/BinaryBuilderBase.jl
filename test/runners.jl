@@ -3,39 +3,27 @@ using BinaryBuilderBase
 using BinaryBuilderBase: dlext, exeext
 
 @testset "Wrappers utilities" begin
-    @test nbits(Linux(:i686)) == 32
-    @test nbits(ExtendedPlatform(Linux(:x86_64); march="avx")) == 64
-    @test nbits(Linux(:armv7l)) == 32
-    @test nbits(ExtendedPlatform(Linux(:aarch64); cuda="10.1")) == 64
-    @test nbits(Linux(:powerpc64le)) == 64
+    @test nbits(Platform("i686", "linux")) == 32
+    @test nbits(Platform("x86_64", "linux"; march="avx")) == 64
+    @test nbits(Platform("armv7l", "linux")) == 32
+    @test nbits(Platform("aarch64", "linux"; cuda="10.1")) == 64
+    @test nbits(Platform("powerpc64le", "linux")) == 64
     @test nbits(AnyPlatform()) == 64
-    @test_throws ErrorException nbits(UnknownPlatform())
 
-    @test proc_family(Linux(:i686)) == :intel
-    @test proc_family(ExtendedPlatform(Linux(:x86_64); march="avx")) == :intel
-    @test proc_family(Linux(:armv7l)) == :arm
-    @test proc_family(ExtendedPlatform(Linux(:aarch64); cuda="10.1")) == :arm
-    @test proc_family(Linux(:powerpc64le)) == :power
+    @test proc_family(Platform("i686", "linux")) == :intel
+    @test proc_family(Platform("x86_64", "linux"; march="avx")) == :intel
+    @test proc_family(Platform("armv7l", "linux")) == :arm
+    @test proc_family(Platform("aarch64", "linux"; cuda="10.1")) == :arm
+    @test proc_family(Platform("powerpc64le", "linux")) == :power
     @test proc_family(AnyPlatform()) == :intel
-    @test_throws ErrorException proc_family(UnknownPlatform())
 
-    @test dlext(Linux(:i686)) == "so"
-    @test dlext(FreeBSD(:x86_64)) == "so"
-    @test dlext(MacOS(:x86_64)) == "dylib"
-    @test dlext(Windows(:i686)) == "dll"
-    @test dlext(ExtendedPlatform(Linux(:x86_64); march="avx512")) == "so"
-    @test_throws ErrorException dlext(AnyPlatform())
-    @test_throws ErrorException dlext(UnknownPlatform())
+    @test platform_exeext(Platform("i686", "linux")) == ""
+    @test platform_exeext(Platform("x86_64", "freebsd")) == ""
+    @test platform_exeext(Platform("x86_64", "macos")) == ""
+    @test platform_exeext(Platform("i686", "windows")) == ".exe"
+    @test platform_exeext(Platform("x86_64", "linux"; march="avx512")) == ""
 
-    @test exeext(Linux(:i686)) == ""
-    @test exeext(FreeBSD(:x86_64)) == ""
-    @test exeext(MacOS(:x86_64)) == ""
-    @test exeext(Windows(:i686)) == ".exe"
-    @test exeext(ExtendedPlatform(Linux(:x86_64); march="avx512")) == ""
-    @test_throws ErrorException exeext(AnyPlatform())
-    @test_throws ErrorException exeext(UnknownPlatform())
-
-    @test aatriplet(ExtendedPlatform(Linux(:x86_64, libc=:glibc, compiler_abi=CompilerABI(libgfortran_version=v"4.0.0")); march="avx", cuda="9.2")) == "x86_64-linux-gnu"
+    @test aatriplet(Platform("x86_64", "linux"; libc="glibc", libgfortran_version=v"4.0.0", march="avx", cuda="9.2")) == "x86_64-linux-gnu"
 end
 
 # Are we using docker? If so, test that the docker runner works...

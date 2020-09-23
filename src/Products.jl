@@ -26,8 +26,7 @@ abstract type Product end
 
 # We offer some simple platform-based templating
 function template(x::String, p::Platform)
-    libdir(p::Platform) = "lib"
-    libdir(p::Windows) = "bin"
+    libdir(p::Platform) = Sys.iswindows(p) ? "bin" : "lib"
     for (var, val) in [
             ("libdir", libdir(p)),
             ("target", triplet(p)),

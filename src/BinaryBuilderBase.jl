@@ -1,21 +1,23 @@
 module BinaryBuilderBase
 
-using Pkg, Pkg.BinaryPlatforms, Pkg.PlatformEngines, Pkg.Artifacts, Random, Libdl
+using Pkg, Pkg.Artifacts, Random, Libdl
+using Base.BinaryPlatforms
+using Downloads
 using JSON, OutputCollectors
 
-# Re-export useful stuff from Pkg:
-export platform_key_abi, platform_dlext, valid_dl_path, arch, libc, compiler_abi,
-       libgfortran_version, libstdcxx_version, cxxstring_abi, parse_dl_name_version,
+# Re-export useful stuff from Base.BinaryPlatforms:
+export platform_key_abi, platform_dlext, valid_dl_path, arch, libc,
+       libgfortran_version, libstdcxx_version, cxxstring_abi,
        detect_libgfortran_version, detect_libstdcxx_version, detect_cxxstring_abi,
        call_abi, wordsize, triplet, select_platform, platforms_match,
-       CompilerABI, Platform, UnknownPlatform, Linux, MacOS, Windows, FreeBSD
+       Platform, AnyPlatform
 
 export AbstractSource, AbstractDependency, SetupSource, PatchSource,
     resolve_jlls, coerce_dependency, coerce_source, Runner,
     generate_compiler_wrappers!, preferred_runner, CompilerShard, UserNSRunner,
     DockerRunner, choose_shards, exeext, preferred_libgfortran_version,
     preferred_cxxstring_abi, gcc_version, available_gcc_builds, getversion,
-    getpkg, replace_libgfortran_version, replace_cxxstring_abi, aatriplet,
+    getpkg, aatriplet,
     nbits, proc_family, storage_dir, extract_kwargs, extract_fields,
     download_source, setup_workspace, setup_dependencies, update_registry,
     getname, cleanup_dependencies, compress_dir, prepare_for_deletion,
