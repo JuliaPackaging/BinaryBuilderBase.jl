@@ -37,7 +37,7 @@ end
     @test triplet(AnyPlatform()) == "any"
     @test abi_agnostic(AnyPlatform()) === AnyPlatform()
     @test arch(AnyPlatform()) == "any"
-    @test repr(AnyPlatform()) == "AnyPlatform()"
+    @test repr(AnyPlatform()) == "AnyPlatform"
 
     # In the build environment we want AnyPlatform to look like x86_64-linux-musl
     @test get_concrete_platform(

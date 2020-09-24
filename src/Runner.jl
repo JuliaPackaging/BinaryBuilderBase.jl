@@ -1,7 +1,7 @@
 import Base: strip
 abstract type Runner; end
 
-function nbits(p::Platform)
+function nbits(p::AbstractPlatform)
     if arch(p) in ("i686", "armv6l", "armv7l")
         return 32
     elseif arch(p) in ("x86_64", "aarch64", "powerpc64le")
@@ -11,7 +11,7 @@ function nbits(p::Platform)
     end
 end
 
-function proc_family(p::Platform)
+function proc_family(p::AbstractPlatform)
     if arch(p) in ("x86_64", "i686")
         return "intel"
     elseif arch(p) in ("armv6l", "armv7l", "aarch64")
@@ -26,7 +26,7 @@ end
 # Convert platform to a triplet, but strip out the ABI parts.
 # Also translate `armvXl` -> `arm` for now, since that's what most
 # compiler toolchains call it.  :(
-function aatriplet(p::Platform)
+function aatriplet(p::AbstractPlatform)
     t = triplet(abi_agnostic(p))
     t = replace(t, "armv7l" => "arm")
     t = replace(t, "armv6l" => "arm")
@@ -36,9 +36,9 @@ end
 aatriplet(p::AnyPlatform) = aatriplet(Platform("x86_64", "linux"; libc="musl"))
 
 """
-    generate_compiler_wrappers!(platform::Platform; bin_path::AbstractString,
-                                host_platform::Platform = Platform("x86_64", "linux"; libc="musl"),
-                                rust_platform::Platform = Platform("x86_64", "linux"; libc="glibc"),
+    generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::AbstractString,
+                                host_platform::AbstractPlatform = Platform("x86_64", "linux"; libc="musl"),
+                                rust_platform::AbstractPlatform = Platform("x86_64", "linux"; libc="glibc"),
                                 compilers::Vector{Symbol} = [:c],
                                 allow_unsafe_flags::Bool = false,
                                 lock_microarchitecture::Bool = true)
@@ -51,9 +51,9 @@ invoking a compiler binary directly (e.g. /opt/{target}/bin/{target}-gcc), are m
 difficult to override, as the flags embedded in these wrappers are absolutely necessary,
 and even simple programs will not compile without them.
 """
-function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractString,
-                                     host_platform::Platform = Platform("x86_64", "linux"; libc="musl"),
-                                     rust_platform::Platform = Platform("x86_64", "linux"; libc="glibc"),
+function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::AbstractString,
+                                     host_platform::AbstractPlatform = Platform("x86_64", "linux"; libc="musl"),
+                                     rust_platform::AbstractPlatform = Platform("x86_64", "linux"; libc="glibc"),
                                      compilers::Vector{Symbol} = [:c],
                                      allow_unsafe_flags::Bool = false,
                                      lock_microarchitecture::Bool = true,
@@ -130,7 +130,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         if !isempty(flags)
             println(io)
             for cf in flags
-                println(io, "PRE_FLAGS+=( '$cf' )")
+                println(io, "PRE_FLAGS+=( $cf )")
             end
             println(io)
         end
@@ -140,7 +140,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
             println(io)
             println(io, "if [[ \" \${ARGS[@]} \" != *' -x assembler '* ]]; then")
             for cf in compile_only_flags
-                println(io, "    PRE_FLAGS+=( '$cf' )")
+                println(io, "    PRE_FLAGS+=( $cf )")
             end
             println(io, "fi")
             println(io)
@@ -151,7 +151,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
             println(io)
             println(io, "if [[ \" \${ARGS[@]} \" != *' -c '* ]] && [[ \" \${ARGS[@]} \" != *' -E '* ]] && [[ \" \${ARGS[@]} \" != *' -M '* ]] && [[ \" \${ARGS[@]} \" != *' -fsyntax-only '* ]]; then")
             for lf in link_only_flags
-                println(io, "    POST_FLAGS+=( '$lf' )")
+                println(io, "    POST_FLAGS+=( $lf )")
             end
             println(io, "fi")
             println(io)
@@ -196,7 +196,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
             """)
         end
         write(io, """
-        vrun "\${CCACHE}" $(prog) "\${PRE_FLAGS[@]}" "\${ARGS[@]}" "\${POST_FLAGS[@]}"
+        vrun \${CCACHE} $(prog) "\${PRE_FLAGS[@]}" "\${ARGS[@]}" "\${POST_FLAGS[@]}"
         """)
     end
     
@@ -206,9 +206,9 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
 
     # For now this is required for Clang, since apple spells aarch64 as "arm64".
     # Should probably be fixed upstream, but will do for now
-    clang_target_triplet(p::Platform) = replace(aatriplet(p), "aarch64" => "arm64")
+    clang_target_triplet(p::AbstractPlatform) = replace(aatriplet(p), "aarch64" => "arm64")
     
-    function clang_flags!(p::Platform, flags::Vector{String} = String[])
+    function clang_flags!(p::AbstractPlatform, flags::Vector{String} = String[])
         # Focus the clang targeting laser
         append!(flags, [
             # Set the `target` for `clang` so it generates the right kind of code
@@ -235,8 +235,10 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         return flags
     end
 
-    function clang_compile_flags!(p::Platform, flags::Vector{String} = String[])
-        append!(flags, get_march_flags(arch(p), march(p), "clang"))
+    function clang_compile_flags!(p::AbstractPlatform, flags::Vector{String} = String[])
+        if lock_microarchitecture
+            append!(flags, get_march_flags(arch(p), march(p), "clang"))
+        end
         if Sys.isapple(p)
             append!(flags, String[
                 # On MacOS, we need to override the typical C++ include search paths, because it always includes
@@ -255,15 +257,15 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         return flags
     end
 
-    function clang_link_flags!(p::Platform, flags::Vector{String} = String[])
-        # we want to use a particular linker with clang.  But we want to avoid warnings about unused
-        # flags when just compiling, so we put it into "linker-only flags".
-        push!(flags, "-fuse-ld=$(aatriplet(p))")
-
+    function clang_link_flags!(p::AbstractPlatform, flags::Vector{String} = String[])
         # On macos and freebsd, we must pass in the `/lib` directory for some reason
         if Sys.isbsd(p)
             push!(flags, "-L/opt/$(aatriplet(p))/$(aatriplet(p))/lib")
         end
+
+        # we want to use a particular linker with clang.  But we want to avoid warnings about unused
+        # flags when just compiling, so we put it into "linker-only flags".
+        push!(flags, "-fuse-ld=$(aatriplet(p))")
 
         # On macos, we need to pass `-headerpad_max_install_names` so that we have lots of space
         # for `install_name_tool` shenanigans during audit fixups.
@@ -274,19 +276,20 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     end
 
 
-    function macos_gcc_flags!(p::Platform, flags::Vector{String} = String[])
+    function macos_gcc_flags!(p::AbstractPlatform, flags::Vector{String} = String[])
         # Always ask for a minimum macOS version of 10.8, as is default for the whole Julia world
         push!(flags, "-mmacosx-version-min=10.8")
         
         # On macOS, if we're on an old GCC, the default -syslibroot that gets
         # passed to the linker isn't calculated correctly, so we have to manually set it.
-        if select_gcc_version(p).major in (4, 5)
+        gcc_version, llvm_version = select_compiler_versions(p)
+        if gcc_version.major in (4, 5)
             push!(flags, "-Wl,-syslibroot,/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root")
         end
         return flags
     end
 
-    function gcc_flags!(p::Platform, flags::Vector{String} = String[])
+    function gcc_flags!(p::AbstractPlatform, flags::Vector{String} = String[])
         # Force proper cxx11 string ABI usage w00t w00t!
         if cxxstring_abi(p) == "cxx11"
             push!(flags, "-D_GLIBCXX_USE_CXX11_ABI=1")
@@ -298,20 +301,23 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         push!(flags, "-frandom-seed=0x\${ARGS_HASH}")
 
         if Sys.isapple(p)
-            macos_gcc_flags!(flags, p)
+            macos_gcc_flags!(p, flags)
         end
         return flags
     end
 
-    function gcc_compile_flags!(p::Platform, flags::Vector{String} = String[])
-        append!(flags, get_march_flags(arch(p), march(p), "clang"))
+    function gcc_compile_flags!(p::AbstractPlatform, flags::Vector{String} = String[])
+        if lock_microarchitecture
+            append!(flags, get_march_flags(arch(p), march(p), "clang"))
+        end
         return flags
     end
 
-    function gcc_link_flags!(p::Platform, flags::Vector{String} = String[])
+    function gcc_link_flags!(p::AbstractPlatform, flags::Vector{String} = String[])
         # Yes, it does seem that the inclusion of `/lib64` on `powerpc64le` was fixed
         # in GCC 6, broken again in GCC 7, and then fixed again for GCC 8 and 9
-        if arch(p) == "powerpc64le" && Sys.islinux(p) && select_gcc_version(p) in (4, 5, 7)
+        gcc_version, llvm_version = select_compiler_versions(p)
+        if arch(p) == "powerpc64le" && Sys.islinux(p) && gcc_version in (4, 5, 7)
             append!(flags, String[
                 "-L/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root/lib64",
                 "-Wl,-rpath-link,/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root/lib64",
@@ -322,14 +328,14 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         return flags
     end
 
-    function gcc_unsafe_flags!(p::Platform, flags::Vector{String} = String[])
+    function gcc_unsafe_flags!(p::AbstractPlatform, flags::Vector{String} = String[])
         if !allow_unsafe_flags
             return String["-Ofast", "-ffast-math", "-funsafe-math-optimizations"]
         end
         return String[]
     end
 
-    function gcc_wrapper(io::IO, tool::String, p::Platform, allow_ccache::Bool = true)
+    function gcc_wrapper(io::IO, tool::String, p::AbstractPlatform, allow_ccache::Bool = true)
         return wrapper(io,
             "/opt/$(aatriplet(p))/bin/$(aatriplet(p))-$(tool)";
             flags=gcc_flags!(p),
@@ -341,7 +347,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         )
     end
 
-    function clang_wrapper(io::IO, tool::String, p::Platform, extra_flags::Vector{String} = String[])
+    function clang_wrapper(io::IO, tool::String, p::AbstractPlatform, extra_flags::Vector{String} = String[])
         flags = clang_flags!(p)
         append!(flags, extra_flags)
         return wrapper(io,
@@ -353,39 +359,39 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     end
 
     # C/C++/Fortran
-    gcc(io::IO, p::Platform)      = gcc_wrapper(io, "gcc", p)
-    gxx(io::IO, p::Platform)      = gcc_wrapper(io, "g++", p)
-    gfortran(io::IO, p::Platform) = gcc_wrapper(io, "gfortran", p, false)
+    gcc(io::IO, p::AbstractPlatform)      = gcc_wrapper(io, "gcc", p)
+    gxx(io::IO, p::AbstractPlatform)      = gcc_wrapper(io, "g++", p)
+    gfortran(io::IO, p::AbstractPlatform) = gcc_wrapper(io, "gfortran", p, false)
 
-    clang(io::IO, p::Platform)    = clang_wrapper(io, "clang", p)
-    clangxx(io::IO, p::Platform)  = clang_wrapper(io, "clang++", p)
-    objc(io::IO, p::Platform)     = clang_wrapper(io, "clang", p, ["-x objective-c"])
+    clang(io::IO, p::AbstractPlatform)    = clang_wrapper(io, "clang", p)
+    clangxx(io::IO, p::AbstractPlatform)  = clang_wrapper(io, "clang++", p)
+    objc(io::IO, p::AbstractPlatform)     = clang_wrapper(io, "clang", p, ["-x objective-c"])
 
     # Our general `cc`  points to `gcc` for most systems, but `clang` for MacOS and FreeBSD
-    function cc(io::IO, p::Platform)
+    function cc(io::IO, p::AbstractPlatform)
         if Sys.isbsd(p)
             return clang(io, p)
         else
             return gcc(io, p)
         end
     end
-    function cxx(io::IO, p::Platform)
+    function cxx(io::IO, p::AbstractPlatform)
         if Sys.isbsd(p)
             return clangxx(io, p)
         else
             return gxx(io, p)
         end
     end
-    fc(io::IO, p::Platform) = gfortran(io, p)
+    fc(io::IO, p::AbstractPlatform) = gfortran(io, p)
     
     # Go stuff where we build an environment mapping each time we invoke `go-${target}`
-    function GOOS(p::Platform)
+    function GOOS(p::AbstractPlatform)
         if os(p) == "macos"
             return "darwin"
         end
         return os(p)
     end
-    function GOARCH(p::Platform)
+    function GOARCH(p::AbstractPlatform)
         arch_mapping = Dict(
             "armv7l" => "arm",
             "aarch64" => "arm64",
@@ -395,7 +401,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         )
         return arch_mapping[arch(p)]
     end
-    function go(io::IO, p::Platform)
+    function go(io::IO, p::AbstractPlatform)
         env = Dict(
             "GOOS" => GOOS(p),
             "GOROOT" => "/opt/$(host_target)/go",
@@ -405,10 +411,10 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     end
 
     # Rust stuff
-    function rust_flags!(p::Platform, flags::Vector{String} = String[])
+    function rust_flags!(p::AbstractPlatform, flags::Vector{String} = String[])
         push!(flags, "--target=$(map_rust_target(p))")
         if Sys.islinux(p)
-            push!(flags, "-C linker=$(aatriplet(p))-gcc")
+            push!(flags, "-Clinker=$(aatriplet(p))-gcc")
 
             # Add aarch64 workaround https://github.com/rust-lang/rust/issues/46651#issuecomment-402850885
             if arch(p) == "aarch64" && libc(p) == "musl"
@@ -423,12 +429,12 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         end
         return flags
     end
-    rustc(io::IO, p::Platform) = wrapper(io, "/opt/$(rust_target)/bin/rustc"; flags=rust_flags!(p), allow_ccache=false)
-    rustup(io::IO, p::Platform) = wrapper(io, "/opt/$(rust_target)/bin/rustup"; allow_ccache=false)
-    cargo(io::IO, p::Platform) = wrapper(io, "/opt/$(rust_target)/bin/cargo"; allow_ccache=false)
+    rustc(io::IO, p::AbstractPlatform) = wrapper(io, "/opt/$(rust_target)/bin/rustc"; flags=rust_flags!(p), allow_ccache=false)
+    rustup(io::IO, p::AbstractPlatform) = wrapper(io, "/opt/$(rust_target)/bin/rustup"; allow_ccache=false)
+    cargo(io::IO, p::AbstractPlatform) = wrapper(io, "/opt/$(rust_target)/bin/cargo"; allow_ccache=false)
 
     # Meson REQUIRES that `CC`, `CXX`, etc.. are set to the host utils.  womp womp.
-    function meson(io::IO, p::Platform)
+    function meson(io::IO, p::AbstractPlatform)
         meson_env = Dict(
             "AR"     => "$(host_target)-ar",
             "CC"     => "$(host_target)-cc",
@@ -444,7 +450,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
 
     # Patchelf needs some page-alignment on aarch64 and ppc64le forced into its noggin
     # https://github.com/JuliaPackaging/BinaryBuilder.jl/commit/cce4f8fdbb16425d245ab87a50f60d1a16d04948
-    function patchelf(io::IO, p::Platform)
+    function patchelf(io::IO, p::AbstractPlatform)
         extra_cmds = ""
         if Sys.islinux(p) && arch(p) in ("aarch64", "powerpc64le")
             extra_cmds = raw"""
@@ -457,7 +463,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     end
 
     # We pass `-D` to all `ar` invocations (unless `-U` is explicitly passed) for reproducibility
-    function ar(io::IO, p::Platform)
+    function ar(io::IO, p::AbstractPlatform)
         ar_name = string(aatriplet(p), "-ar")
         if Sys.isapple(p)
             ar_name = "llvm-ar"
@@ -483,7 +489,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         wrapper(io, string("/opt/", aatriplet(p), "/bin/", ar_name); allow_ccache=false, extra_cmds=extra_cmds)
     end
 
-    function ranlib(io::IO, p::Platform)
+    function ranlib(io::IO, p::AbstractPlatform)
         if !Sys.isapple(p)
             ranlib_name = string(aatriplet(p), "-ranlib")
             extra_cmds = raw"""
@@ -503,7 +509,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         wrapper(io, string("/opt/", aatriplet(p), "/bin/", ranlib_name); allow_ccache=false, extra_cmds=extra_cmds)
     end
 
-    function dlltool(io::IO, p::Platform)
+    function dlltool(io::IO, p::AbstractPlatform)
         extra_cmds = raw"""
         PRE_FLAGS+=( --temp-prefix /tmp/dlltool-${ARGS_HASH} )
         """
@@ -513,11 +519,11 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     # Write out a bunch of common tools
     for tool in (:as, :cpp, :ld, :nm, :libtool, :objcopy, :objdump, :otool,
                  :strip, :install_name_tool, :dlltool, :windres, :winmc, :lipo)
-        @eval $(tool)(io::IO, p::Platform) = $(wrapper)(io, string("/opt/", aatriplet(p), "/bin/", aatriplet(p), "-", $(string(tool))); allow_ccache=false)
+        @eval $(tool)(io::IO, p::AbstractPlatform) = $(wrapper)(io, string("/opt/", aatriplet(p), "/bin/", aatriplet(p), "-", $(string(tool))); allow_ccache=false)
     end
  
     # c++filt is hard to write in symbols
-    function cxxfilt(io::IO, p::Platform)
+    function cxxfilt(io::IO, p::AbstractPlatform)
         if Sys.isapple(p)
             # We must use `llvm-cxxfilt` on MacOS
             path = "/opt/$(aatriplet(p))/bin/llvm-cxxfilt"
@@ -527,7 +533,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         return wrapper(io, path; allow_ccache=false)
     end
 
-    function dsymutil(io::IO, p::Platform)
+    function dsymutil(io::IO, p::AbstractPlatform)
         if !Sys.isapple(p)
             # Nobody except macOS has a `dsymutil`
             return (io, p) -> nothing
@@ -536,7 +542,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         return wrapper(io, "/opt/$(aatriplet(p))/bin/llvm-dsymutil"; allow_ccache=false)
     end
 
-    function readelf(io::IO, p::Platform)
+    function readelf(io::IO, p::AbstractPlatform)
         if Sys.isapple(p)
             # macOS doesn't have a readelf
             return (io, p) -> nothing
@@ -664,8 +670,8 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
 end
 
 # Translation mappers for our target names to cargo-compatible ones
-map_rust_arch(p::Platform) = replace(arch(p), "armv7l" => "armv7")
-function map_rust_target(p::Platform)
+map_rust_arch(p::AbstractPlatform) = replace(arch(p), "armv7l" => "armv7")
+function map_rust_target(p::AbstractPlatform)
     if Sys.isapple(p)
         return "$(map_rust_arch(p))-apple-darwin"
     elseif Sys.isfreebsd(p)
@@ -673,21 +679,21 @@ function map_rust_target(p::Platform)
     elseif Sys.iswindows(p)
         return "$(map_rust_arch(p))-pc-windows-gnu"
     else
-        libc_str = libc(p) == :glibc ? "gnu" : libc(p)
+        libc_str = libc(p) == "glibc" ? "gnu" : libc(p)
         call_abi_str = something(call_abi(p), "")
         return "$(map_rust_arch(p))-unknown-linux-$(libc_str)$(call_abi_str)"
     end
 end
 
 """
-    platform_envs(platform::Platform)
+    platform_envs(platform::AbstractPlatform)
 
 Given a `platform`, generate a `Dict` mapping representing all the environment
 variables to be set within the build environment to force compiles toward the
 defined target architecture.  Examples of things set are `PATH`, `CC`,
 `RANLIB`, as well as nonstandard things like `target`.
 """
-function platform_envs(platform::Platform, src_name::AbstractString;
+function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
                        host_platform = Platform("x86_64", "linux"; libc="musl"),
                        bootstrap::Bool=!isempty(bootstrap_list),
                        verbose::Bool = false)
@@ -774,7 +780,7 @@ function platform_envs(platform::Platform, src_name::AbstractString;
 
     # Helper for generating the library include path for a target.  MacOS, as usual,
     # puts things in slightly different place.
-    function target_lib_dir(p::Platform)
+    function target_lib_dir(p::AbstractPlatform)
         t = aatriplet(p)
         if Sys.isapple(p)
             return "/opt/$(t)/$(t)/lib:/opt/$(t)/lib"
@@ -919,12 +925,12 @@ function preferred_runner()
 end
 
 """
-    runshell(platform::Platform = HostPlatform())
+    runshell(platform::AbstractPlatform = HostPlatform())
 
 Launch an interactive shell session within the user namespace, with environment
 setup to target the given `platform`.
 """
-function runshell(platform::Platform = HostPlatform(); kwargs...)
+function runshell(platform::AbstractPlatform = HostPlatform(); kwargs...)
     runshell(preferred_runner(), platform; kwargs...)
 end
 
@@ -932,6 +938,6 @@ function runshell(r::Runner, args...; kwargs...)
     run_interactive(r, `/bin/bash -l`, args...; kwargs...)
 end
 
-function runshell(::Type{R}, platform::Platform = HostPlatform(); verbose::Bool=false,kwargs...) where {R <: Runner}
+function runshell(::Type{R}, platform::AbstractPlatform = HostPlatform(); verbose::Bool=false,kwargs...) where {R <: Runner}
     return runshell(R(pwd(); cwd="/workspace/", platform=platform, verbose=verbose, kwargs...); verbose=verbose)
 end

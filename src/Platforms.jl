@@ -16,7 +16,7 @@ Base.BinaryPlatforms.arch(::AnyPlatform) = "any"
 Base.BinaryPlatforms.os(::AnyPlatform) = "any"
 nbits(::AnyPlatform) = 64
 proc_family(::AnyPlatform) = "any"
-Base.show(io::IO, ::AnyPlatform) = print(io, "AnyPlatform()")
+Base.show(io::IO, ::AnyPlatform) = print(io, "AnyPlatform")
 
 """
     abi_agnostic(p::AbstractPlatform)
@@ -24,7 +24,7 @@ Base.show(io::IO, ::AnyPlatform) = print(io, "AnyPlatform()")
 Strip out any tags that are not the basic annotations like `libc` and `call_abi`.
 """
 function abi_agnostic(p::Platform)
-    keeps = ("libc", "call_abi")
+    keeps = ("libc", "call_abi", "os_version")
     filtered_tags = Dict(Symbol(k) => v for (k, v) in tags(p) if k ∈ keeps)
     return Platform(arch(p), os(p); filtered_tags...)
 end
@@ -32,11 +32,11 @@ abi_agnostic(p::AnyPlatform) = p
 
 
 """
-    platform_exeext(p::Platform)
+    platform_exeext(p::AbstractPlatform)
 
 Get the executable extension for the given Platform.  Includes the leading `.`.
 """
-platform_exeext(p::Platform) = Sys.iswindows(p) ? ".exe" : ""
+platform_exeext(p::AbstractPlatform) = Sys.iswindows(p) ? ".exe" : ""
 
 
 # Recursively test for key presence in nested dicts
@@ -139,4 +139,4 @@ const ARCHITECTURE_FLAGS = Dict(
         ),
     ),
 )
-march(p::Platform; default=nothing) = get(tags(p), "march", default)
+march(p::AbstractPlatform; default=nothing) = get(tags(p), "march", default)

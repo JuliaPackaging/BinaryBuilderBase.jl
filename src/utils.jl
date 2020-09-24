@@ -33,8 +33,12 @@ function get_concrete_platform(platform::Platform, shards::Vector{CompilerShard}
                                       libc(x.target) == libc(platform),
                                       shards)
     if !isnothing(gccboostrap_shard_idx)
-        concrete_platform["libgfortran_version"] = string(preferred_libgfortran_version(platform, shards[gccboostrap_shard_idx]))
-        concrete_platform["cxxstring_abi"] = string(preferred_cxxstring_abi(platform, shards[gccboostrap_shard_idx]))
+        cs = shards[gccboostrap_shard_idx]
+        concrete_platform["libgfortran_version"] = string(preferred_libgfortran_version(platform, cs))
+        concrete_platform["cxxstring_abi"] = string(preferred_cxxstring_abi(platform, cs))
+        if haskey(cs.target, "os_version")
+            concrete_platform["os_version"] = cs.target["os_version"]
+        end
     end
     return concrete_platform
 end
@@ -48,14 +52,8 @@ end
 Return the concrete platform for the given `platform` based on the GCC compiler
 ABI.  The set of shards is chosen by the keyword arguments (see [`choose_shards`](@ref)).
 """
-function get_concrete_platform(platform::AbstractPlatform;
-                               preferred_gcc_version = nothing,
-                               preferred_llvm_version = nothing,
-                               compilers = nothing)
-    shards = choose_shards(platform;
-                           preferred_gcc_version = preferred_gcc_version,
-                           preferred_llvm_version = preferred_llvm_version,
-                           compilers = compilers)
+function get_concrete_platform(platform::AbstractPlatform; kwargs...)
+    shards = choose_shards(platform; kwargs...)
     return get_concrete_platform(platform, shards)
 end
 

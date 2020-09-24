@@ -12,7 +12,7 @@ within the crossbuild environment.
 mutable struct UserNSRunner <: Runner
     sandbox_cmd::Cmd
     env::Dict{String, String}
-    platform::Platform
+    platform::AbstractPlatform
 
     shards::Vector{CompilerShard}
     workspace_root::String
@@ -22,7 +22,7 @@ function UserNSRunner(workspace_root::String;
                       cwd = nothing,
                       workspaces::Vector = Pair[],
                       mappings::Vector = Pair[],
-                      platform::Platform = HostPlatform(),
+                      platform::AbstractPlatform = HostPlatform(),
                       extra_env=Dict{String, String}(),
                       verbose::Bool = false,
                       compiler_wrapper_path::String = mktempdir(),
@@ -39,6 +39,7 @@ function UserNSRunner(workspace_root::String;
     check_encryption(workspace_root; verbose=verbose)
 
     # Construct environment variables we'll use from here on out
+    platform = get_concrete_platform(platform; extract_kwargs(kwargs, (:preferred_gcc_version,:preferred_llvm_version,:compilers))...)
     envs = merge(platform_envs(platform, src_name; verbose=verbose), extra_env)
 
     # JIT out some compiler wrappers, add it to our mounts

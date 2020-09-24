@@ -1,6 +1,6 @@
 using Downloads, Tar, p7zip_jll, SimpleBufferStream, SHA
 
-export unpack, list_tarball_files
+export unpack, list_tarball_files, verify, download_verify
 
 function detect_compressor(header::Vector)
     compressor_magic_bytes = Dict(
