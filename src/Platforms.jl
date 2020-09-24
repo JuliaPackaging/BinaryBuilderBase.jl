@@ -87,8 +87,8 @@ const ARCHITECTURE_FLAGS = Dict(
     # Many compiler flags are the same across clang and gcc, store those in "common"
     "common" => Dict(
         "i686" => Dict(
-            # Only one for i686, because we only support one.  :P
-            "prescott" => ["-march=prescott", "-mtune=generic"],
+            "i686" => ["-march=i686", "-mtune=generic"]
+            "prescott" => ["-march=prescott", "-mtune=prescott"],
         ),
         "x86_64" => Dict(
             # Better be always explicit about `-march` & `-mtune`:
@@ -114,8 +114,8 @@ const ARCHITECTURE_FLAGS = Dict(
         ),
         "powerpc64le" => Dict(
             "power8"  => ["-mcpu=power8", "-mtune=power8"],
-            # Note that power9 requires GCC 6+
-            "power9"  => ["-mcpu=power9", "-mtune=power9"],
+            # Note that power9 requires GCC 6+, and we need CPUID for this
+            #"power9"  => ["-mcpu=power9", "-mtune=power9"],
             # Eventually, we'll support power10, once we have compilers that support it.
             #"power10" => ["-mcpu=power10", "-mtune=power10"],
         )
