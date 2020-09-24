@@ -48,6 +48,14 @@ struct CompilerShard
     end
 end
 
+function Base.:(==)(a::CompilerShard, b::CompilerShard)
+    return a.name == b.name &&
+           a.version == b.version &&
+           a.target == b.target &&
+           a.host == b.host &&
+           a.archive_type == b.archive_type
+end
+
 """
     artifact_name(cs::CompilerShard)
 
@@ -202,7 +210,7 @@ function mount(cs::CompilerShard, build_prefix::AbstractString; verbose::Bool = 
     # they must accept the Xcode EULA.  This will be skipped if either the
     # environment variable BINARYBUILDER_AUTOMATIC_APPLE has been set to `true`
     # or if the SDK has been downloaded in the past.
-    if Sys.isapple(cs.target) && !isfile(enable_apple_file()) && !macos_sdk_already_installed()
+    if cs.target !== nothing && Sys.isapple(cs.target) && !isfile(enable_apple_file()) && !macos_sdk_already_installed()
         if !isinteractive()
             msg = strip("""
             This is not an interactive Julia session, so we will not prompt you
@@ -348,13 +356,13 @@ getversion(c::CompilerBuild) = c.version
 getabi(c::CompilerBuild) = c.abi
 
 const available_gcc_builds = [
-    GCCBuild(v"4.8.5", (libgfortran_version = v"3", libstdcxx_version = v"3.4.19")),
-    GCCBuild(v"5.2.0", (libgfortran_version = v"3", libstdcxx_version = v"3.4.21")),
-    GCCBuild(v"6.1.0", (libgfortran_version = v"3", libstdcxx_version = v"3.4.22")),
-    GCCBuild(v"7.1.0", (libgfortran_version = v"4", libstdcxx_version = v"3.4.23")),
-    GCCBuild(v"8.1.0", (libgfortran_version = v"5", libstdcxx_version = v"3.4.25")),
-    GCCBuild(v"9.1.0", (libgfortran_version = v"5", libstdcxx_version = v"3.4.26")),
-    GCCBuild(v"11-iains", (libgfortran_version = v"5", libstdcxx_version = v"3.4.26")),
+    GCCBuild(v"4.8.5", (libgfortran_version = v"3", libstdcxx_version = v"3.4.19", cxxstring_abi = "cxx03")),
+    GCCBuild(v"5.2.0", (libgfortran_version = v"3", libstdcxx_version = v"3.4.21", cxxstring_abi = "cxx11")),
+    GCCBuild(v"6.1.0", (libgfortran_version = v"3", libstdcxx_version = v"3.4.22", cxxstring_abi = "cxx11")),
+    GCCBuild(v"7.1.0", (libgfortran_version = v"4", libstdcxx_version = v"3.4.23", cxxstring_abi = "cxx11")),
+    GCCBuild(v"8.1.0", (libgfortran_version = v"5", libstdcxx_version = v"3.4.25", cxxstring_abi = "cxx11")),
+    GCCBuild(v"9.1.0", (libgfortran_version = v"5", libstdcxx_version = v"3.4.26", cxxstring_abi = "cxx11")),
+    GCCBuild(v"11-iains", (libgfortran_version = v"5", libstdcxx_version = v"3.4.26", cxxstring_abi = "cxx11")),
 ]
 const available_llvm_builds = [
     LLVMBuild(v"6.0.1"),
@@ -397,12 +405,12 @@ function gcc_version(p::Platform, GCC_builds::Vector{GCCBuild})
     # :cxx03 binaries on GCC 5+, (although increasingly rare) so the only
     # filtering we do is that if the platform is explicitly :cxx11, we
     # disallow running on < GCC 5.
-    if cxxstring_abi(p) === :cxx11
+    if cxxstring_abi(p) === "cxx11"
         GCC_builds = filter(b -> getversion(b) >= v"5", GCC_builds)
     end
 
     # Filter the possible GCC versions depending on the microarchitecture
-    if march(p) in ("avx", "avx2", "neonvfp4")
+    if march(p) in ("avx", "avx2", "neonvfpv4")
         # "sandybridge", "haswell", "cortex-a53" introduced in GCC v4.9.0:
         # https://www.gnu.org/software/gcc/gcc-4.9/changes.html
         GCC_builds = filter(b -> getversion(b) >= v"4.9", GCC_builds)
@@ -524,14 +532,14 @@ function choose_shards(p::AbstractPlatform;
         platform_match(a, b) = ((typeof(a) <: typeof(b)) && (arch(a) == arch(b)) && (libc(a) == libc(b)))
         if :c in compilers
             append!(shards, [
-                CompilerShard("GCCBootstrap", GCC_build, p, archive_type),
+                CompilerShard("GCCBootstrap", GCC_build, host_platform, archive_type; target=p),
                 CompilerShard("LLVMBootstrap", LLVM_build, host_platform, archive_type),
             ])
             # If we're not building for the host platform, then add host shard for host tools
             if !platform_match(p, host_platform)
                 append!(shards, [
                     CompilerShard("PlatformSupport", ps_build, host_platform, archive_type; target=host_platform),
-                    CompilerShard("GCCBootstrap", GCC_build, host_platform, archive_type),
+                    CompilerShard("GCCBootstrap", GCC_build, host_platform, archive_type; target=host_platform),
                 ])
             end
         end
@@ -589,7 +597,7 @@ officially support building for, if you see a mapping in `get_shard_hash()` that
 represented here, it's probably because that platform is still considered "in beta".
 
 Platforms can be excluded from the list by specifying an array of platforms to `exclude` i.e.
-`supported_platforms(exclude=[Platform("i686),Windows(:x86_64)]", "windows")`
+`supported_platforms(exclude=[Platform("i686", "windows"), Platform("x86_64", "windows")])`
 or a function that returns true for exclusions i.e.
 ```
 islin(x) = typeof(x) == Linux
@@ -644,7 +652,7 @@ function expand_gfortran_versions(platform::Platform)
     libgfortran_versions = [v"3", v"4", v"5"]
     return map([v"3", v"4", v"5"]) do v
         p = deepcopy(platform)
-        p["libgfortran_version"] = v
+        p["libgfortran_version"] = string(v)
         return p
     end
 end
@@ -702,8 +710,7 @@ julia> expand_microarchitectures(Platform("x86_64", "freebsd"))
 julia> expand_microarchitectures(Platform("armv7l", "linux")
 3-element Array{Platform,1}:
  ExtendedPlatform(Linux(:armv7l, libc=:glibc, call_abi=:eabihf); march="armv7l")
- ExtendedPlatform(Linux(:armv7l, libc=:glibc, call_abi=:eabihf); march="neon")
- ExtendedPlatform(Linux(:armv7l, libc=:glibc, call_abi=:eabihf); march="vfp4")
+ ExtendedPlatform(Linux(:armv7l, libc=:glibc, call_abi=:eabihf); march="neonvfpv4")
 
 julia> expand_microarchitectures(Platform("aarch64", "linux")
 3-element Array{Platform,1}:
@@ -749,8 +756,7 @@ julia> expand_microarchitectures(filter!(p -> p isa Linux && libc(p) == :glibc, 
  ExtendedPlatform(Platform("aarch64", "linux"; libc="glibc"); march="carmel")
  ExtendedPlatform(Platform("aarch64", "linux"; libc="glibc"); march="thunderx2")
  ExtendedPlatform(Linux(:armv7l, libc=:glibc, call_abi=:eabihf); march="armv7l")
- ExtendedPlatform(Linux(:armv7l, libc=:glibc, call_abi=:eabihf); march="neon")
- ExtendedPlatform(Linux(:armv7l, libc=:glibc, call_abi=:eabihf); march="vfp4")
+ ExtendedPlatform(Linux(:armv7l, libc=:glibc, call_abi=:eabihf); march="neonvfpv4")
  Platform("powerpc64le", "linux"; libc="glibc")
 ```
 """
@@ -781,7 +787,7 @@ function preferred_libgfortran_version(platform::Platform, shard::CompilerShard;
         if isnothing(idx)
             error("The shard doesn't match any version of the available GCC builds")
         else
-            return libgfortran_version(getabi(gcc_builds[idx]))
+            return getabi(gcc_builds[idx]).libgfortran_version
         end
     end
 end
@@ -811,7 +817,7 @@ function preferred_cxxstring_abi(platform::Platform, shard::CompilerShard;
         if isnothing(idx)
             error("The shard doesn't match any version of the available GCC builds")
         else
-            return cxxstring_abi(getabi(gcc_builds[idx]))
+            return getabi(gcc_builds[idx]).cxxstring_abi
         end
     end
 end

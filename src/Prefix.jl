@@ -4,7 +4,7 @@
 import Base: convert, joinpath, show
 using SHA, CodecZlib
 
-export Prefix, bindir, libdirs, includedir, logdir, temp_prefix
+export Prefix, bindir, libdirs, includedir, logdir, temp_prefix, package
 
 """
     temp_prefix(func::Function)

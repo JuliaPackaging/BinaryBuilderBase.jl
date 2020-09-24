@@ -8,7 +8,7 @@ using BinaryBuilderBase: template
 const platform = HostPlatform()
 
 @testset "Products" begin
-    @test template(raw"$libdir/foo-$arch/$nbits/bar-$target", Platform("x86_64)", "windows") ==
+    @test template(raw"$libdir/foo-$arch/$nbits/bar-$target", Platform("x86_64", "windows")) ==
         "bin/foo-x86_64/64/bar-x86_64-w64-mingw32"
     @test template(raw"$target/$nbits/$arch/$libdir", Platform("x86_64", "linux"; libc = "musl")) ==
         "x86_64-linux-musl/64/x86_64/lib"
@@ -55,19 +55,23 @@ const platform = HostPlatform()
         @test @test_logs (:info, r"^FileProduct .* found at") satisfied(ef, prefix; verbose=true)
         @static if !Sys.iswindows()
             # Windows doesn't care about executable bit, grumble grumble
-            @test @test_logs (:info, r"is not executable") (:info, r"does not exist") !satisfied(e, prefix; verbose=true, platform=Platform("x86_64)", "linux")
+            @test_logs (:info, r"is not executable") (:info, r"does not exist") begin
+                @test !satisfied(e, prefix; verbose=true, platform=Platform("x86_64", "linux"))
+            end
         end
 
         # Make it executable and ensure this does satisfy the Executable
         chmod(e_path, 0o777)
-        @test @test_logs (:info, r"matches our search criteria") satisfied(e, prefix; verbose=true, platform=Platform("x86_64)", "linux")
+        @test_logs (:info, r"matches our search criteria") begin
+            @test satisfied(e, prefix; verbose=true, platform=Platform("x86_64", "linux"))
+    end
 
         # Remove it and add a `$(path).exe` version to check again, this
         # time saying it's a Windows executable
         Base.rm(e_path; force=true)
         touch("$(e_path).exe")
         chmod("$(e_path).exe", 0o777)
-        @test locate(e, prefix; platform=Platform("x86_64)", "windows") == "$(e_path).exe"
+        @test locate(e, prefix; platform=Platform("x86_64", "windows")) == "$(e_path).exe"
 
         # Test that simply creating a library file doesn't satisfy it if we are
         # testing something that matches the current platform's dynamic library
@@ -137,9 +141,13 @@ const platform = HostPlatform()
             mkdir(dirname(l_path))
             touch(l_path)
             if ext == "1.so"
-                @test @test_logs (:info, r"^Found a valid") (:info, r"^Could not locate") !satisfied(l, prefix; verbose=true, platform=foreign_platform)
+                @test_logs (:info, r"^Found a valid") (:info, r"^Could not locate") begin
+                    @test !satisfied(l, prefix; verbose=true, platform=foreign_platform)
+                end
             else
-                @test @test_logs (:info, r"^Could not locate") !satisfied(l, prefix; verbose=true, platform=foreign_platform)
+                @test_logs (:info, r"^Could not locate") begin
+                    @test !satisfied(l, prefix; verbose=true, platform=foreign_platform)
+                end
             end
         end
     end

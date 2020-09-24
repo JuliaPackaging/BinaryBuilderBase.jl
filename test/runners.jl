@@ -1,6 +1,6 @@
 using Test
 using BinaryBuilderBase
-using BinaryBuilderBase: dlext, exeext
+using BinaryBuilderBase: platform_dlext, platform_exeext
 
 @testset "Wrappers utilities" begin
     @test nbits(Platform("i686", "linux")) == 32
@@ -10,12 +10,12 @@ using BinaryBuilderBase: dlext, exeext
     @test nbits(Platform("powerpc64le", "linux")) == 64
     @test nbits(AnyPlatform()) == 64
 
-    @test proc_family(Platform("i686", "linux")) == :intel
-    @test proc_family(Platform("x86_64", "linux"; march="avx")) == :intel
-    @test proc_family(Platform("armv7l", "linux")) == :arm
-    @test proc_family(Platform("aarch64", "linux"; cuda="10.1")) == :arm
-    @test proc_family(Platform("powerpc64le", "linux")) == :power
-    @test proc_family(AnyPlatform()) == :intel
+    @test proc_family(Platform("i686", "linux")) == "intel"
+    @test proc_family(Platform("x86_64", "linux"; march="avx")) == "intel"
+    @test proc_family(Platform("armv7l", "linux")) == "arm"
+    @test proc_family(Platform("aarch64", "linux"; cuda="10.1")) == "arm"
+    @test proc_family(Platform("powerpc64le", "linux")) == "power"
+    @test proc_family(AnyPlatform()) == "any"
 
     @test platform_exeext(Platform("i686", "linux")) == ""
     @test platform_exeext(Platform("x86_64", "freebsd")) == ""

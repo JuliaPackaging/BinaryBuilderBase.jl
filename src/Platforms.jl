@@ -14,6 +14,8 @@ Base.BinaryPlatforms.tags(p::AnyPlatform) = Dict{String,String}()
 Base.BinaryPlatforms.triplet(::AnyPlatform) = "any"
 Base.BinaryPlatforms.arch(::AnyPlatform) = "any"
 Base.BinaryPlatforms.os(::AnyPlatform) = "any"
+nbits(::AnyPlatform) = 64
+proc_family(::AnyPlatform) = "any"
 Base.show(io::IO, ::AnyPlatform) = print(io, "AnyPlatform()")
 
 """
@@ -52,24 +54,30 @@ function get_march_flags(arch::String, march::String, compiler::String)
     if haskeys(ARCHITECTURE_FLAGS, "common", arch, march)
         return ARCHITECTURE_FLAGS["common"][arch][march]
     end
-    if haskeys(ARCHITECTURE_FLAGS, compiler, arch. march)
+    if haskeys(ARCHITECTURE_FLAGS, compiler, arch, march)
         return ARCHITECTURE_FLAGS[compiler][arch][march]
     end
-    # By default, return nothing
+    # If this march cannot be found, return no flags
     return String[]
 end
+# If `march` is `nothing`, that means get the "generic" flags
+function get_march_flags(arch::String, march::Nothing, compiler::String)
+    return get_march_flags(arch, first(get_all_march_names(arch)), compiler)
+end
 function get_all_arch_names()
-    return collect(union(
-        keys(ARCHITECTURE_FLAGS["common"]),
-        keys(ARCHITECTURE_FLAGS["gcc"]),
-        keys(ARCHITECTURE_FLAGS["clang"]),
+    # We don't use Base.BinaryPlatforms.arch_march_isa_mapping here so that
+    # we can experiment with adding new architectures in BB before they land in Julia Base.
+    return unique(vcat(
+        collect(keys(ARCHITECTURE_FLAGS["common"])),
+        collect(keys(ARCHITECTURE_FLAGS["gcc"])),
+        collect(keys(ARCHITECTURE_FLAGS["clang"])),
     ))
 end
 function get_all_march_names(arch::String)
-    return collect(union(
-        keys(ARCHITECTURE_FLAGS["common"][arch]),
-        keys(ARCHITECTURE_FLAGS["gcc"][arch]),
-        keys(ARCHITECTURE_FLAGS["clang"][arch]),
+    return unique(vcat(
+        collect(keys(get(ARCHITECTURE_FLAGS["common"], arch, Dict{String,String}()))),
+        collect(keys(get(ARCHITECTURE_FLAGS["gcc"], arch, Dict{String,String}()))),
+        collect(keys(get(ARCHITECTURE_FLAGS["clang"], arch, Dict{String,String}()))),
     ))
 end
 
@@ -86,8 +94,8 @@ const ARCHITECTURE_FLAGS = Dict(
             # Better be always explicit about `-march` & `-mtune`:
             # https://lemire.me/blog/2018/07/25/it-is-more-complicated-than-i-thought-mtune-march-in-gcc/
             "x86_64" => ["-march=x86-64", "-mtune=generic"],
-            "avx" => ["-march=sandybridge", "-mtune=sandybridge"],
-            "avx2" => ["-march=haswell", "-mtune=haswell"],
+            "avx"    => ["-march=sandybridge", "-mtune=sandybridge"],
+            "avx2"   => ["-march=haswell", "-mtune=haswell"],
             "avx512" => ["-march=skylake-avx512", "-mtune=skylake-avx512"],
         ),
         "armv6l" => Dict(
@@ -98,16 +106,16 @@ const ARCHITECTURE_FLAGS = Dict(
             # Base armv7l architecture, with the most basic of FPU's
             "armv7l"   => ["-march=armv7-a", "-mtune=generic-armv7-a", "-mfpu=vfpv3"],
             # armv7l plus NEON and vfpv4, (Raspberry Pi 2B+, RK3328, most boards Elliot has access to)
-            "neonvfp4" => ["-march=armv7-a", "-mtune=cortex-a53", "-mfpu=neon-vfpv4"],
+            "neonvfpv4" => ["-march=armv7-a", "-mtune=cortex-a53", "-mfpu=neon-vfpv4"],
         ),
         "aarch64" => Dict(
             # Base armv8.0-a architecture, tune for generic cortex-a57
-            "armv8_0"        => ["-march=armv8-a", "-mtune=cortex-a57"],
+            "armv8_0"  => ["-march=armv8-a", "-mtune=cortex-a57"],
         ),
         "powerpc64le" => Dict(
-            "power8" => ["-mcpu=power8", "-mtune=power8"],
+            "power8"  => ["-mcpu=power8", "-mtune=power8"],
             # Note that power9 requires GCC 6+
-            "power9" => ["-mcpu=power9", "-mtune=power9"],
+            "power9"  => ["-mcpu=power9", "-mtune=power9"],
             # Eventually, we'll support power10, once we have compilers that support it.
             #"power10" => ["-mcpu=power10", "-mtune=power10"],
         )

@@ -25,6 +25,7 @@ export AbstractSource, AbstractDependency, SetupSource, PatchSource,
 
 include("compat.jl")
 
+include("ArchiveUtils.jl")
 include("Sources.jl")
 include("Dependencies.jl")
 include("Prefix.jl")

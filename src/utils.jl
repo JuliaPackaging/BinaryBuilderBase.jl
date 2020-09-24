@@ -33,8 +33,8 @@ function get_concrete_platform(platform::Platform, shards::Vector{CompilerShard}
                                       libc(x.target) == libc(platform),
                                       shards)
     if !isnothing(gccboostrap_shard_idx)
-        concrete_platform["libgfortran_version"] = preferred_libgfortran_version(platform, shards[gccboostrap_shard_idx])
-        concrete_platform["cxxstring_abi"] = preferred_cxxstring_abi(platform, shards[gccboostrap_shard_idx])
+        concrete_platform["libgfortran_version"] = string(preferred_libgfortran_version(platform, shards[gccboostrap_shard_idx]))
+        concrete_platform["cxxstring_abi"] = string(preferred_cxxstring_abi(platform, shards[gccboostrap_shard_idx]))
     end
     return concrete_platform
 end

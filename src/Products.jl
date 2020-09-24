@@ -185,7 +185,7 @@ function locate(lp::LibraryProduct, prefix::Prefix; platform::Platform = HostPla
             for libname in lp.libnames
                 libname = template(libname, platform)
 
-                parsed_libname, parsed_version = parse_dl_name_version(basename(f), platform)
+                parsed_libname, parsed_version = parse_dl_name_version(basename(f), os(platform))
                 if parsed_libname == libname
                     dl_path = abspath(joinpath(dir_path), f)
                     if verbose
@@ -369,7 +369,7 @@ function locate(ep::ExecutableProduct, prefix::Prefix; platform::Platform = Host
     for binname in ep.binnames
         # On windows, we always slap an .exe onto the end if it doesn't already
         # exist, as Windows won't execute files that don't have a .exe at the end.
-        binname = if platform isa Windows && !endswith(binname, ".exe")
+        binname = if Sys.iswindows(platform) && !endswith(binname, ".exe")
             "$(binname).exe"
         else
             binname

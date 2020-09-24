@@ -1,7 +1,7 @@
 using Test
 using Pkg, Base.BinaryPlatforms
 using BinaryBuilderBase
-using BinaryBuilderBase: getname, getpkg, dependencify, dlext
+using BinaryBuilderBase: getname, getpkg, dependencify
 using JSON
 
 # Define equality between dependencies, in order to carry out the tests below

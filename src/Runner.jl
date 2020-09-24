@@ -14,9 +14,9 @@ end
 function proc_family(p::Platform)
     if arch(p) in ("x86_64", "i686")
         return "intel"
-    elseif arch(p) in (:armv7l, :aarch64)
+    elseif arch(p) in ("armv6l", "armv7l", "aarch64")
         return "arm"
-    elseif arch(p) == :powerpc64le
+    elseif arch(p) == "powerpc64le"
         return "power"
     else
         error("Unknown processor family for architecture $(arch(p))")
@@ -210,12 +210,12 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     
     function clang_flags!(p::Platform, flags::Vector{String} = String[])
         # Focus the clang targeting laser
-        append!(flags, 
+        append!(flags, [
             # Set the `target` for `clang` so it generates the right kind of code
             "-target $(clang_target_triplet(p))",
             # Set our sysroot to the platform-specific location, dropping compiler ABI annotations 
             "--sysroot=/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root",
-        )
+        ])
         # For MacOS and FreeBSD, we don't set `-rtlib`, and FreeBSD is special-cased within the LLVM source tree
         # to not allow for -gcc-toolchain, which means that we have to manually add the location of libgcc_s.  LE SIGH.
         # We do that within `clang_linker_flags()`, so that we don't get "unused argument" warnings all over the place.
@@ -236,7 +236,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     end
 
     function clang_compile_flags!(p::Platform, flags::Vector{String} = String[])
-        append!(flags, march_flags(arch(p), march(p), "clang"))
+        append!(flags, get_march_flags(arch(p), march(p), "clang"))
         if Sys.isapple(p)
             append!(flags, String[
                 # On MacOS, we need to override the typical C++ include search paths, because it always includes
@@ -304,7 +304,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     end
 
     function gcc_compile_flags!(p::Platform, flags::Vector{String} = String[])
-        append!(flags, march_flags(arch(p), march(p), "clang"))
+        append!(flags, get_march_flags(arch(p), march(p), "clang"))
         return flags
     end
 
@@ -329,7 +329,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         return String[]
     end
 
-    function gcc_wrapper(io::IO, tool::String, p::Platform)
+    function gcc_wrapper(io::IO, tool::String, p::Platform, allow_ccache::Bool = true)
         return wrapper(io,
             "/opt/$(aatriplet(p))/bin/$(aatriplet(p))-$(tool)";
             flags=gcc_flags!(p),
@@ -337,6 +337,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
             link_only_flags=gcc_link_flags!(p),
             unsafe_flags=gcc_unsafe_flags!(p),
             hash_args = true,
+            allow_ccache,
         )
     end
 
@@ -344,7 +345,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         flags = clang_flags!(p)
         append!(flags, extra_flags)
         return wrapper(io,
-            "/opt/$(host_target)/bin/$(tool)",
+            "/opt/$(host_target)/bin/$(tool)";
             flags=flags,
             compile_only_flags=clang_compile_flags!(p),
             link_only_flags=clang_link_flags!(p),
@@ -354,7 +355,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     # C/C++/Fortran
     gcc(io::IO, p::Platform)      = gcc_wrapper(io, "gcc", p)
     gxx(io::IO, p::Platform)      = gcc_wrapper(io, "g++", p)
-    gfortran(io::IO, p::Platform) = gcc_wrapper(io, "gfortran", p)
+    gfortran(io::IO, p::Platform) = gcc_wrapper(io, "gfortran", p, false)
 
     clang(io::IO, p::Platform)    = clang_wrapper(io, "clang", p)
     clangxx(io::IO, p::Platform)  = clang_wrapper(io, "clang++", p)
@@ -407,10 +408,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     function rust_flags!(p::Platform, flags::Vector{String} = String[])
         push!(flags, "--target=$(map_rust_target(p))")
         if Sys.islinux(p)
-            append!(flags, [
-                rust_base_flags(p),
-                "-C linker=$(aatriplet(p))-gcc",
-            ])
+            push!(flags, "-C linker=$(aatriplet(p))-gcc")
 
             # Add aarch64 workaround https://github.com/rust-lang/rust/issues/46651#issuecomment-402850885
             if arch(p) == "aarch64" && libc(p) == "musl"
@@ -448,7 +446,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     # https://github.com/JuliaPackaging/BinaryBuilder.jl/commit/cce4f8fdbb16425d245ab87a50f60d1a16d04948
     function patchelf(io::IO, p::Platform)
         extra_cmds = ""
-        if isa(p, Linux) && arch(p) in (:aarch64, :powerpc64le)
+        if Sys.islinux(p) && arch(p) in ("aarch64", "powerpc64le")
             extra_cmds = raw"""
             if [[ " ${ARGS[@]} " != *'--page-size'* ]]; then
                 PRE_FLAGS+=( '--page-size' '65536' )
@@ -704,7 +702,7 @@ function platform_envs(platform::Platform, src_name::AbstractString;
 
     # Prefix, libdir, etc...
     prefix = "/workspace/destdir"
-    if platform isa Windows
+    if Sys.iswindows(platform)
         libdir = "$(prefix)/bin"
     else
         libdir = "$(prefix)/lib"
@@ -747,7 +745,7 @@ function platform_envs(platform::Platform, src_name::AbstractString;
         "nbits" => string(nbits(platform)),
         "proc_family" => string(proc_family(platform)),
         "dlext" => platform_dlext(platform),
-        "exeext" => exeext(platform),
+        "exeext" => platform_exeext(platform),
         "PATH" => "/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin",
         "MACHTYPE" => "x86_64-linux-musl",
 
@@ -887,14 +885,14 @@ function platform_envs(platform::Platform, src_name::AbstractString;
     # all platforms, but some build systems want to know it.  Let's emulate with
     # the `GNU_LIBC_VERSION` environment variable what `getconf
     # GNU_LIBC_VERSION` would return, if it worked.
-    if libc(platform) === :glibc
+    if libc(platform) === "glibc"
         # This should be kept in sync with the version of glibc used in
         # https://github.com/JuliaPackaging/Yggdrasil/blob/master/0_RootFS/gcc_common.jl
-        if arch(platform) in (:x86_64, :i686)
+        if arch(platform) in ("x86_64", "i686")
             mapping["GNU_LIBC_VERSION"] = "glibc 2.12.2"
-        elseif arch(platform) in (:armv7l, :aarch64)
+        elseif arch(platform) in ("armv7l", "aarch64")
             mapping["GNU_LIBC_VERSION"] = "glibc 2.19"
-        elseif arch(platform) === :powerpc64le
+        elseif arch(platform) === "powerpc64le"
             mapping["GNU_LIBC_VERSION"] = "glibc 2.17"
         end
     end

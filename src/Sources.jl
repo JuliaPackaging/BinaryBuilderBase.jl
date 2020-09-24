@@ -133,11 +133,11 @@ function download_source(source::T; verbose::Bool = false, downloads_dir = stora
         src_path = abspath(source.url)
 
         # And if this is a locally-sourced tarball, just verify
-        verify(src_path, source.hash; verbose=verbose)
+        verify(src_path, source.hash)
     else
         # Otherwise, download and verify
         src_path = joinpath(downloads_dir, string(source.hash, "-", basename(source.url)))
-        download_verify(source.url, source.hash, src_path; verbose=verbose)
+        download_verify(source.url, source.hash, src_path)
     end
     return SetupSource{T}(src_path, source.hash, gettarget(source))
 end
