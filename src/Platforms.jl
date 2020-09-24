@@ -87,7 +87,7 @@ const ARCHITECTURE_FLAGS = Dict(
     # Many compiler flags are the same across clang and gcc, store those in "common"
     "common" => Dict(
         "i686" => Dict(
-            "i686" => ["-march=i686", "-mtune=generic"]
+            "i686" => ["-march=i686", "-mtune=generic"],
             "prescott" => ["-march=prescott", "-mtune=prescott"],
         ),
         "x86_64" => Dict(
