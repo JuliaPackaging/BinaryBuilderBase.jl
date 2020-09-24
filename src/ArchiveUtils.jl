@@ -7,6 +7,7 @@ function detect_compressor(header::Vector)
         "gzip" => [0x1f, 0x8b],
         "xz" => [0xfd, 0x37, 0x7a, 0x58, 0x5A, 0x00],
         "zstd" => [0x28, 0xB5, 0x2F, 0xFD],
+        "bzip2" => [0x42, 0x5a, 0x68],
     )
     for (compressor, magic) in compressor_magic_bytes
         lm = length(magic)

@@ -20,3 +20,32 @@ using BinaryBuilderBase: extract_kwargs, extract_fields, strip_backslash, Archiv
     @test basename(strip_backslash("/home//wizard///")) == "wizard"
     @test basename(strip_backslash("wizard.jl")) == "wizard.jl"
 end
+
+using BinaryBuilderBase: download_verify, list_tarball_files
+@testset "ArchiveUtils" begin
+    mktempdir() do dir
+        # Test that we can download, then list, the contents of .tar.gz, .tar.bz2 and .tar.xz files.
+        for (url, hash) in [("https://github.com/staticfloat/small_bin/raw/master/socrates.tar.gz",
+                             "e65d2f13f2085f2c279830e863292312a72930fee5ba3c792b14c33ce5c5cc58"),
+                            ("https://github.com/staticfloat/small_bin/raw/master/socrates.tar.xz",
+                             "61bcf109fcb749ee7b6a570a6057602c08c836b6f81091eab7aa5f5870ec6475"),
+                            ("https://github.com/staticfloat/small_bin/raw/master/socrates.tar.bz2",
+                             "13fc17b97be41763b02cbb80e9d048302cec3bd3d446c2ed6e8210bddcd3ac76")]
+            # First, download to a path:
+            path = joinpath(dir, basename(url))
+            download_verify(url, hash, path)
+            @test isfile(path)
+
+            # Ensure that we can list the tarball:
+            @test "bin/socrates" in list_tarball_files(path)
+        end
+
+        # Test that a 404 throws
+        @test_throws ErrorException download_verify("https://github.com/not_a_file", "0"^64, joinpath(dir, "blah"))
+
+        # Test that a bad hash logs a message and fails
+        @test_logs (:error, r"Hash Mismatch") begin
+            download_verify("https://github.com/staticfloat/small_bin/raw/master/socrates.tar.xz", "0"^64, joinpath(dir, "blah2"))
+        end
+    end
+end
