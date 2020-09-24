@@ -17,7 +17,7 @@ function detect_compressor(header::Vector)
     return nothing
 end
 
-function decompress(path::AbstractString; blocksize=2*1024*1024)
+function decompress(path::AbstractString)
     # Read the first few bytes of data to classify it:
     compressor = open(path) do io
         detect_compressor(read(io, 6))
@@ -33,22 +33,14 @@ function decompress(path::AbstractString; blocksize=2*1024*1024)
     end
 end
 
-function decompress(path::AbstractString, out::AbstractString; blocksize=2*1024*1024)
-    open(out, "w") do io_out
-        io_decomp = decompress(path; blocksize)
-        while !eof(io_decomp)
-            write(io_out, read(io_decomp, blocksize))
-        end
-    end
-    return out
-end
-
-
 # Many functions don't like `PipeEndpoint`, so we interface with a BufferStream
 function buff_wrap(io::IO; blocksize = 2*1024*1024)
     buff = BufferStream(blocksize)
-    @async while !iseof(io)
-        write(buff, read(io, blocksize))
+    @async begin
+        while !eof(io)
+            write(buff, readavailable(io))
+        end
+        close(buff)
     end
     return buff
 end
@@ -73,7 +65,7 @@ function list_tarball_files(tarball_path::AbstractString)
                 end
                 return path
             end
-            return String[remove_dotslash(h.path) for h in Tar.list(decompress(tarball_path, path))]
+            return String[remove_dotslash(h.path) for h in Tar.list(buff_wrap(decompress(tarball_path)))]
         end
     end
 end
