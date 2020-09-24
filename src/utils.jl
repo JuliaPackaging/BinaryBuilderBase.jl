@@ -27,21 +27,24 @@ function get_concrete_platform(platform::Platform, shards::Vector{CompilerShard}
     # `concrete_platform` is needed only to setup the dependencies and the
     # runner.  We _don't_ want the platform passed to `audit()` or
     # `package()` to be more specific than it is.
-    concrete_platform = platform
+    concrete_platform = deepcopy(platform)
     gccboostrap_shard_idx = findfirst(x -> x.name == "GCCBootstrap" &&
                                       arch(x.target) == arch(platform) &&
                                       libc(x.target) == libc(platform),
                                       shards)
     if !isnothing(gccboostrap_shard_idx)
-        libgfortran_version = preferred_libgfortran_version(platform, shards[gccboostrap_shard_idx])
-        cxxstring_abi = preferred_cxxstring_abi(platform, shards[gccboostrap_shard_idx])
-        concrete_platform = replace_cxxstring_abi(replace_libgfortran_version(platform, libgfortran_version), cxxstring_abi)
+        cs = shards[gccboostrap_shard_idx]
+        concrete_platform["libgfortran_version"] = string(preferred_libgfortran_version(platform, cs))
+        concrete_platform["cxxstring_abi"] = string(preferred_cxxstring_abi(platform, cs))
+        if haskey(cs.target, "os_version")
+            concrete_platform["os_version"] = cs.target["os_version"]
+        end
     end
     return concrete_platform
 end
 
 """
-    get_concrete_platform(platform::Platform;
+    get_concrete_platform(platform::AbstractPlatform;
                           preferred_gcc_version = nothing,
                           preferred_llvm_version = nothing,
                           compilers = nothing)
@@ -49,17 +52,11 @@ end
 Return the concrete platform for the given `platform` based on the GCC compiler
 ABI.  The set of shards is chosen by the keyword arguments (see [`choose_shards`](@ref)).
 """
-function get_concrete_platform(platform::Platform;
-                               preferred_gcc_version = nothing,
-                               preferred_llvm_version = nothing,
-                               compilers = nothing)
-    shards = choose_shards(platform;
-                           preferred_gcc_version = preferred_gcc_version,
-                           preferred_llvm_version = preferred_llvm_version,
-                           compilers = compilers)
+function get_concrete_platform(platform::AbstractPlatform; kwargs...)
+    shards = choose_shards(platform; kwargs...)
     return get_concrete_platform(platform, shards)
 end
 
 # XXX: we want the AnyPlatform to look like `x86_64-linux-musl`,
 get_concrete_platform(::AnyPlatform, shards::Vector{CompilerShard}) =
-    get_concrete_platform(Linux(:x86_64, libc=:musl), shards)
+    get_concrete_platform(Platform("x86_64", "linux"; libc="musl"), shards)

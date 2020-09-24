@@ -1,5 +1,5 @@
 using Test
-using Pkg.PlatformEngines, Pkg.BinaryPlatforms
+using Base.BinaryPlatforms
 using SHA
 using BinaryBuilderBase
 using CodecZlib
@@ -25,31 +25,10 @@ using CodecZlib
         end
         chmod(ppt_path, 0o775)
 
-        # These tests are taken from BinaryProvider, but here we don't have
-        # withenv.  Do we have anything similar?
-        #
-        # # Test that our `withenv()` stuff works.  :D
-        # withenv(prefix) do
-        #     @test startswith(ENV["PATH"], bindir(prefix))
-
-        #     if !Sys.iswindows()
-        #         envname = Sys.isapple() ? "DYLD_FALLBACK_LIBRARY_PATH" : "LD_LIBRARY_PATH"
-        #         @test startswith(ENV[envname], last(libdirs(prefix)))
-        #         private_libdir = abspath(joinpath(Sys.BINDIR, Base.PRIVATE_LIBDIR))
-        #         @test endswith(ENV[envname], private_libdir)
-
-        #         # Test we can run the script we dropped within this prefix.
-        #         # Once again, something about Windows | busybox | Julia won't
-        #         # pick this up even though the path clearly points to the file.
-        #         @test success(`$sh $(ppt_path)`)
-        #         @test success(`$sh -c prefix_path_test.sh`)
-        #     end
-        # end
-
         # Test that we can control libdirs() via platform arguments
-        @test libdirs(prefix, Linux(:x86_64)) == [joinpath(prefix, "lib64"), joinpath(prefix, "lib")]
-        @test libdirs(prefix, Linux(:i686)) == [joinpath(prefix, "lib")]
-        @test libdirs(prefix, Windows(:i686)) == [joinpath(prefix, "bin")]
+        @test libdirs(prefix, Platform("x86_64", "linux")) == [joinpath(prefix, "lib64"), joinpath(prefix, "lib")]
+        @test libdirs(prefix, Platform("i686", "linux")) == [joinpath(prefix, "lib")]
+        @test libdirs(prefix, Platform("i686", "windows")) == [joinpath(prefix, "bin")]
         @test bindir(prefix) == joinpath(prefix, "bin")
         @test includedir(prefix) == joinpath(prefix, "include")
         @test logdir(prefix) == joinpath(prefix, "logs")
@@ -90,7 +69,9 @@ end
         end
 
         # Next, package it up as a .tar.gz file
-        tarball_path, tarball_hash = @test_logs (:info, r"^Tree hash of contents of") (:info, r"^SHA256 of") package(prefix, "./libfoo", v"1.0.0"; verbose=true)
+        tarball_path, tarball_hash = @test_logs (:info, r"^Tree hash of contents of") (:info, r"^SHA256 of") begin
+            package(prefix, "./libfoo", v"1.0.0"; verbose=true)
+        end
         @test isfile(tarball_path)
 
         # Check that we are calculating the hash properly

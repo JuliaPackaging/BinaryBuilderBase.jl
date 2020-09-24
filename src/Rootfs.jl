@@ -1,6 +1,6 @@
 export supported_platforms, expand_gfortran_versions, expand_cxxstring_abis, expand_microarchitectures
 
-import Pkg.Artifacts: load_artifacts_toml, ensure_all_artifacts_installed
+using Pkg.Artifacts: load_artifacts_toml, ensure_all_artifacts_installed
 
 # This is a type that encompasses a shard; it makes it easy to pass it around,
 # get its download url, extraction url, mounting url, etc...
@@ -11,11 +11,11 @@ struct CompilerShard
     # Something like v"7.1.0"
     version::VersionNumber
 
-    # Things like Windows(:x86_64; compiler_abi=CompilerABI(libgfortran_version=v"3"))
+    # Things like Platform("x86_64", "windows"; libgfortran_version=v"3")
     target::Union{Nothing,Platform}
 
-    # Usually `Linux(:x86_64, libc=:musl)`, with the NOTABLE exception of `Rust`
-    host::Platform
+    # Usually `Platform("x86_64", "linux"; libc="musl")`, with the NOTABLE exception of `Rust`
+    host::AbstractPlatform
     
     # :unpacked or :squashfs.  Possibly more in the future.
     archive_type::Symbol
@@ -28,10 +28,10 @@ struct CompilerShard
 
         # If host or target are unparsed, parse them:
         if isa(host, AbstractString)
-            host = platform_key_abi(host)
+            host = parse(Platform, host)
         end
         if isa(target, AbstractString)
-            target = platform_key_abi(target)
+            target = parse(Platform, target)
         end
 
         # Ensure the platforms have no ABI portion (that is only used
@@ -48,13 +48,12 @@ struct CompilerShard
     end
 end
 
-"""
-    abi_agnostic(p::Platform)
-
-Strip out the CompilerABI portion of a Platform, making it "ABI agnostic".
-"""
-function abi_agnostic(p::P) where {P <: Platform}
-    return P(arch(p); libc=libc(p), call_abi=call_abi(p))
+function Base.:(==)(a::CompilerShard, b::CompilerShard)
+    return a.name == b.name &&
+           a.version == b.version &&
+           a.target == b.target &&
+           a.host == b.host &&
+           a.archive_type == b.archive_type
 end
 
 """
@@ -211,7 +210,7 @@ function mount(cs::CompilerShard, build_prefix::AbstractString; verbose::Bool = 
     # they must accept the Xcode EULA.  This will be skipped if either the
     # environment variable BINARYBUILDER_AUTOMATIC_APPLE has been set to `true`
     # or if the SDK has been downloaded in the past.
-    if typeof(cs.target) <: MacOS && !isfile(enable_apple_file()) && !macos_sdk_already_installed()
+    if cs.target !== nothing && Sys.isapple(cs.target) && !isfile(enable_apple_file()) && !macos_sdk_already_installed()
         if !isinteractive()
             msg = strip("""
             This is not an interactive Julia session, so we will not prompt you
@@ -317,14 +316,14 @@ Returns `true` if any piece of the MacOS SDK is already installed.
 function macos_sdk_already_installed()
     # Get all compiler shards we know about
     css = all_compiler_shards()
-    macos_artifact_names = artifact_name.(filter(cs -> isa(cs.target, MacOS), css))
+    macos_artifact_names = artifact_name.(filter(cs -> Sys.isapple(cs.target), css))
 
-    host_platform = Linux(:x86_64; libc=:musl)
+    host_platform = Platform("x86_64", "linux"; libc="musl")
     artifacts_toml = joinpath(dirname(@__DIR__), "Artifacts.toml")
     macos_artifact_hashes = artifact_hash.(macos_artifact_names, artifacts_toml; platform=host_platform)
 
     # The Rust shards will return `nothing` above (so we filter them out here) since they
-    # are TECHNICALLY `Linux(:x86_64; libc=:glibc)`-hosted.  Whatever. You need to download
+    # are TECHNICALLY `Platform("x86_64", "linux"; libc="glibc")`-hosted.  Whatever. You need to download
     # one of the `PlatformSupport` shards for this anyway, so we don't really care.
     macos_artifact_hashes = filter(x -> x != nothing, macos_artifact_hashes)
 
@@ -343,27 +342,27 @@ abstract type CompilerBuild end
 
 struct GCCBuild <: CompilerBuild
     version::VersionNumber
-    abi::CompilerABI
+    abi::NamedTuple
 end
-GCCBuild(v::VersionNumber) = GCCBuild(v, CompilerABI())
+GCCBuild(v::VersionNumber) = GCCBuild(v, ())
 
 struct LLVMBuild <: CompilerBuild
     version::VersionNumber
-    abi::CompilerABI
+    abi::NamedTuple
 end
-LLVMBuild(v::VersionNumber) = LLVMBuild(v, CompilerABI())
+LLVMBuild(v::VersionNumber) = LLVMBuild(v, (;))
 
 getversion(c::CompilerBuild) = c.version
 getabi(c::CompilerBuild) = c.abi
 
 const available_gcc_builds = [
-    GCCBuild(v"4.8.5", CompilerABI(libgfortran_version = v"3", libstdcxx_version = v"3.4.19", cxxstring_abi = :cxx03)),
-    GCCBuild(v"5.2.0", CompilerABI(libgfortran_version = v"3", libstdcxx_version = v"3.4.21", cxxstring_abi = :cxx11)),
-    GCCBuild(v"6.1.0", CompilerABI(libgfortran_version = v"3", libstdcxx_version = v"3.4.22", cxxstring_abi = :cxx11)),
-    GCCBuild(v"7.1.0", CompilerABI(libgfortran_version = v"4", libstdcxx_version = v"3.4.23", cxxstring_abi = :cxx11)),
-    GCCBuild(v"8.1.0", CompilerABI(libgfortran_version = v"5", libstdcxx_version = v"3.4.25", cxxstring_abi = :cxx11)),
-    GCCBuild(v"9.1.0", CompilerABI(libgfortran_version = v"5", libstdcxx_version = v"3.4.26", cxxstring_abi = :cxx11)),
-    GCCBuild(v"11-iains", CompilerABI(libgfortran_version = v"5", libstdcxx_version = v"3.4.26", cxxstring_abi = :cxx11)),
+    GCCBuild(v"4.8.5", (libgfortran_version = v"3", libstdcxx_version = v"3.4.19", cxxstring_abi = "cxx03")),
+    GCCBuild(v"5.2.0", (libgfortran_version = v"3", libstdcxx_version = v"3.4.21", cxxstring_abi = "cxx11")),
+    GCCBuild(v"6.1.0", (libgfortran_version = v"3", libstdcxx_version = v"3.4.22", cxxstring_abi = "cxx11")),
+    GCCBuild(v"7.1.0", (libgfortran_version = v"4", libstdcxx_version = v"3.4.23", cxxstring_abi = "cxx11")),
+    GCCBuild(v"8.1.0", (libgfortran_version = v"5", libstdcxx_version = v"3.4.25", cxxstring_abi = "cxx11")),
+    GCCBuild(v"9.1.0", (libgfortran_version = v"5", libstdcxx_version = v"3.4.26", cxxstring_abi = "cxx11")),
+    GCCBuild(v"11-iains", (libgfortran_version = v"5", libstdcxx_version = v"3.4.26", cxxstring_abi = "cxx11")),
 ]
 const available_llvm_builds = [
     LLVMBuild(v"6.0.1"),
@@ -373,7 +372,7 @@ const available_llvm_builds = [
 ]
 
 """
-    gcc_version(p::Platform, , GCC_builds::Vector{GCCBuild})
+    gcc_version(p::AbstractPlatform, , GCC_builds::Vector{GCCBuild})
 
 Returns the closest matching GCC version number for the given particular
 platform, from the given set of options.  The compiler ABI and the
@@ -387,11 +386,10 @@ the only GCC versions available to be picked from are `4.8.5` and `5.2.0`, it
 will return `4.8.5`, as binaries compiled with that version will run on this
 platform, whereas binaries compiled with `5.2.0` may not.
 """
-function gcc_version(p::Platform, GCC_builds::Vector{GCCBuild})
-    cabi = compiler_abi(p)
+function gcc_version(p::AbstractPlatform, GCC_builds::Vector{GCCBuild})
     # First, filter by libgfortran version.
-    if libgfortran_version(cabi) !== nothing
-        GCC_builds = filter(b -> libgfortran_version(getabi(b)) == libgfortran_version(cabi), GCC_builds)
+    if libgfortran_version(p) !== nothing
+        GCC_builds = filter(b -> getabi(b).libgfortran_version == libgfortran_version(p), GCC_builds)
     end
 
     # Next, filter by libstdc++ GLIBCXX symbol version.  Note that this
@@ -399,67 +397,80 @@ function gcc_version(p::Platform, GCC_builds::Vector{GCCBuild})
     # version that is slightly lower than what is actually installed on
     # a system.  See https://gcc.gnu.org/onlinedocs/libstdc++/manual/abi.html
     # for the whole list, as well as many other interesting factoids.
-    if libstdcxx_version(cabi) !== nothing
-        GCC_builds = filter(b -> libstdcxx_version(getabi(b)) <= libstdcxx_version(cabi), GCC_builds)
+    if libstdcxx_version(p) !== nothing
+        GCC_builds = filter(b -> getabi(b).libstdcxx_version <= libstdcxx_version(p), GCC_builds)
     end
 
     # Finally, enforce cxxstring_abi guidelines.  It is possible to build
     # :cxx03 binaries on GCC 5+, (although increasingly rare) so the only
     # filtering we do is that if the platform is explicitly :cxx11, we
     # disallow running on < GCC 5.
-    if cxxstring_abi(cabi) !== nothing && cxxstring_abi(cabi) === :cxx11
+    if cxxstring_abi(p) === "cxx11"
         GCC_builds = filter(b -> getversion(b) >= v"5", GCC_builds)
     end
 
     # Filter the possible GCC versions depending on the microarchitecture
-    if march(p) !== nothing
-        if march(p) in ("avx", "avx2")
-            # "sandybridge" and "haswell" introduced in GCC v4.9.0:
-            # https://www.gnu.org/software/gcc/gcc-4.9/changes.html
-            GCC_builds = filter(b -> getversion(b) >= v"4.9", GCC_builds)
-        elseif march(p) == "avx512"
-            # "skylake-avx512" introduced in GCC v6.1:
-            # https://www.gnu.org/software/gcc/gcc-6/changes.html
-            GCC_builds = filter(b -> getversion(b) >= v"6.1", GCC_builds)
-        elseif march(p) == "thunderx2"
-            # "thunderx2t99" introduced in GCC v7.1:
-            # https://www.gnu.org/software/gcc/gcc-7/changes.html
-            GCC_builds = filter(b -> getversion(b) >= v"7.1", GCC_builds)
-        elseif march(p) in ("neon", "vfp4", "carmel")
-            # "+aes" and "+sha2" extensions for aarch64 introduced in GCC v8:
-            # https://www.gnu.org/software/gcc/gcc-8/changes.html
-            GCC_builds = filter(b -> getversion(b) >= v"8.1", GCC_builds)
-        end
+    if march(p) in ("avx", "avx2", "neonvfpv4")
+        # "sandybridge", "haswell", "cortex-a53" introduced in GCC v4.9.0:
+        # https://www.gnu.org/software/gcc/gcc-4.9/changes.html
+        GCC_builds = filter(b -> getversion(b) >= v"4.9", GCC_builds)
+    elseif march(p) in ("avx512", "power9")
+        # "skylake-avx512" and "power9" introduced in GCC v6.1:
+        # https://www.gnu.org/software/gcc/gcc-6/changes.html
+        GCC_builds = filter(b -> getversion(b) >= v"6.1", GCC_builds)
+    elseif march(p) in ("armv8_1",)
+        # "thunderx2t99" introduced in GCC v7.1:
+        # https://www.gnu.org/software/gcc/gcc-7/changes.html
+        GCC_builds = filter(b -> getversion(b) >= v"7.1", GCC_builds)
+    elseif march(p) in ("armv8_2_crypto", "armv8_4_crypto_sve")
+        # "+aes" and "+sha2" extensions for aarch64 introduced in GCC v8:
+        # https://www.gnu.org/software/gcc/gcc-8/changes.html
+        GCC_builds = filter(b -> getversion(b) >= v"8.1", GCC_builds)
     end
 
     return getversion.(GCC_builds)
 end
 
-function select_gcc_version(p::Platform,
-             GCC_builds::Vector{GCCBuild} = available_gcc_builds,
-             preferred_gcc_version::VersionNumber = getversion(GCC_builds[1]),
-         )
-    # Determine which GCC build we're going to match with this CompilerABI:
-    GCC_builds = gcc_version(p, GCC_builds)
+function llvm_version(p::AbstractPlatform, LLVM_builds::Vector{LLVMBuild})
+    if march(p) in ("armv8_2_crypto", "armv8_4_crypto_sve")
+        LLVM_builds = filter(b -> getversion(b) >= v"9.0")
+    end
+    return getversion.(LLVM_builds)
+end
 
-    if isempty(GCC_builds)
-        error("Impossible CompilerABI constraints $(cabi)!")
+function select_compiler_versions(p::AbstractPlatform,
+            GCC_builds::Vector{GCCBuild} = available_gcc_builds,
+            LLVM_builds::Vector{LLVMBuild} = available_llvm_builds,
+            preferred_gcc_version::VersionNumber = getversion(GCC_builds[1]),
+            preferred_llvm_version::VersionNumber = getversion(LLVM_builds[end]),
+        )
+    # Determine which GCC/LLVM build we're going to match with this Platform:
+    filtered_gcc_builds = gcc_version(p, GCC_builds)
+    if isempty(filtered_gcc_builds)
+        error("Impossible compiler constraints $(p) upon $(GCC_builds)!")
+    end
+
+    filtered_llvm_builds = llvm_version(p, LLVM_builds)
+    if isempty(filtered_llvm_builds)
+        error("Impossible compiler constraints $(p) upon $(LLVM_builds)!")
     end
 
     # Otherwise, choose the version that is closest to our preferred version
-    return select_closest_version(preferred_gcc_version, GCC_builds)
+    gccv = select_closest_version(preferred_gcc_version, filtered_gcc_builds)
+    llvmv = select_closest_version(preferred_llvm_version, filtered_llvm_builds)
+    return gccv, llvmv
 end
 
 
 """
-    choose_shards(p::Platform; rootfs_build, ps_build, GCC_builds,
+    choose_shards(p::AbstractPlatform; rootfs_build, ps_build, GCC_builds,
                                LLVM_builds, archive_type)
 
 This method chooses, given a `Platform`, which shards to download, extract and
 mount, returning a list of `CompilerShard` objects.  At the moment, this always
 consists of four shards, but that may not always be the case.
 """
-function choose_shards(p::Platform;
+function choose_shards(p::AbstractPlatform;
             compilers::Vector{Symbol} = [:c],
             rootfs_build::VersionNumber=v"2020.08.19",
             ps_build::VersionNumber=v"2020.08.19",
@@ -478,63 +489,94 @@ function choose_shards(p::Platform;
         )
 
     # Our host platform is x86_64-linux-musl
-    host_platform = Linux(:x86_64; libc=:musl)
+    host_platform = Platform("x86_64", "linux"; libc="musl")
 
-    make_gcc_shard(GCC_build, target) = CompilerShard("GCCBootstrap", GCC_build, host_platform, archive_type; target=target)
-
-    this_platform_GCC_builds = filter(GCC_builds) do GCC_build
-        make_gcc_shard(getversion(GCC_build), p) in all_compiler_shards() &&
-        make_gcc_shard(getversion(GCC_build), host_platform) in all_compiler_shards()
+    function find_shard(name, version, archive_type; target = nothing)
+        for cs in all_compiler_shards()
+            if cs.name == name && cs.version == version &&
+               (target === nothing || platforms_match(cs.target, target)) &&
+               cs.archive_type == archive_type
+                return cs
+            end
+        end
+        return nothing
     end
 
-    GCC_build = select_gcc_version(p, this_platform_GCC_builds, preferred_gcc_version)
-    LLVM_build = select_closest_version(preferred_llvm_version, getversion.(LLVM_builds))
+    # select GCC builds that can build for this platform.  Normally this is homogenous,
+    # however we added support for sparse platform support in order to compile for aarch64-darwin
+    # back when we only had a GCC 11 prerelease branch for it.
+    function shard_exists(name, version, archive_type; target=nothing)
+        return find_shard(name, version, archive_type; target) !== nothing
+    end
+    this_platform_GCC_builds = filter(GCC_builds) do GCC_build
+        if !isa(p, AnyPlatform)
+            if !shard_exists("GCCBootstrap", getversion(GCC_build), archive_type; target=p)
+                return false
+            end
+        end
+        if !shard_exists("GCCBootstrap", getversion(GCC_build), archive_type; target=host_platform)
+            return false
+        end
+        return true
+    end
+
+    # Select GCC and LLVM versions given the compiler ABI and target requirements given in `p`
+    GCC_build, LLVM_build = select_compiler_versions(p,
+        this_platform_GCC_builds,
+        LLVM_builds,
+        preferred_gcc_version,
+        preferred_llvm_version,
+    )
 
     shards = CompilerShard[]
     if isempty(bootstrap_list)
+        # We _always_ need Rootfs and PlatformSupport for our target, at least
         append!(shards, [
-            CompilerShard("Rootfs", rootfs_build, host_platform, archive_type),
-            # Shards for the target architecture
-            CompilerShard("PlatformSupport", ps_build, host_platform, archive_type; target=p),
+            find_shard("Rootfs", rootfs_build, archive_type),
+            find_shard("PlatformSupport", ps_build, archive_type; target=p)
         ])
 
-        platform_match(a, b) = ((typeof(a) <: typeof(b)) && (arch(a) == arch(b)) && (libc(a) == libc(b)))
         if :c in compilers
             append!(shards, [
-                make_gcc_shard(GCC_build, p),
-                CompilerShard("LLVMBootstrap", LLVM_build, host_platform, archive_type),
+                find_shard("GCCBootstrap", GCC_build, archive_type; target=p),
+                find_shard("LLVMBootstrap", LLVM_build, archive_type),
             ])
+        end
+
+        if :rust in compilers
+            # Our rust shards are technically x86_64-linux-gnu, not x86_64-linux-musl, since rust is broken when hosted on `musl`:
+            Rust_host = Platform("x86_64", "linux"; libc="glibc")
+            append!(shards, [
+                find_shard("RustBase", Rust_build, archive_type),
+                find_shard("RustToolchain", Rust_build, archive_type; target=p),
+            ])
+
+            if !platforms_match(p, Rust_host) && !platforms_match(Rust_host, host_platform)
+                push!(shards, find_shard("RustToolchain", Rust_build, archive_type; target=Rust_host))
+
+                # We have to add these as well for access to linkers and whatnot for Rust.  Sigh.
+                push!(shards, find_shard("PlatformSupport", ps_build, archive_type; target=Rust_host))
+                push!(shards, find_shard("GCCBootstrap", GCC_build, archive_type, target=Rust_host))
+            end
+            if !platforms_match(p, host_platform)
+                # In case we need to bootstrap stuff and we bootstrap it for the actual host platform
+                push!(shards, find_shard("RustToolchain", Rust_build, archive_type; target=host_platform))
+            end
+        end
+
+        if :rust in compilers || :c in compilers
             # If we're not building for the host platform, then add host shard for host tools
-            if !platform_match(p, host_platform)
+            # This is necessary for both rust and c compilers
+            if !platforms_match(p, host_platform)
                 append!(shards, [
-                    CompilerShard("PlatformSupport", ps_build, host_platform, archive_type; target=host_platform),
-                    make_gcc_shard(GCC_build, host_platform)
+                    find_shard("PlatformSupport", ps_build, archive_type; target=host_platform),
+                    find_shard("GCCBootstrap", GCC_build, archive_type; target=host_platform),
                 ])
             end
         end
 
-        if :rust in compilers
-            # Our rust base shard is technically x86_64-linux-gnu, not x86_64-linux-musl, since rust is broken  when hosted on `musl`:
-            Rust_host = Linux(:x86_64; libc=:glibc)
-            append!(shards, [
-                CompilerShard("RustBase", Rust_build, Rust_host, archive_type),
-                CompilerShard("RustToolchain", Rust_build, Rust_host, archive_type; target=p),
-            ])
-
-            if !platform_match(p, Rust_host)
-                push!(shards, CompilerShard("RustToolchain", Rust_build, Rust_host, archive_type; target=Rust_host))
-
-                # We have to add these as well for access to linkers and whatnot for Rust.  Sigh.
-                push!(shards, CompilerShard("PlatformSupport", ps_build, host_platform, archive_type; target=Rust_host))
-                push!(shards, make_gcc_shard(GCC_build, Rust_host))
-            end
-            if !platform_match(p, host_platform)
-                push!(shards, CompilerShard("RustToolchain", Rust_build, Rust_host, archive_type; target=host_platform))
-            end
-        end
-
         if :go in compilers
-            push!(shards, CompilerShard("Go", Go_build, host_platform, archive_type))
+            push!(shards, find_shard("Go", Go_build, archive_type))
         end
     else
         function find_latest_version(name)
@@ -546,17 +588,17 @@ function choose_shards(p::Platform;
         end
 
         if :rootfs in bootstrap_list
-            push!(shards, CompilerShard("Rootfs", find_latest_version("Rootfs"), host_platform, archive_type))
+            push!(shards, find_shard("Rootfs", find_latest_version("Rootfs"), archive_type))
         end
         if :platform_support in bootstrap_list
-            push!(shards, CompilerShard("PlatformSupport", find_latest_version("PlatformSupport"), host_platform, archive_type; target=p))
+            push!(shards, find_shard("PlatformSupport", find_latest_version("PlatformSupport"), archive_type; target=p))
         end
     end
     return shards
 end
 
 # XXX: we want AnyPlatform to look like `x86_64-linux-musl` in the build environment.
-choose_shards(::AnyPlatform; kwargs...) = choose_shards(Linux(:x86_64, libc=:musl); kwargs...)
+choose_shards(::AnyPlatform; kwargs...) = choose_shards(Platform("x86_64", "linux"; libc="musl"); kwargs...)
 
 """
     supported_platforms(;exclude::Union{Vector{<:Platform},Function}=x->false)
@@ -566,7 +608,7 @@ officially support building for, if you see a mapping in `get_shard_hash()` that
 represented here, it's probably because that platform is still considered "in beta".
 
 Platforms can be excluded from the list by specifying an array of platforms to `exclude` i.e.
-`supported_platforms(exclude=[Windows(:i686),Windows(:x86_64)])`
+`supported_platforms(exclude=[Platform("i686", "windows"), Platform("x86_64", "windows")])`
 or a function that returns true for exclusions i.e.
 ```
 islin(x) = typeof(x) == Linux
@@ -578,167 +620,131 @@ function supported_platforms(;exclude::Union{Vector{<:Platform},Function}=x->fal
     exclude_platforms!(platforms, exclude::Vector{<:Platform}) = filter!(!in(exclude), platforms)
     standard_platforms = [
         # glibc Linuces
-        Linux(:i686),
-        Linux(:x86_64),
-        Linux(:aarch64),
-        Linux(:armv7l),
-        Linux(:powerpc64le),
+        Platform("i686", "linux"),
+        Platform("x86_64", "linux"),
+        Platform("aarch64", "linux"),
+        Platform("armv7l", "linux"),
+        Platform("powerpc64le", "linux"),
 
         # musl Linuces
-        Linux(:i686, libc=:musl),
-        Linux(:x86_64, libc=:musl),
-        Linux(:aarch64, libc=:musl),
-        Linux(:armv7l, libc=:musl),
+        Platform("i686", "linux"; libc="musl"),
+        Platform("x86_64", "linux"; libc="musl"),
+        Platform("aarch64", "linux"; libc="musl"),
+        Platform("armv7l", "linux"; libc="musl"),
 
         # BSDs
-        MacOS(:x86_64),
-        FreeBSD(:x86_64),
+        Platform("x86_64", "macos"),
+        Platform("x86_64", "freebsd"),
 
         # Windows
-        Windows(:i686),
-        Windows(:x86_64),
+        Platform("i686", "windows"),
+        Platform("x86_64", "windows"),
     ]
     return exclude_platforms!(standard_platforms,exclude)
 end
 
-function replace_libgfortran_version(p::Platform, libgfortran_version::VersionNumber)
-    new_cabi = CompilerABI(compiler_abi(p); libgfortran_version=libgfortran_version)
-    return typeof(p)(arch(p); libc=libc(p), call_abi=call_abi(p), compiler_abi=new_cabi)
-end
-
-function replace_cxxstring_abi(p::Platform, cxxstring_abi::Symbol)
-    new_cabi = CompilerABI(compiler_abi(p), cxxstring_abi=cxxstring_abi)
-    return typeof(p)(arch(p); libc=libc(p), call_abi=call_abi(p), compiler_abi=new_cabi)
-end
-
-replace_libgfortran_version(ep::ExtendedPlatform, libgfortran_version::VersionNumber) =
-    ExtendedPlatform(replace_libgfortran_version(ep.p, libgfortran_version), ep.ext)
-replace_cxxstring_abi(ep::ExtendedPlatform, cxxstring_abi::Symbol) =
-    ExtendedPlatform(replace_cxxstring_abi(ep.p, cxxstring_abi), ep.ext)
-
 """
-    expand_gfortran_versions(p::Platform)
+    expand_gfortran_versions(p::AbstractPlatform)
 
 Given a `Platform`, returns an array of `Platforms` with a spread of identical
-entries with the exception of the `gfortran_version` member of the `CompilerABI`
-struct within the `Platform`.  This is used to take, for example, a list of
-supported platforms and expand them to include multiple GCC versions for
-the purposes of ABI matching.  If the given `Platform` already specifies a
-GCC version (as opposed to `nothing`) only that `Platform` is returned.
+entries with the exception of the `libgfortran_version` tag within the
+`Platform`.  This is used to take, for example, a list of supported platforms
+and expand them to include multiple GCC versions for the purposes of ABI
+matching.  If the given `Platform` already specifies a `libgfortran_version`
+(as opposed to `nothing`) only that `Platform` is returned.
 """
-function expand_gfortran_versions(p::Platform)
+function expand_gfortran_versions(platform::AbstractPlatform)
     # If this platform cannot be expanded, then exit out fast here.
-    if libgfortran_version(compiler_abi(p)) != nothing
-        return [p]
+    if libgfortran_version(platform) != nothing
+        return [platform]
     end
 
     # Otherwise, generate new versions!
     libgfortran_versions = [v"3", v"4", v"5"]
-    return replace_libgfortran_version.(Ref(p), libgfortran_versions)
+    return map([v"3", v"4", v"5"]) do v
+        p = deepcopy(platform)
+        p["libgfortran_version"] = string(v)
+        return p
+    end
 end
 function expand_gfortran_versions(ps::Vector{<:Platform})
-    return Platform[p for p in Iterators.flatten(expand_gfortran_versions.(ps))]
+    return collect(Iterators.flatten(expand_gfortran_versions.(ps)))
 end
 
 """
-    expand_cxxstring_abis(p::Platform; skip_freebsd_macos::Bool=true)
+    expand_cxxstring_abis(p::AbstractPlatform; skip_freebsd_macos::Bool=true)
 
 Given a `Platform`, returns an array of `Platforms` with a spread of identical
-entries with the exception of the `cxxstring_abi` member of the `CompilerABI`
-struct within the `Platform`.  This is used to take, for example, a list of
-supported platforms and expand them to include multiple GCC versions for
-the purposes of ABI matching.
+entries with the exception of the `cxxstring_abi` tag within the `Platform`
+object.  This is used to take, for example, a list of supported platforms and
+expand them to include multiple GCC versions for the purposes of ABI matching.
 
-If the given `Platform` already specifies a GCC version (as opposed to
-`nothing`) only that `Platform` is returned.  If `skip_freebsd_macos` is `true`,
-FreeBSD and MacOS platforms are left as they are.
+If the given `Platform` already specifies a `cxxstring_abi` (as opposed to
+`nothing`) only that `Platform` is returned.  If `skip_freebsd_macos` is
+`true`, FreeBSD and MacOS platforms are not expanded, due to their lack of a
+dependence on `libstdc++` and not needing this compatibility shim.
 """
-function expand_cxxstring_abis(p::Platform; skip_freebsd_macos::Bool=true)
-    # If this platform cannot be expanded, then exit out fast here.
-    if cxxstring_abi(compiler_abi(p)) !== nothing || (skip_freebsd_macos && Sys.isbsd(p))
-        return [p]
+function expand_cxxstring_abis(platform::AbstractPlatform; skip_freebsd_macos::Bool=true)
+    # If this platform cannot/should not be expanded, then exit out fast here.
+    if cxxstring_abi(platform) !== nothing || (skip_freebsd_macos && Sys.isbsd(platform))
+        return [platform]
     end
 
     # Otherwise, generate new versions!
-    gcc_versions = [:cxx03, :cxx11]
-    return replace_cxxstring_abi.(Ref(p), gcc_versions)
-end
-function expand_cxxstring_abis(ps::Vector{<:Platform}; kwargs...)
-    return Platform[p for p in Iterators.flatten(expand_cxxstring_abis.(ps; kwargs...))]
-end
-
-# This function is used only by `expand_microarchitectures`, but can probably be
-# useful in some occasions.
-"""
-    supported_microarchitectures(p::Platform)
-
-Return a vector with the list of supported microarchitectures for the given
-platform, an empty vector if there are any.  If `p` is an
-[`ExtendedPlatform`](@ref) which already specifies a microarchitecture, returns
-a 1-element vector containing only that one.
-"""
-function supported_microarchitectures(p::Platform)
-    this_march = march(p)
-    if p isa ExtendedPlatform && this_march !== nothing
-        return [this_march]
-    elseif !isa(p, AnyPlatform) && arch(p) in keys(ARCHITECTURE_FLAGS)
-        # Sort the entries, for deterministic output
-        return sort(collect(keys(ARCHITECTURE_FLAGS[arch(p)])))
-    else
-        return String[]
+    map(["cxx03", "cxx11"]) do abi
+        p = deepcopy(platform)
+        p["cxxstring_abi"] = abi
+        return p
     end
 end
+function expand_cxxstring_abis(ps::Vector{<:Platform}; kwargs...)
+    return collect(Iterators.flatten(expand_cxxstring_abis.(ps; kwargs...)))
+end
 
 """
-    expand_microarchitectures(p::Platform)
+    expand_microarchitectures(p::AbstractPlatform)
 
-Given a `Platform`, returns a vector of `Platforms` with a spread of identical
-`ExtendedPlatform` entries with the exception of the microarchitectures.  If the
-given `Platform` is already an `ExtendedPlatform` with a `march` feature, only
-that platform is returned.
-
-Currently, only platforms with architecture `x86_64`, `amrv7l` or `aarch64` have
-supported microarchitectures.  If the architecture of the platform does not have
-supported microarchitectures, a 1-element vector containing the given platform
-is returned.
+Given a `Platform`, returns a vector of `Platforms` with differing `march` attributes
+as specified by the `ARCHITECTURE_FLAGS` mapping.  If the given `Platform` alread has a
+`march` tag specified, only that platform is returned.
 
 ```jldoctest
 julia> using BinaryBuilderBase
 
-julia> expand_microarchitectures(FreeBSD(:x86_64))
+julia> expand_microarchitectures(Platform("x86_64", "freebsd"))
 4-element Array{Platform,1}:
- ExtendedPlatform(FreeBSD(:x86_64); march="avx")
- ExtendedPlatform(FreeBSD(:x86_64); march="avx2")
- ExtendedPlatform(FreeBSD(:x86_64); march="avx512")
- ExtendedPlatform(FreeBSD(:x86_64); march="x86_64")
+ ExtendedPlatform(Platform("x86_64", "freebsd"); march="avx")
+ ExtendedPlatform(Platform("x86_64", "freebsd"); march="avx2")
+ ExtendedPlatform(Platform("x86_64", "freebsd"); march="avx512")
+ ExtendedPlatform(Platform("x86_64", "freebsd"); march="x86_64")
 
-julia> expand_microarchitectures(Linux(:armv7l))
+julia> expand_microarchitectures(Platform("armv7l", "linux")
 3-element Array{Platform,1}:
  ExtendedPlatform(Linux(:armv7l, libc=:glibc, call_abi=:eabihf); march="armv7l")
- ExtendedPlatform(Linux(:armv7l, libc=:glibc, call_abi=:eabihf); march="neon")
- ExtendedPlatform(Linux(:armv7l, libc=:glibc, call_abi=:eabihf); march="vfp4")
+ ExtendedPlatform(Linux(:armv7l, libc=:glibc, call_abi=:eabihf); march="neonvfpv4")
 
-julia> expand_microarchitectures(Linux(:aarch64))
+julia> expand_microarchitectures(Platform("aarch64", "linux")
 3-element Array{Platform,1}:
- ExtendedPlatform(Linux(:aarch64, libc=:glibc); march="armv8")
- ExtendedPlatform(Linux(:aarch64, libc=:glibc); march="carmel")
- ExtendedPlatform(Linux(:aarch64, libc=:glibc); march="thunderx2")
+ ExtendedPlatform(Platform("aarch64", "linux"; libc="glibc"); march="armv8")
+ ExtendedPlatform(Platform("aarch64", "linux"; libc="glibc"); march="carmel")
+ ExtendedPlatform(Platform("aarch64", "linux"; libc="glibc"); march="thunderx2")
 
-julia> expand_microarchitectures(Windows(:i686))
+julia> expand_microarchitectures(Platform("i686", "windows")
 1-element Array{Windows,1}:
- Windows(:i686)
+ Platform("i686", "windows")
 ```
 """
-function expand_microarchitectures(p::Platform)
-    if p isa ExtendedPlatform && march(p) !== nothing
-        # Nothing to expand if this has already a `march` entry
-        return [p]
+function expand_microarchitectures(platform::AbstractPlatform)
+    # If this already has a `march`, or it's an `AnyPlatform`, just return it.
+    if isa(platform, AnyPlatform) || march(platform) !== nothing
+        return [platform]
     end
-    marchs = supported_microarchitectures(p)
-    if length(marchs) > 0
-        return Platform[ExtendedPlatform(p; march=march) for march in marchs]
-    else
-        return [p]
+
+    # Otherwise, return a bunch of Platform objects with appropriately-set `march` tags
+    return map(get_all_march_names(arch(platform))) do march
+        p = deepcopy(platform)
+        p["march"] = march
+        return p
     end
 end
 
@@ -752,29 +758,28 @@ julia> using BinaryBuilderBase
 
 julia> expand_microarchitectures(filter!(p -> p isa Linux && libc(p) == :glibc, supported_platforms()))
 12-element Array{Platform,1}:
- Linux(:i686, libc=:glibc)
- ExtendedPlatform(Linux(:x86_64, libc=:glibc); march="avx")
- ExtendedPlatform(Linux(:x86_64, libc=:glibc); march="avx2")
- ExtendedPlatform(Linux(:x86_64, libc=:glibc); march="avx512")
- ExtendedPlatform(Linux(:x86_64, libc=:glibc); march="x86_64")
- ExtendedPlatform(Linux(:aarch64, libc=:glibc); march="armv8")
- ExtendedPlatform(Linux(:aarch64, libc=:glibc); march="carmel")
- ExtendedPlatform(Linux(:aarch64, libc=:glibc); march="thunderx2")
+ Platform("i686", "linux"; libc="glibc")
+ ExtendedPlatform(Platform("x86_64", "linux"; libc="glibc"); march="avx")
+ ExtendedPlatform(Platform("x86_64", "linux"; libc="glibc"); march="avx2")
+ ExtendedPlatform(Platform("x86_64", "linux"; libc="glibc"); march="avx512")
+ ExtendedPlatform(Platform("x86_64", "linux"; libc="glibc"); march="x86_64")
+ ExtendedPlatform(Platform("aarch64", "linux"; libc="glibc"); march="armv8")
+ ExtendedPlatform(Platform("aarch64", "linux"; libc="glibc"); march="carmel")
+ ExtendedPlatform(Platform("aarch64", "linux"; libc="glibc"); march="thunderx2")
  ExtendedPlatform(Linux(:armv7l, libc=:glibc, call_abi=:eabihf); march="armv7l")
- ExtendedPlatform(Linux(:armv7l, libc=:glibc, call_abi=:eabihf); march="neon")
- ExtendedPlatform(Linux(:armv7l, libc=:glibc, call_abi=:eabihf); march="vfp4")
- Linux(:powerpc64le, libc=:glibc)
+ ExtendedPlatform(Linux(:armv7l, libc=:glibc, call_abi=:eabihf); march="neonvfpv4")
+ Platform("powerpc64le", "linux"; libc="glibc")
 ```
 """
-expand_microarchitectures(ps::Vector{<:Platform}) = Platform[p for p in Iterators.flatten(expand_microarchitectures.(ps))]
+expand_microarchitectures(ps::Vector{<:AbstractPlatform}) = collect(Iterators.flatten(expand_microarchitectures.(ps)))
 
 """
-    preferred_libgfortran_version(platform::Platform, shard::CompilerShard;
+    preferred_libgfortran_version(platform::AbstractPlatform, shard::CompilerShard;
                                   gcc_builds::Vector{GCCBuild} = available_gcc_builds)
 
 Return the libgfortran version preferred by the given platform or GCCBootstrap shard.
 """
-function preferred_libgfortran_version(platform::Platform, shard::CompilerShard;
+function preferred_libgfortran_version(platform::AbstractPlatform, shard::CompilerShard;
                                        gcc_builds::Vector{GCCBuild} = available_gcc_builds)
     # Some input validation
     if shard.name != "GCCBootstrap"
@@ -784,27 +789,27 @@ function preferred_libgfortran_version(platform::Platform, shard::CompilerShard;
         error("Incompatible platform and shard target")
     end
 
-    if libgfortran_version(compiler_abi(platform)) != nothing
+    if libgfortran_version(platform) != nothing
         # Here we can't use `shard.target` because the shard always has the
         # target as ABI-agnostic, thus we have also to ask for the platform.
-        return libgfortran_version(compiler_abi(platform))
+        return libgfortran_version(platform)
     else
         idx = findfirst(b -> getversion(b) == shard.version, available_gcc_builds)
         if isnothing(idx)
             error("The shard doesn't match any version of the available GCC builds")
         else
-            return libgfortran_version(getabi(gcc_builds[idx]))
+            return getabi(gcc_builds[idx]).libgfortran_version
         end
     end
 end
 
 """
-    preferred_cxxstring_abi(platform::Platform, shard::CompilerShard;
+    preferred_cxxstring_abi(platform::AbstractPlatform, shard::CompilerShard;
                             gcc_builds::Vector{GCCBuild} = available_gcc_builds)
 
 Return the C++ string ABI preferred by the given platform or GCCBootstrap shard.
 """
-function preferred_cxxstring_abi(platform::Platform, shard::CompilerShard;
+function preferred_cxxstring_abi(platform::AbstractPlatform, shard::CompilerShard;
                                  gcc_builds::Vector{GCCBuild} = available_gcc_builds)
     # Some input validation
     if shard.name != "GCCBootstrap"
@@ -814,16 +819,16 @@ function preferred_cxxstring_abi(platform::Platform, shard::CompilerShard;
         error("Incompatible platform and shard target")
     end
 
-    if cxxstring_abi(compiler_abi(platform)) != nothing
+    if cxxstring_abi(platform) != nothing
         # Here we can't use `shard.target` because the shard always has the
         # target as ABI-agnostic, thus we have also to ask for the platform.
-        return cxxstring_abi(compiler_abi(platform))
+        return cxxstring_abi(platform)
     else
         idx = findfirst(b -> getversion(b) == shard.version, available_gcc_builds)
         if isnothing(idx)
             error("The shard doesn't match any version of the available GCC builds")
         else
-            return cxxstring_abi(getabi(gcc_builds[idx]))
+            return getabi(gcc_builds[idx]).cxxstring_abi
         end
     end
 end
@@ -839,8 +844,8 @@ function download_all_artifacts(; verbose::Bool = false)
     artifacts_toml = joinpath(dirname(@__DIR__), "Artifacts.toml")
     # First, download all the "normal" shards, then all the rust shards (this will become
     # less clunky once Rust actually supports hosting on `musl`)
-    host_platform = Linux(:x86_64; libc=:musl)
-    Rust_host = Linux(:x86_64; libc=:glibc)
+    host_platform = Platform("x86_64", "linux"; libc="musl")
+    Rust_host = Platform("x86_64", "linux"; libc="glibc")
     for platform in (host_platform, Rust_host)    
         ensure_all_artifacts_installed(
             artifacts_toml;

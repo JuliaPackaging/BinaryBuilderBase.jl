@@ -7,7 +7,7 @@ not have user namespaces (e.g. MacOS, Windows).
 mutable struct DockerRunner <: Runner
     docker_cmd::Cmd
     env::Dict{String, String}
-    platform::Platform
+    platform::AbstractPlatform
 
     shards::Vector{CompilerShard}
     workspace_root::String
@@ -61,12 +61,12 @@ function import_docker_image(rootfs::CompilerShard, workspace_root::String; verb
 end
 
 # Helper function to delete a previously-imported docker image
-delete_docker_image() = delete_docker_image(first(choose_shards(platform_key_abi())))
+delete_docker_image() = delete_docker_image(first(choose_shards(HostPlatform())))
 delete_docker_image(rootfs::CompilerShard) = success(`docker rmi -f $(docker_image(rootfs))`)
 
 function DockerRunner(workspace_root::String;
                       cwd = nothing,
-                      platform::Platform = platform_key_abi(),
+                      platform::AbstractPlatform = HostPlatform(),
                       workspaces::Vector = [],
                       extra_env=Dict{String, String}(),
                       verbose::Bool = false,
@@ -81,6 +81,7 @@ function DockerRunner(workspace_root::String;
     check_encryption(workspace_root; verbose=verbose)
 
     # Construct environment variables we'll use from here on out
+    platform = get_concrete_platform(platform; extract_kwargs(kwargs, (:preferred_gcc_version,:preferred_llvm_version,:compilers))...)
     envs = merge(platform_envs(platform, src_name; verbose=verbose), extra_env)
 
     # JIT out some compiler wrappers, add it to our mounts

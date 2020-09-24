@@ -1,21 +1,23 @@
 module BinaryBuilderBase
 
-using Pkg, Pkg.BinaryPlatforms, Pkg.PlatformEngines, Pkg.Artifacts, Random, Libdl
+using Pkg, Pkg.Artifacts, Random, Libdl
+using Base.BinaryPlatforms
+using Downloads
 using JSON, OutputCollectors
 
-# Re-export useful stuff from Pkg:
-export platform_key_abi, platform_dlext, valid_dl_path, arch, libc, compiler_abi,
-       libgfortran_version, libstdcxx_version, cxxstring_abi, parse_dl_name_version,
+# Re-export useful stuff from Base.BinaryPlatforms:
+export HostPlatform, platform_dlext, valid_dl_path, arch, libc,
+       libgfortran_version, libstdcxx_version, cxxstring_abi,
        detect_libgfortran_version, detect_libstdcxx_version, detect_cxxstring_abi,
        call_abi, wordsize, triplet, select_platform, platforms_match,
-       CompilerABI, Platform, UnknownPlatform, Linux, MacOS, Windows, FreeBSD
+       Platform, AnyPlatform
 
 export AbstractSource, AbstractDependency, SetupSource, PatchSource,
     resolve_jlls, coerce_dependency, coerce_source, Runner,
     generate_compiler_wrappers!, preferred_runner, CompilerShard, UserNSRunner,
     DockerRunner, choose_shards, exeext, preferred_libgfortran_version,
     preferred_cxxstring_abi, gcc_version, available_gcc_builds, getversion,
-    getpkg, replace_libgfortran_version, replace_cxxstring_abi, aatriplet,
+    getpkg, aatriplet,
     nbits, proc_family, storage_dir, extract_kwargs, extract_fields,
     download_source, setup_workspace, setup_dependencies, update_registry,
     getname, cleanup_dependencies, compress_dir, prepare_for_deletion,
@@ -23,6 +25,7 @@ export AbstractSource, AbstractDependency, SetupSource, PatchSource,
 
 include("compat.jl")
 
+include("ArchiveUtils.jl")
 include("Sources.jl")
 include("Dependencies.jl")
 include("Prefix.jl")
@@ -69,9 +72,6 @@ bootstrap_list = Symbol[]
 function __init__()
     global runner_override, use_squashfs, allow_ecryptfs
     global use_ccache, storage_cache
-
-    # Pkg does this lazily; do it explicitly here.
-    Pkg.PlatformEngines.probe_platform_engines!()
 
     # Allow the user to override the default value for `storage_dir`
     storage_cache = get(ENV, "BINARYBUILDER_STORAGE_DIR",
