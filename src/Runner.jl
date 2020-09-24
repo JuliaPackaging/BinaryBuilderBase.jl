@@ -244,14 +244,14 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
                 # On MacOS, we need to override the typical C++ include search paths, because it always includes
                 # the toolchain C++ headers first.  Valentin tracked this down to:
                 # https://github.com/llvm/llvm-project/blob/0378f3a90341d990236c44f297b923a32b35fab1/clang/lib/Driver/ToolChains/Darwin.cpp#L1944-L1978
-                "-Wno-unused-command-line-argument",
                 "-nostdinc++",
                 "-isystem",
+                "/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root/usr/include/c++/v1",
                 # We also add `-Wno-unused-command-line-argument` so that if someone does something like
                 # `clang -Werror -o foo a.o b.o`, it doesn't complain due to the fact that that is using
                 # `clang` as a linker (and we have no real way to detect that in the wrapper), which will
                 # cause `clang` to complain about compiler flags being passed in.
-                "/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root/usr/include/c++/v1",
+                "-Wno-unused-command-line-argument",
             ])
         end
         return flags
