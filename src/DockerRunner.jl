@@ -52,11 +52,14 @@ function import_docker_image(rootfs::CompilerShard, workspace_root::String; verb
     if verbose
         @info("Importing docker base image from $(rootfs_path) to $(docker_image(rootfs))")
     end
-    run(pipeline(pipeline(
-        `tar -c -C $(rootfs_path) .`,
-        `docker import - -c $(dockerfile_cmds) $(docker_image(rootfs))`;
-    ); stdout=devnull))
-    unmount(rootfs, workspace_root)
+    try
+        run(pipeline(pipeline(
+            `tar -c -C $(rootfs_path) .`,
+            `docker import - -c $(dockerfile_cmds) $(docker_image(rootfs))`;
+        ); stdout=devnull))
+    finally
+        unmount(rootfs, workspace_root)
+    end
     return
 end
 
@@ -242,9 +245,8 @@ function run_interactive(dr::DockerRunner, cmd::Cmd; stdin = nothing, stdout = n
             return success(run(docker_cmd))
         end
     finally
+        unmount_shards(dr; verbose=vebose)
         # Cleanup permissions, if we need to.
-        chown_cleanup(dr; verbose=verbose)
-
-        unmount_shards(dr)
+        chown_cleanup(dr; verbose=vebose)
     end
 end
