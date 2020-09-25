@@ -245,8 +245,8 @@ function run_interactive(dr::DockerRunner, cmd::Cmd; stdin = nothing, stdout = n
             return success(run(docker_cmd))
         end
     finally
-        unmount_shards(dr; verbose=vebose)
+        unmount_shards(dr; verbose=verbose)
         # Cleanup permissions, if we need to.
-        chown_cleanup(dr; verbose=vebose)
+        chown_cleanup(dr; verbose=verbose)
     end
 end
