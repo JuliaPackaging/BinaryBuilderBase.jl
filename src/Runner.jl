@@ -1,9 +1,16 @@
 import Base: strip
 abstract type Runner; end
 
+export default_host_platform
+
 # Host platform _must_ match the C++ string ABI of the binaries we get from the
 # repositories.  Note: when preferred_gcc_version=v"4" we can't really build for
 # that C++ string ABI :-(
+"""
+    default_host_platform
+
+The default host platform in the build environment.
+"""
 const default_host_platform = Platform("x86_64", "linux"; libc="musl", cxxstring_abi="cxx11")
 
 function nbits(p::AbstractPlatform)
@@ -741,10 +748,16 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
 
     # Prefix, libdir, etc...
     prefix = "/workspace/destdir"
+    host_prefix = "/workspace/$(triplet(host_platform))/destdir"
     if Sys.iswindows(platform)
         libdir = "$(prefix)/bin"
     else
         libdir = "$(prefix)/lib"
+    end
+    if Sys.iswindows(host_platform)
+        host_libdir = "$(host_prefix)/bin"
+    else
+        host_libdir = "$(host_prefix)/lib"
     end
 
     if get(stdout, :color, false)
@@ -794,6 +807,12 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
         "bindir" => "$(prefix)/bin",
         "libdir" => libdir,
         "includedir" => "$(prefix)/include",
+
+        # Set variables for the host prefix
+        "host_prefix" => host_prefix,
+        "host_bindir" => "$(host_prefix)/bin",
+        "host_libdir" => host_libdir,
+        "host_includedir" => "$(host_prefix)/include",
 
         # Fancyness!
         "USER" => get(ENV, "USER", "julia"),
@@ -862,8 +881,10 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
             "/opt/$(host_target)/bin",
             # Default alpine PATH
             mapping["PATH"],
+            # Host tools, installed as `HostBuildDependency`
+            mapping["host_bindir"],
             # Finally, dependency tools
-            "$(prefix)/bin",
+            mapping["bindir"],
         ), ":"),
 
         "LD_LIBRARY_PATH" => join((

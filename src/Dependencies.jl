@@ -1,6 +1,8 @@
 using UUIDs
 
-export Dependency, BuildDependency
+export Dependency, BuildDependency, HostBuildDependency,
+    is_host_dependency, is_target_dependency, is_build_dependency, is_runtime_dependency
+
 
 # Pkg.PackageSpec return different types in different Julia versions so...
 const PkgSpec = typeof(Pkg.PackageSpec(name="dummy"))
@@ -15,8 +17,39 @@ Concrete subtypes of `AbstractDependency` are
   and to load the generated JLL package.
 * [`BuildDependency`](@ref): a JLL package that is necessary only to build the
   package.  This will not be a dependency of the generated JLL package.
+* [`HostBuildDependency`](@ref): similar to `BuildDependency`, but it will
+  install the artifact for the host platform, instead of that for the target
+  platform.
 """
 abstract type AbstractDependency end
+
+"""
+    is_host_dependency(dep::AbstractDependency) -> Bool
+
+Return whether `dep` is a dependency of the host platform or not.
+"""
+is_host_dependency
+
+"""
+    is_target_dependency(dep::AbstractDependency) -> Bool
+
+Return whether `dep` is a dependency of the target platform or not.
+"""
+is_target_dependency(dep::AbstractDependency) = !is_host_dependency(dep)
+
+"""
+    is_build_dependency(dep::AbstractDependency) -> Bool
+
+Return whether `dep` is a build-time dependency or not.
+"""
+is_build_dependency
+
+"""
+    is_runtime_dependency(dep::AbstractDependency) -> Bool
+
+Return whether `dep` is a runtime dependency or not.
+"""
+is_runtime_dependency
 
 """
     Dependency(dep::Union{PackageSpec,String})
@@ -31,6 +64,9 @@ struct Dependency <: AbstractDependency
     Dependency(pkg::PkgSpec, build_version = nothing) = new(pkg, build_version)
 end
 Dependency(dep::AbstractString, build_version = nothing) = Dependency(PackageSpec(; name = dep), build_version)
+is_host_dependency(::Dependency) = false
+is_build_dependency(::Dependency) = true
+is_runtime_dependency(::Dependency) = true
 
 """
     BuildDependency(dep::Union{PackageSpec,String})
@@ -43,6 +79,27 @@ struct BuildDependency <: AbstractDependency
     pkg::PkgSpec
 end
 BuildDependency(dep::AbstractString) = BuildDependency(PackageSpec(; name = dep))
+is_host_dependency(::BuildDependency) = false
+is_build_dependency(::BuildDependency) = true
+is_runtime_dependency(::BuildDependency) = false
+
+"""
+    HostBuildDependency(dep::Union{PackageSpec,String})
+
+Define a binary dependency that is necessary only to build the package.
+Differently from the [`BuildDependency`](@ref), the artifact for the host
+platform will be installed, instead of that for the target platform.
+
+The argument can be either a string with the name of the JLL package or a
+`Pkg.PackageSpec`.
+"""
+struct HostBuildDependency <: AbstractDependency
+    pkg::PkgSpec
+end
+HostBuildDependency(dep::AbstractString) = HostBuildDependency(PackageSpec(; name = dep))
+is_host_dependency(::HostBuildDependency) = true
+is_build_dependency(::HostBuildDependency) = true
+is_runtime_dependency(::HostBuildDependency) = false
 
 getpkg(d::AbstractDependency) = d.pkg
 function getpkg(d::Dependency)
@@ -124,7 +181,7 @@ __version(v::Pkg.Types.VersionSpec) = v.ranges[1].lower
 version(d::AbstractDependency) = __version(getpkg(d).version)
 version(d::Dependency) = __version(d.pkg.version)
 
-for (type, type_descr) in ((Dependency, "dependency"), (BuildDependency, "builddependency"))
+for (type, type_descr) in ((Dependency, "dependency"), (BuildDependency, "builddependency"), (HostBuildDependency, "hostdependency"))
     JSON.lower(d::type) = Dict("type" => type_descr,
                                "name" => d.pkg.name,
                                "uuid" => string_or_nothing(d.pkg.uuid),
@@ -137,16 +194,18 @@ end
 # dictionaries.  This function converts the dictionary back to the appropriate
 # AbstractDependency.
 function dependencify(d::Dict)
-    if d["type"] == "dependency"
+    if d["type"] in ("dependency", "builddependency", "hostdependency")
         uuid = isnothing(d["uuid"]) ? d["uuid"] : UUID(d["uuid"])
         version = VersionNumber(d["version-major"], d["version-minor"], d["version-patch"])
         version = version == v"0" ? nothing : version
-        return Dependency(PackageSpec(; name = d["name"], uuid = uuid, version = version))
-    elseif d["type"] == "builddependency"
-        uuid = isnothing(d["uuid"]) ? d["uuid"] : UUID(d["uuid"])
-        version = VersionNumber(d["version-major"], d["version-minor"], d["version-patch"])
-        version = version == v"0" ? nothing : version
-        return BuildDependency(PackageSpec(; name = d["name"], uuid = uuid, version = version))
+        T = if d["type"] == "dependency"
+            Dependency
+        elseif d["type"] == "builddependency"
+            BuildDependency
+        elseif d["type"] == "hostdependency"
+            HostBuildDependency
+        end
+        return T(PackageSpec(; name = d["name"], uuid = uuid, version = version))
     else
         error("Cannot convert to dependency")
     end

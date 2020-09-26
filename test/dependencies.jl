@@ -1,7 +1,7 @@
 using Test
 using Pkg, Base.BinaryPlatforms
 using BinaryBuilderBase
-using BinaryBuilderBase: getname, getpkg, dependencify
+using BinaryBuilderBase: getname, getpkg, dependencify, destdir
 using JSON
 
 # Define equality between dependencies, in order to carry out the tests below
@@ -19,6 +19,10 @@ end
     name = "Foo_jll"
     dep = Dependency(PackageSpec(; name = name))
     @test Dependency(name) == dep
+    @test !is_host_dependency(dep)
+    @test is_target_dependency(dep)
+    @test is_build_dependency(dep)
+    @test is_runtime_dependency(dep)
     @test getname(dep) == name
     @test getname(PackageSpec(; name = name)) == name
     @test getpkg(dep) == PackageSpec(; name = name)
@@ -32,9 +36,24 @@ end
     build_name = "Foo_headers_jll"
     build_dep = BuildDependency(PackageSpec(; name = build_name))
     @test BuildDependency(build_name) == build_dep
+    @test !is_host_dependency(build_dep)
+    @test is_target_dependency(build_dep)
+    @test is_build_dependency(build_dep)
+    @test !is_runtime_dependency(build_dep)
     @test getname(build_dep) == build_name
     @test getname(PackageSpec(; name = build_name)) == build_name
     @test getpkg(build_dep) == PackageSpec(; name = build_name)
+
+    host_name = "Patchelf_jll"
+    host_dep = HostBuildDependency(PackageSpec(; name = host_name))
+    @test HostBuildDependency(host_name) == host_dep
+    @test is_host_dependency(host_dep)
+    @test !is_target_dependency(host_dep)
+    @test is_build_dependency(host_dep)
+    @test !is_runtime_dependency(host_dep)
+    @test getname(host_dep) == host_name
+    @test getname(PackageSpec(; name = host_name)) == host_name
+    @test getpkg(host_dep) == PackageSpec(; name = host_name)
 
     @testset "JSON (de)serialization" begin
         jdep = JSON.lower(dep)
@@ -49,6 +68,10 @@ end
         jbuild_dep = JSON.lower(build_dep)
         @test jbuild_dep == Dict("type" => "builddependency", "name" => build_name, "uuid" => nothing, "version-major" => 0x0, "version-minor" => 0x0, "version-patch" => 0x0)
         @test dependencify(jbuild_dep) == build_dep
+
+        jhost_dep = JSON.lower(host_dep)
+        @test jhost_dep == Dict("type" => "hostdependency", "name" => host_name, "uuid" => nothing, "version-major" => 0x0, "version-minor" => 0x0, "version-patch" => 0x0)
+        @test dependencify(jhost_dep) == host_dep
 
         full_dep = Dependency(PackageSpec(; name = "Baz_jll", uuid = "00000000-1111-2222-3333-444444444444", version = "3.1.4"))
         jfull_dep = JSON.lower(full_dep)
@@ -65,14 +88,14 @@ end
             ]
             platform = HostPlatform()
             ap = @test_logs setup_dependencies(prefix, getpkg.(dependencies), platform)
-            @test "libz." * platform_dlext(platform) in readdir(last(libdirs(Prefix(joinpath(dir, "destdir")))))
-            @test "zlib.h" in readdir(joinpath(dir, "destdir", "include"))
-            @test readdir(joinpath(dir, "destdir", "logs")) == ["Zlib.log.gz"]
+            @test "libz." * platform_dlext(platform) in readdir(last(libdirs(Prefix(destdir(dir, platform)))))
+            @test "zlib.h" in readdir(joinpath(destdir(dir, platform), "include"))
+            @test readdir(joinpath(destdir(dir, platform), "logs")) == ["Zlib.log.gz"]
 
             # Make sure the directories are emptied by `cleanup_dependencies`
             @test_nowarn cleanup_dependencies(prefix, ap)
-            @test readdir(joinpath(dir, "destdir", "include")) == []
-            @test readdir(joinpath(dir, "destdir", "logs")) == []
+            @test readdir(joinpath(destdir(dir, platform), "include")) == []
+            @test readdir(joinpath(destdir(dir, platform), "logs")) == []
         end
 
         # Setup a dependency of a JLL package which is also a standard library
@@ -83,16 +106,16 @@ end
             ]
             platform = HostPlatform()
             ap = @test_logs setup_dependencies(prefix, getpkg.(dependencies), platform)
-            @test "libcurl." * platform_dlext(platform) in readdir(last(libdirs(Prefix(joinpath(dir, "destdir")))))
-            @test "curl.h" in readdir(joinpath(dir, "destdir", "include", "curl"))
+            @test "libcurl." * platform_dlext(platform) in readdir(last(libdirs(Prefix(destdir(dir, platform)))))
+            @test "curl.h" in readdir(joinpath(destdir(dir, platform), "include", "curl"))
             # `LibSSH2_jll` is a dependency of `LibCURL_jll` but it isn't currently automatically installed
-            @test_broken "libssh2." * platform_dlext(platform) in readdir(last(libdirs(Prefix(joinpath(dir, "destdir")))))
+            @test_broken "libssh2." * platform_dlext(platform) in readdir(last(libdirs(Prefix(destdir(dir, platform)))))
 
             # Make sure the directories are emptied by `cleanup_dependencies`
             @test_nowarn cleanup_dependencies(prefix, ap)
             # This shuld be empty, but the `curl/` directory is left here, empty
-            @test_broken readdir(joinpath(dir, "destdir", "include")) == []
-            @test readdir(joinpath(dir, "destdir", "logs")) == []
+            @test_broken readdir(joinpath(destdir(dir, platform), "include")) == []
+            @test readdir(joinpath(destdir(dir, platform), "logs")) == []
         end
 
         # Setup a dependency that doesn't have a mapping for the given platform
@@ -105,7 +128,7 @@ end
             @test_logs (:warn, r"Dependency LibOSXUnwind_jll does not have a mapping for artifact LibOSXUnwind for platform") begin
                 setup_dependencies(prefix, getpkg.(dependencies), platform)
             end
-            @test "destdir" ∉ readdir(joinpath(dir))
+            @test "destdir" ∉ readdir(dirname(destdir(dir, platform)))
         end
 
         # Test setup of dependencies that depend on the Julia version
@@ -116,7 +139,7 @@ end
 
             # Test that a particular version of GMP is installed
             ap = @test_logs setup_dependencies(prefix, getpkg.(dependencies), platform)
-            @test isfile(joinpath(dir, "destdir", "lib", "libgmp.so.10.3.2"))
+            @test isfile(joinpath(destdir(dir, platform), "lib", "libgmp.so.10.3.2"))
         end
 
         # Next, test on Julia v1.6
@@ -127,7 +150,7 @@ end
 
             # Test that a particular version of GMP is installed
             ap = @test_logs setup_dependencies(prefix, getpkg.(dependencies), platform)
-            @test isfile(joinpath(dir, "destdir", "lib", "libgmp.so.10.4.0"))
+            @test isfile(joinpath(destdir(dir, platform), "lib", "libgmp.so.10.4.0"))
         end
 
         # Next, build a set of dependencies that are not instantiatable as-is:
@@ -147,8 +170,8 @@ end
             # If we don't give a `julia_version`, then we are FULLY UNSHACKLED.
             platform = Platform("x86_64", "linux")
             ap = @test_logs setup_dependencies(prefix, getpkg.(dependencies), platform)
-            @test isfile(joinpath(dir, "destdir", "lib", "libgmp.so.10.3.2"))
-            @test isfile(joinpath(dir, "destdir", "lib", "libmpfr.so.6.1.0"))
+            @test isfile(joinpath(destdir(dir, platform), "lib", "libgmp.so.10.3.2"))
+            @test isfile(joinpath(destdir(dir, platform), "lib", "libmpfr.so.6.1.0"))
         end
     end
 end

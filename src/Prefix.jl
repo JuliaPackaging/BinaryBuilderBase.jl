@@ -321,6 +321,9 @@ function setup(source::PatchSource, targetdir, verbose)
     open(f->write(f, source.patch), joinpath(patches_dir, source.name), "w")
 end
 
+destdir(prefix, platform::AbstractPlatform) =
+    joinpath(prefix, triplet(platform), "destdir")
+
 """
     setup_workspace(build_path::String, sources::Vector{SetupSource};
                     verbose::Bool = false)
@@ -332,7 +335,9 @@ the environment variables that will be defined within the sandbox environment.
 This method returns the `Prefix` to install things into, and the runner
 that can be used to launch commands within this workspace.
 """
-function setup_workspace(build_path::AbstractString, sources::Vector;
+function setup_workspace(build_path::AbstractString, sources::Vector,
+                         target_platform::AbstractPlatform,
+                         host_platform::AbstractPlatform=default_host_platform;
                          verbose::Bool = false)
     # Use a random nonce to make detection of paths in embedded binary easier
     nonce = randstring()
@@ -341,10 +346,12 @@ function setup_workspace(build_path::AbstractString, sources::Vector;
 
     # We now set up two directories, one as a source dir, one as a dest dir
     srcdir = joinpath(workspace, "srcdir")
-    destdir = joinpath(workspace, "destdir")
+    target_destdir = destdir(workspace, target_platform)
+    host_destdir = destdir(workspace, host_platform)
     metadir = joinpath(workspace, "metadir")
-    wrapperdir = joinpath(workspace, "compiler_wrappers")
-    mkdir.((srcdir, destdir, metadir))
+    mkpath.((srcdir, target_destdir, host_destdir, metadir))
+    # Create the symlink /workspace/destdir -> /workspace/TARGET_TRIPLET/destdir
+    symlink("$(triplet(target_platform))/destdir", joinpath(workspace, "destdir"))
 
     # Setup all sources
     for source in sources
@@ -428,8 +435,8 @@ function setup_dependencies(prefix::Prefix, dependencies::Vector{PkgSpec}, platf
     # We're going to create a project and install all dependent packages within
     # it, then create symlinks from those installed products to our build prefix
 
-    mkpath(joinpath(prefix, "artifacts"))
-    deps_project = joinpath(prefix, ".project")
+    mkpath(joinpath(prefix, triplet(platform), "artifacts"))
+    deps_project = joinpath(prefix, triplet(platform), ".project")
     Pkg.activate(deps_project) do
         # Update registry first, in case the jll packages we're looking for have just been registered/updated
         ctx = Pkg.Types.Context(;julia_version = julia_version)
@@ -491,7 +498,7 @@ function setup_dependencies(prefix::Prefix, dependencies::Vector{PkgSpec}, platf
 
             # Copy the artifact from the global installation location into this build-specific artifacts collection
             src_path = Pkg.Artifacts.artifact_path(artifact_hash)
-            dest_path = joinpath(prefix, "artifacts", basename(src_path))
+            dest_path = joinpath(prefix, triplet(platform), "artifacts", basename(src_path))
             cp(src_path, dest_path)
 
             # Keep track of our dep paths for later symlinking
@@ -501,7 +508,7 @@ function setup_dependencies(prefix::Prefix, dependencies::Vector{PkgSpec}, platf
 
     # Symlink all the deps into the prefix
     for art_path in artifact_paths
-        symlink_tree(art_path, joinpath(prefix, "destdir"))
+        symlink_tree(art_path, destdir(prefix, platform))
     end
 
     # Return the artifact_paths so that we can clean them up later
@@ -510,7 +517,13 @@ end
 
 function cleanup_dependencies(prefix::Prefix, artifact_paths)
     for art_path in artifact_paths
-        unsymlink_tree(art_path, joinpath(prefix, "destdir"))
+        # Unsymlink all destdirs within the prefix
+        for dir in readdir(prefix.path; join=true)
+            destdir = joinpath(dir, "destdir")
+            if isdir(destdir)
+                unsymlink_tree(art_path, destdir)
+            end
+        end
     end
 end
 
