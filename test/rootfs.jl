@@ -51,7 +51,7 @@ using BinaryBuilderBase
         Platform("aarch64", "linux"; libc="glibc", march="armv8_1"),
         Platform("aarch64", "linux"; libc="glibc", march="armv8_2_crypto"),
         Platform("aarch64", "linux"; libc="glibc", march="armv8_4_crypto_sve"),
-        Platform("armv6l", "linux"; libc="glibc", call_abi="eabihf", march="arm1176jzfs"),
+        # Platform("armv6l", "linux"; libc="glibc", call_abi="eabihf", march="arm1176jzfs"),
         Platform("armv7l", "linux"; libc="glibc", call_abi="eabihf", march="armv7l"),
         Platform("armv7l", "linux"; libc="glibc", call_abi="eabihf", march="neonvfpv4"),
         Platform("i686", "linux"; libc="glibc", march="i686"),

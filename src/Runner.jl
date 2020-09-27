@@ -393,6 +393,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     end
     function GOARCH(p::AbstractPlatform)
         arch_mapping = Dict(
+            "armv6l" => "arm",
             "armv7l" => "arm",
             "aarch64" => "arm64",
             "x86_64" => "amd64",
@@ -789,6 +790,17 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
         end
     end
 
+    function GOARM(p::AbstractPlatform)
+        # See https://github.com/golang/go/wiki/GoArm#supported-architectures
+        if arch(p) == "armv6l"
+            return "6"
+        elseif arch(p) == "armv7l"
+            return "7"
+        else
+            return ""
+        end
+    end
+
     merge!(mapping, Dict(
         "PATH" => join((
             # First things first, our compiler wrappers trump all
@@ -829,7 +841,7 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
         # Go stuff
         "GOCACHE" => "/workspace/.gocache",
         "GOPATH" => "/workspace/.gopath",
-        "GOARM" => "7", # default to armv7
+        "GOARM" => GOARM(platform),
 
         # Rust stuff
         "CARGO_BUILD_TARGET" => map_rust_target(platform),
