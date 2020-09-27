@@ -631,7 +631,7 @@ function supported_platforms(;exclude::Union{Vector{<:Platform},Function}=x->fal
         Platform("i686", "linux"),
         Platform("x86_64", "linux"),
         Platform("aarch64", "linux"),
-        Platform("armv6l", "linux"),
+        # Platform("armv6l", "linux"),
         Platform("armv7l", "linux"),
         Platform("powerpc64le", "linux"),
 
