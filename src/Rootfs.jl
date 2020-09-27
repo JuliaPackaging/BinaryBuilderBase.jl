@@ -66,8 +66,8 @@ function artifact_name(cs::CompilerShard)
     if cs.target != nothing
         target_str = "-$(triplet(cs.target))"
 
-        # Julia <1.4 calls it `arm-linux-gnu`, but we prefer `armv7l-linux-gnu`
-        target_str = replace(target_str, "-arm-linux" => "-armv7l-linux")
+        # armv6l uses the same shards as armv7l, so we just rename here.
+        target_str = replace(target_str, "-armv6l-linux" => "-armv7l-linux")
     end
     ext = Dict(:squashfs => "squashfs", :unpacked => "unpacked")[cs.archive_type]
     return "$(cs.name)$(target_str).v$(cs.version).$(triplet(cs.host)).$(ext)"
@@ -95,7 +95,15 @@ function all_compiler_shards()
         artifact_dict = load_artifacts_toml(artifacts_toml)
 
         ALL_SHARDS[] = CompilerShard[]
+        # Copy all armv7l shards as armv6l shards as well
+        names = String[]
         for name in keys(artifact_dict)
+            push!(names, name)
+            if occursin("armv7l", name)
+                push!(names, replace(name, "armv7l" => "armv6l"))
+            end
+        end
+        for name in names
             cs = try
                 CompilerShard(name)
             catch
@@ -623,6 +631,7 @@ function supported_platforms(;exclude::Union{Vector{<:Platform},Function}=x->fal
         Platform("i686", "linux"),
         Platform("x86_64", "linux"),
         Platform("aarch64", "linux"),
+        Platform("armv6l", "linux"),
         Platform("armv7l", "linux"),
         Platform("powerpc64le", "linux"),
 
@@ -630,6 +639,7 @@ function supported_platforms(;exclude::Union{Vector{<:Platform},Function}=x->fal
         Platform("i686", "linux"; libc="musl"),
         Platform("x86_64", "linux"; libc="musl"),
         Platform("aarch64", "linux"; libc="musl"),
+        Platform("armv6l", "linux"; libc="musl"),
         Platform("armv7l", "linux"; libc="musl"),
 
         # BSDs
