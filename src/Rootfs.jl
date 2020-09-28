@@ -639,7 +639,7 @@ function supported_platforms(;exclude::Union{Vector{<:Platform},Function}=x->fal
         Platform("i686", "linux"; libc="musl"),
         Platform("x86_64", "linux"; libc="musl"),
         Platform("aarch64", "linux"; libc="musl"),
-        Platform("armv6l", "linux"; libc="musl"),
+        # Platform("armv6l", "linux"; libc="musl"),
         Platform("armv7l", "linux"; libc="musl"),
 
         # BSDs
