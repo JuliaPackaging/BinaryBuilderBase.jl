@@ -27,8 +27,10 @@ JLL package or a `Pkg.PackageSpec`.
 """
 struct Dependency <: AbstractDependency
     pkg::PkgSpec
+    build_version::Union{VersionNumber,Nothing}
+    Dependency(pkg::PkgSpec, build_version = nothing) = new(pkg, build_version)
 end
-Dependency(dep::AbstractString) = Dependency(PackageSpec(; name = dep))
+Dependency(dep::AbstractString, build_version = nothing) = Dependency(PackageSpec(; name = dep), build_version)
 
 """
     BuildDependency(dep::Union{PackageSpec,String})
@@ -43,6 +45,15 @@ end
 BuildDependency(dep::AbstractString) = BuildDependency(PackageSpec(; name = dep))
 
 getpkg(d::AbstractDependency) = d.pkg
+function getpkg(d::Dependency)
+    # A Dependency can have a separate build_version, so replace that here:
+    pkg = d.pkg
+    if d.build_version !== nothing
+        pkg = deepcopy(pkg)
+        pkg.version = Pkg.Types.VersionSpec(d.build_version)
+    end
+    return pkg
+end
 
 getname(x::PkgSpec) = x.name
 getname(x::AbstractDependency) = getname(getpkg(x))

@@ -7,12 +7,11 @@ using JSON
 # Define equality between dependencies, in order to carry out the tests below
 Base.:(==)(a::AbstractDependency, b::AbstractDependency) = getpkg(a) == getpkg(b)
 
-if VERSION <= v"1.4"
-    # Copy definition from Pkg v1.4, for compatibility
-    function Base.:(==)(a::Pkg.Types.PackageSpec, b::Pkg.Types.PackageSpec)
-        return a.name == b.name && a.uuid == b.uuid && a.version == b.version &&
-            a.tree_hash == b.tree_hash && a.repo == b.repo && a.path == b.path &&
-            a.pinned == b.pinned && a.mode == b.mode
+function with_temp_project(f::Function)
+    mktempdir() do dir
+        Pkg.activate(dir) do
+            f(dir)
+        end
     end
 end
 
@@ -45,7 +44,7 @@ end
     end
 
     @testset "Setup" begin
-        mktempdir() do dir
+        with_temp_project() do dir
             prefix = Prefix(dir)
             dependencies = [
                 Dependency("Zlib_jll")
@@ -63,7 +62,7 @@ end
         end
 
         # Setup a dependency that doesn't have a mapping for the given platform
-        mktempdir() do dir
+        with_temp_project() do dir
             prefix = Prefix(dir)
             dependencies = [
                 Dependency("LibOSXUnwind_jll")
@@ -73,6 +72,49 @@ end
                 setup_dependencies(prefix, getpkg.(dependencies), platform)
             end
             @test "destdir" ∉ readdir(joinpath(dir))
+        end
+
+        # Test setup of dependencies that depend on the Julia version
+        with_temp_project() do dir
+            prefix = Prefix(dir)
+            dependencies = [Dependency("GMP_jll")]
+            platform = Platform("x86_64", "linux"; julia_version=v"1.5")
+
+            # Test that a particular version of GMP is installed
+            ap = @test_logs setup_dependencies(prefix, getpkg.(dependencies), platform)
+            @test isfile(joinpath(dir, "destdir", "lib", "libgmp.so.10.3.2"))
+        end
+
+        # Next, test on Julia v1.6
+        with_temp_project() do dir
+            prefix = Prefix(dir)
+            dependencies = [Dependency("GMP_jll")]
+            platform = Platform("x86_64", "linux"; julia_version=v"1.6")
+
+            # Test that a particular version of GMP is installed
+            ap = @test_logs setup_dependencies(prefix, getpkg.(dependencies), platform)
+            @test isfile(joinpath(dir, "destdir", "lib", "libgmp.so.10.4.0"))
+        end
+
+        # Next, build a set of dependencies that are not instantiatable as-is:
+        with_temp_project() do dir
+            prefix = Prefix(dir)
+            dependencies = [
+                 Dependency("GMP_jll", v"6.1.2"),
+                 Dependency("MPFR_jll",v"4.1.0"),
+            ]
+
+            # Test that this is not instantiatable with either Julia v1.5 or v1.6
+            platform = Platform("x86_64", "linux"; julia_version=v"1.5")
+            ap = @test_throws Pkg.Resolve.ResolverError setup_dependencies(prefix, getpkg.(dependencies), platform)
+            platform = Platform("x86_64", "linux"; julia_version=v"1.6")
+            ap = @test_throws Pkg.Resolve.ResolverError setup_dependencies(prefix, getpkg.(dependencies), platform)
+
+            # If we don't give a `julia_version`, then we are FULLY UNSHACKLED.
+            platform = Platform("x86_64", "linux")
+            ap = @test_logs setup_dependencies(prefix, getpkg.(dependencies), platform)
+            @test isfile(joinpath(dir, "destdir", "lib", "libgmp.so.10.3.2"))
+            @test isfile(joinpath(dir, "destdir", "lib", "libmpfr.so.6.1.0"))
         end
     end
 end
