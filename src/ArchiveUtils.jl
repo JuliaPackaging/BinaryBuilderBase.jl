@@ -128,5 +128,5 @@ end
 
 function download_verify(url, hash, path)
     Downloads.download(url, path)
-    verify(path, hash)
+    verify(path, hash) || error("Verification failed")
 end
