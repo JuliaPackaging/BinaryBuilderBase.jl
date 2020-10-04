@@ -324,7 +324,7 @@ Returns `true` if any piece of the MacOS SDK is already installed.
 function macos_sdk_already_installed()
     # Get all compiler shards we know about
     css = all_compiler_shards()
-    macos_artifact_names = artifact_name.(filter(cs -> Sys.isapple(cs.target), css))
+    macos_artifact_names = artifact_name.(filter(cs -> cs.target !== nothing && Sys.isapple(cs.target), css))
 
     host_platform = Platform("x86_64", "linux"; libc="musl")
     artifacts_toml = joinpath(dirname(@__DIR__), "Artifacts.toml")
