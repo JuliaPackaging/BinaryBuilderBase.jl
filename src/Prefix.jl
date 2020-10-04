@@ -397,14 +397,14 @@ function setup_dependencies(prefix::Prefix, dependencies::Vector{PkgSpec}, platf
     # We're going to create a project and install all dependent packages within
     # it, then create symlinks from those installed products to our build prefix
 
-    # Update registry first, in case the jll packages we're looking for have just been registered/updated
-    ctx = Pkg.Types.Context(;julia_version = julia_version)
-    outs = verbose ? stdout : devnull
-    update_registry(ctx, outs)
-
     mkpath(joinpath(prefix, "artifacts"))
     deps_project = joinpath(prefix, ".project")
     Pkg.activate(deps_project) do
+        # Update registry first, in case the jll packages we're looking for have just been registered/updated
+        ctx = Pkg.Types.Context(;julia_version = julia_version)
+        outs = verbose ? stdout : devnull
+        update_registry(ctx, outs)
+
         # Add all dependencies
         Pkg.add(ctx, dependencies; platform=platform, io=outs)
 
