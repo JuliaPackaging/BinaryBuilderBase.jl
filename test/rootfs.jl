@@ -29,11 +29,16 @@ using BinaryBuilderBase
         Platform("x86_64", "freebsd"),
         Platform("x86_64", "macos"),
     ]
-    @test expand_cxxstring_abis([Platform("x86_64", "freebsd"), Platform("x86_64", "macos")]; skip_freebsd_macos=false) == [
+    @test expand_cxxstring_abis([Platform("x86_64", "freebsd"), Platform("x86_64", "macos")]; skip=_->false) == [
         Platform("x86_64", "freebsd"; cxxstring_abi="cxx03"),
         Platform("x86_64", "freebsd"; cxxstring_abi="cxx11"),
         Platform("x86_64", "macos"; cxxstring_abi="cxx03"),
         Platform("x86_64", "macos"; cxxstring_abi="cxx11"),
+    ]
+    @test expand_cxxstring_abis([Platform("x86_64", "freebsd"), Platform("x86_64", "linux")]; skip=Sys.islinux) == [
+        Platform("x86_64", "freebsd"; cxxstring_abi="cxx03"),
+        Platform("x86_64", "freebsd"; cxxstring_abi="cxx11"),
+        Platform("x86_64", "linux"),
     ]
     @test expand_cxxstring_abis([Platform("i686", "linux"; cxxstring_abi="cxx11")]) ==
         [Platform("i686", "linux"; cxxstring_abi="cxx11")]
