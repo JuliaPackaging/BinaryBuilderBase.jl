@@ -1,9 +1,7 @@
 # This file is machine-generated - editing it directly is not advised
 
 [[ArgTools]]
-git-tree-sha1 = "bdf73eec6a88885256f282d48eafcad25d7de494"
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
-version = "1.1.1"
 
 [[Artifacts]]
 uuid = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
@@ -79,7 +77,7 @@ uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
 version = "1.0.10"
 
 [[Pkg]]
-deps = ["Artifacts", "Dates", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "REPL", "Random", "SHA", "TOML", "UUIDs"]
+deps = ["Artifacts", "Dates", "LibGit2", "Libdl", "Markdown", "Printf", "REPL", "Random", "SHA", "TOML", "UUIDs"]
 uuid = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 
 [[Printf]]
@@ -114,9 +112,7 @@ uuid = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 
 [[Tar]]
 deps = ["ArgTools", "Logging", "SHA"]
-git-tree-sha1 = "83da81284c449b31c85dd4b0b3a3e1930e4fa195"
 uuid = "a4e569a6-e804-4fa4-b0f3-eef7a1d5b13e"
-version = "1.7.0"
 
 [[Test]]
 deps = ["Distributed", "InteractiveUtils", "Logging", "Random"]
