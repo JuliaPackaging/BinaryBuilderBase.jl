@@ -619,8 +619,7 @@ Platforms can be excluded from the list by specifying an array of platforms to `
 `supported_platforms(exclude=[Platform("i686", "windows"), Platform("x86_64", "windows")])`
 or a function that returns true for exclusions i.e.
 ```
-islin(x) = typeof(x) == Linux
-supported_platforms(exclude=islin)
+supported_platforms(exclude=Sys.islinux)
 ```
 """
 function supported_platforms(;exclude::Union{Vector{<:Platform},Function}=x->false)
