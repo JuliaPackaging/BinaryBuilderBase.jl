@@ -122,6 +122,7 @@ patch(v::Pkg.Types.VersionBound) = v.t[3]
 __version(v::VersionNumber) = v
 __version(v::Pkg.Types.VersionSpec) = v.ranges[1].lower
 version(d::AbstractDependency) = __version(getpkg(d).version)
+version(d::Dependency) = __version(d.pkg.version)
 
 for (type, type_descr) in ((Dependency, "dependency"), (BuildDependency, "builddependency"))
     JSON.lower(d::type) = Dict("type" => type_descr,
