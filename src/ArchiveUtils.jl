@@ -137,16 +137,20 @@ function download_verify(url, hash, path)
     if !verify(path, hash)
         # When we are on Yggdrasil, upload the failed download to S3, to see what went wrong
         if get(ENV, "YGGDRASIL", "false") == "true"
+            CALC_HASH = open(path) do file
+                bytes2hex(sha256(file))
+            end
             ACL="x-amz-acl:public-read"
             CONTENT_TYPE="application/x-gtar"
             BUCKET="julia-bb-buildcache"
-            BUCKET_PATH="$(ENV["BB_HASH"])/$(ENV["PROJ_HASH"])/$(basename(path))"
+            BUCKET_PATH="$(ENV["BB_HASH"])/$(CALC_HASH)/$(basename(path))"
             DATE=readchomp(`date -R`)
             S3SIGNATURE=readchomp(pipeline(`echo -en "PUT\n\n$(CONTENT_TYPE)\n$(DATE)\n$(ACL)\n/$(BUCKET)/$(BUCKET_PATH)"`,
                                            `openssl sha1 -hmac "$(ENV["S3SECRET"])" -binary`,
                                            `base64`))
             HOST="$(BUCKET).s3.amazonaws.com"
             @info "Download of $(url) failed"
+            @info "Computed SHA256 hash: $(CALC_HASH)"
             @info "Uploading downloaded file to https://$(HOST)/$(BUCKET_PATH)"
             run(`curl -X PUT -T "$(path)"
                     -H "Host: $(HOST)"
