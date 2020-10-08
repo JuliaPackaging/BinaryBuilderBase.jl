@@ -105,6 +105,7 @@ function verify(path::AbstractString, hash::AbstractString; hash_path::AbstractS
     @assert occursin(r"^[0-9a-f]{64}$", calc_hash)
 
     if calc_hash != hash
+        @info "File size after failed verification: $(filesize(path))"
         msg  = "Hash Mismatch!\n"
         msg *= "  Expected sha256:   $hash\n"
         msg *= "  Calculated sha256: $calc_hash"
@@ -128,6 +129,7 @@ end
 
 function download_verify(url, hash, path)
     Downloads.download(url, path)
+    @info "File size after download: $(filesize(path))"
 
     if !isfile(path)
         # Hopefully it shouldn't happen, but better check
@@ -150,8 +152,9 @@ function download_verify(url, hash, path)
                                            `base64`))
             HOST="$(BUCKET).s3.amazonaws.com"
             @info "Download of $(url) failed"
-            @info "Computed SHA256 hash: $(CALC_HASH)"
+            @info "(Re)Calculated sha256: $(CALC_HASH)"
             @info "Uploading downloaded file to https://$(HOST)/$(BUCKET_PATH)"
+            @info "File size before upload: $(filesize(path))"
             run(`curl -X PUT -T "$(path)"
                     -H "Host: $(HOST)"
                     -H "Date: $(DATE)"
