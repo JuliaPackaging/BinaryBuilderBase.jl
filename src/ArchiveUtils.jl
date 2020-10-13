@@ -105,7 +105,6 @@ function verify(path::AbstractString, hash::AbstractString; hash_path::AbstractS
     @assert occursin(r"^[0-9a-f]{64}$", calc_hash)
 
     if calc_hash != hash
-        @info "File size after failed verification: $(filesize(path))"
         msg  = "Hash Mismatch!\n"
         msg *= "  Expected sha256:   $hash\n"
         msg *= "  Calculated sha256: $calc_hash"
@@ -129,42 +128,5 @@ end
 
 function download_verify(url, hash, path)
     Downloads.download(url, path)
-    @info "File size after download: $(filesize(path))"
-
-    if !isfile(path)
-        # Hopefully it shouldn't happen, but better check
-        error("Destination file $(path) not created")
-    end
-
-    if !verify(path, hash)
-        # When we are on Yggdrasil, upload the failed download to S3, to see what went wrong
-        if get(ENV, "YGGDRASIL", "false") == "true"
-            CALC_HASH = open(path) do file
-                bytes2hex(sha256(file))
-            end
-            ACL="x-amz-acl:public-read"
-            CONTENT_TYPE="application/x-gtar"
-            BUCKET="julia-bb-buildcache"
-            BUCKET_PATH="$(ENV["BB_HASH"])/$(CALC_HASH)/$(basename(path))"
-            DATE=readchomp(`date -R`)
-            S3SIGNATURE=readchomp(pipeline(`echo -en "PUT\n\n$(CONTENT_TYPE)\n$(DATE)\n$(ACL)\n/$(BUCKET)/$(BUCKET_PATH)"`,
-                                           `openssl sha1 -hmac "$(ENV["S3SECRET"])" -binary`,
-                                           `base64`))
-            HOST="$(BUCKET).s3.amazonaws.com"
-            @info "Download of $(url) failed"
-            @info "(Re)Calculated sha256: $(CALC_HASH)"
-            @info "Uploading downloaded file to https://$(HOST)/$(BUCKET_PATH)"
-            @info "File size before upload: $(filesize(path))"
-            run(`curl -X PUT -T "$(path)"
-                    -H "Host: $(HOST)"
-                    -H "Date: $(DATE)"
-                    -H "Content-Type: $(CONTENT_TYPE)"
-                    -H "$(ACL)"
-                    -H "Authorization: AWS $(ENV["S3KEY"]):$(S3SIGNATURE)"
-                    "https://$(HOST)/$(BUCKET_PATH)"`)
-        end
-        error("Verification failed")
-    end
-
-    return true
+    verify(path, hash) || error("Verification failed")
 end
