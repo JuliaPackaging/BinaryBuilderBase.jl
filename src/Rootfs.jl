@@ -623,7 +623,8 @@ islin(x) = typeof(x) == Linux
 supported_platforms(exclude=islin)
 ```
 """
-function supported_platforms(;exclude::Union{Vector{<:Platform},Function}=x->false)
+function supported_platforms(;exclude::Union{Vector{<:Platform},Function}=x->false,
+                              experimental::Bool=false)
     exclude_platforms!(platforms, exclude::Function) = filter(!exclude, platforms)
     exclude_platforms!(platforms, exclude::Vector{<:Platform}) = filter!(!in(exclude), platforms)
     standard_platforms = [
@@ -650,6 +651,15 @@ function supported_platforms(;exclude::Union{Vector{<:Platform},Function}=x->fal
         Platform("i686", "windows"),
         Platform("x86_64", "windows"),
     ]
+
+    # We have experimental support for some platforms, allow easily including them
+    if experimental
+        append!(standard_platforms, [
+            Platform("aarch64", "macos"),
+            Platform("armv6l", "linux"),
+            Platform("armv6l", "linux"; libc="musl"),
+        ])
+    end
     return exclude_platforms!(standard_platforms,exclude)
 end
 
