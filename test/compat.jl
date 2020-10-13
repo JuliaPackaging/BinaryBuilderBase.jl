@@ -44,7 +44,7 @@ using BinaryBuilderBase: download_verify, list_tarball_files
         @test_throws ErrorException download_verify("https://github.com/not_a_file", "0"^64, joinpath(dir, "blah"))
 
         # Test that a bad hash logs a message and fails
-        @test_logs (:error, r"Hash Mismatch") @test_throws ErrorException begin
+        @test_logs (:error, r"Hash Mismatch") match_mode=:any @test_throws ErrorException begin
             download_verify("https://github.com/staticfloat/small_bin/raw/master/socrates.tar.xz", "0"^64, joinpath(dir, "blah2"))
         end
     end
