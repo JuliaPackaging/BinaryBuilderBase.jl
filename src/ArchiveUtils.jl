@@ -127,6 +127,13 @@ function verify(path::AbstractString, hash::AbstractString; hash_path::AbstractS
 end
 
 function download_verify(url, hash, path)
-    Downloads.download(url, path)
+    # Temporarily shell out to `curl` to download, until `Downloads` bugs are squashed
+    try
+        run(`curl -C - -s -\# -f -L $(url) -o $(path)`)
+    catch e
+        # Downloads throws an ErrorException, so we'll do the same
+        error("download failed: $(e)")
+    end
+    #Downloads.download(url, path)
     verify(path, hash) || error("Verification failed")
 end
