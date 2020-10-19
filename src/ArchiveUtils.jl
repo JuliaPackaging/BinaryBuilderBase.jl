@@ -127,6 +127,11 @@ function verify(path::AbstractString, hash::AbstractString; hash_path::AbstractS
 end
 
 function download_verify(url, hash, path)
+    if isfile(path)
+        verify(path, hash) && return
+        @warn "Verification of $(basename(path)) failed; redownloading"
+        rm(path)
+    end
     Downloads.download(url, path)
     verify(path, hash) || error("Verification failed")
 end
