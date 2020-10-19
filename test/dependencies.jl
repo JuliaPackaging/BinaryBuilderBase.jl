@@ -75,6 +75,26 @@ end
             @test readdir(joinpath(dir, "destdir", "logs")) == []
         end
 
+        # Setup a dependency of a JLL package which is also a standard library
+        with_temp_project() do dir
+            prefix = Prefix(dir)
+            dependencies = [
+                Dependency("LibCURL_jll")
+            ]
+            platform = HostPlatform()
+            ap = @test_logs setup_dependencies(prefix, getpkg.(dependencies), platform)
+            @test "libcurl." * platform_dlext(platform) in readdir(last(libdirs(Prefix(joinpath(dir, "destdir")))))
+            @test "curl.h" in readdir(joinpath(dir, "destdir", "include", "curl"))
+            # `LibSSH2_jll` is a dependency of `LibCURL_jll` but it isn't currently automatically installed
+            @test_broken "libssh2." * platform_dlext(platform) in readdir(last(libdirs(Prefix(joinpath(dir, "destdir")))))
+
+            # Make sure the directories are emptied by `cleanup_dependencies`
+            @test_nowarn cleanup_dependencies(prefix, ap)
+            # This shuld be empty, but the `curl/` directory is left here, empty
+            @test_broken readdir(joinpath(dir, "destdir", "include")) == []
+            @test readdir(joinpath(dir, "destdir", "logs")) == []
+        end
+
         # Setup a dependency that doesn't have a mapping for the given platform
         with_temp_project() do dir
             prefix = Prefix(dir)

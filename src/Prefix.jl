@@ -2,7 +2,7 @@
 #  on disk.  Things like the name of where downloads are stored, and what
 #  environment variables must be updated to, etc...
 import Base: convert, joinpath, show
-using SHA, CodecZlib
+using SHA, CodecZlib, TOML
 
 export Prefix, bindir, libdirs, includedir, logdir, temp_prefix, package
 
@@ -359,6 +359,33 @@ function setup_workspace(build_path::AbstractString, sources::Vector;
     return Prefix(realpath(workspace))
 end
 
+"""
+    collect_jlls(manifest::Dict, dependencies::Vector{<:AbstractString})
+
+Return a `Set` of all JLL packages in the `manifest` with `dependencies` being
+the list of direct dependencies of the environment.
+"""
+function collect_jlls(manifest::Dict, dependencies::Set{<:AbstractString})
+    jlls = copy(dependencies)
+    for (pkg, infos) in manifest
+        for info in infos
+            if pkg in jlls
+                deps = get(info, "deps", nothing)
+                deps === nothing && continue
+                for dep in deps
+                    if endswith(dep, "_jll")
+                        push!(jlls, dep)
+                    end
+                end
+            end
+        end
+    end
+    if jlls == dependencies
+        return jlls
+    else
+        return collect_jlls(manifest, jlls)
+    end
+end
 
 """
     setup_dependencies(prefix::Prefix, dependencies::Vector{PackageSpec}, platform::AbstractPlatform; verbose::Bool = false)
@@ -412,6 +439,19 @@ function setup_dependencies(prefix::Prefix, dependencies::Vector{PkgSpec}, platf
         installed_jlls = [
             Pkg.Types.PackageSpec(name=p.name, uuid=u, tree_hash=p.tree_hash) for (u, p) in ctx.env.manifest if endswith(p.name, "_jll")
         ]
+
+        # Some JLLs are also standard libraries that may be present in the
+        # manifest because pulled by other stdlibs.  Filter them out if they're
+        # present in the manifest but aren't direct dependencies or dependencies
+        # of other JLLS.
+        manifest = TOML.parsefile(ctx.env.manifest_file)
+        dependencies_names = Set(getfield.(dependencies, :name))
+        jlls = collect_jlls(manifest, dependencies_names)
+        for jll in filter(s -> endswith(s, "_jll"), collect(values(Pkg.Types.stdlibs())))
+            if jll ∉ jlls
+                filter!(p -> p.name != jll, installed_jlls)
+            end
+        end
 
         # Load their Artifacts.toml files
         for dep in installed_jlls
