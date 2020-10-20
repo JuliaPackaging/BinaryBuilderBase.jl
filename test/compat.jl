@@ -33,7 +33,7 @@ using BinaryBuilderBase: download_verify, list_tarball_files
                              "13fc17b97be41763b02cbb80e9d048302cec3bd3d446c2ed6e8210bddcd3ac76")]
             # First, download to a path:
             path = joinpath(dir, basename(url))
-            download_verify(url, hash, path)
+            @test_logs (:info, "Downloading $(url) to $(path)...") download_verify(url, hash, path)
             @test isfile(path)
 
             # Ensure that we can list the tarball:
@@ -41,11 +41,15 @@ using BinaryBuilderBase: download_verify, list_tarball_files
         end
 
         # Test that a 404 throws
-        @test_throws ErrorException download_verify("https://github.com/not_a_file", "0"^64, joinpath(dir, "blah"))
+        url = "https://github.com/not_a_file"
+        dest = joinpath(dir, "blah")
+        @test_logs (:info, "Downloading $(url) to $(dest)...") @test_throws ErrorException download_verify(url, "0"^64, dest)
 
         # Test that a bad hash logs a message and fails
-        @test_logs (:error, r"Hash Mismatch") match_mode=:any @test_throws ErrorException begin
-            download_verify("https://github.com/staticfloat/small_bin/raw/master/socrates.tar.xz", "0"^64, joinpath(dir, "blah2"))
+        url = "https://github.com/staticfloat/small_bin/raw/master/socrates.tar.xz"
+        dest = joinpath(dir, "blah2")
+        @test_logs (:error, r"Hash Mismatch") (:info, "Downloading $(url) to $(dest)...") match_mode=:any @test_throws ErrorException begin
+            download_verify(url, "0"^64, dest)
         end
     end
 end
