@@ -127,6 +127,11 @@ function verify(path::AbstractString, hash::AbstractString; hash_path::AbstractS
 end
 
 function download_verify(url, hash, path)
-    Downloads.download(url, path)
-    verify(path, hash) || error("Verification failed")
+    if isfile(path) && verify(path, hash)
+        @info "Cached file found in $(path)"
+    else
+        @info "Downloading $(url) to $(path)..."
+        Downloads.download(url, path)
+        verify(path, hash) || error("Verification failed")
+    end
 end

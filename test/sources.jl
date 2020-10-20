@@ -21,12 +21,12 @@ using JSON
             cd(dir) do
                 as = ArchiveSource("https://github.com/ralna/ARCHDefs/archive/v2.0.3x.tar.gz", "6583e27f84338447767bbdf4335514c8836ae4ad54f5e66280307e8b57189cff")
                 # Download the source
-                sas = download_source(as; verbose = true, downloads_dir = dir)
+                sas = @test_logs (:info, r"Downloading .* to.*") download_source(as; verbose = true, downloads_dir = dir)
                 # Check that the cache is found
-                @test download_source(as; verbose = true, downloads_dir = dir) == sas
+                @test @test_logs (:info, r"Cached file found in .*") download_source(as; verbose = true, downloads_dir = dir) == sas
                 fs = FileSource("https://github.com/ralna/ARCHDefs/archive/v2.0.3x.tar.gz", "6583e27f84338447767bbdf4335514c8836ae4ad54f5e66280307e8b57189cff"; filename = "file-source.tar.gz")
                 # Re-fetch the same tarball, as a `FileSource` this time
-                sfs = download_source(fs; verbose = true, downloads_dir = dir)
+                sfs = @test_logs (:info, r"Cached file found in .*") download_source(fs; verbose = true, downloads_dir = dir)
                 gs = GitSource("https://github.com/ralna/ARCHDefs.git", "fc8c5960c3a6d26970ab245241cfc067fe4ecfdd")
                 # Clone the repo once
                 sgs = @test_logs (:info, r"^Cloning") download_source(gs; verbose = true, downloads_dir = dir)
