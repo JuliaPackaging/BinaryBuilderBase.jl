@@ -130,8 +130,15 @@ function download_verify(url, hash, path)
     if isfile(path) && verify(path, hash)
         @info "Cached file found in $(path)"
     else
+        mkpath(dirname(path))
         @info "Downloading $(url) to $(path)..."
-        Downloads.download(url, path)
+        # Temporarily shell out to `curl` to download, until `Downloads` bugs are squashed
+        try
+            run(`curl -C - -s -\# -f -L $(url) -o $(path)`)
+        catch e
+            # Downloads throws an ErrorException, so we'll do the same
+            error("download failed: $(e)")
+        end
         verify(path, hash) || error("Verification failed")
     end
 end
