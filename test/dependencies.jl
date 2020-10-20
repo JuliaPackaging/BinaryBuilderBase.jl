@@ -67,11 +67,11 @@ end
             ap = @test_logs setup_dependencies(prefix, getpkg.(dependencies), platform)
             @test "libz." * platform_dlext(platform) in readdir(last(libdirs(Prefix(joinpath(dir, "destdir")))))
             @test "zlib.h" in readdir(joinpath(dir, "destdir", "include"))
-            @test_broken readdir(joinpath(dir, "destdir", "logs")) == ["Zlib.log.gz"]
+            @test readdir(joinpath(dir, "destdir", "logs")) == ["Zlib.log.gz"]
 
             # Make sure the directories are emptied by `cleanup_dependencies`
             @test_nowarn cleanup_dependencies(prefix, ap)
-            @test_broken readdir(joinpath(dir, "destdir", "include")) == []
+            @test readdir(joinpath(dir, "destdir", "include")) == []
             @test readdir(joinpath(dir, "destdir", "logs")) == []
         end
 
@@ -105,7 +105,7 @@ end
             @test_logs (:warn, r"Dependency LibOSXUnwind_jll does not have a mapping for artifact LibOSXUnwind for platform") begin
                 setup_dependencies(prefix, getpkg.(dependencies), platform)
             end
-            @test_broken "destdir" ∉ readdir(joinpath(dir))
+            @test "destdir" ∉ readdir(joinpath(dir))
         end
 
         # Test setup of dependencies that depend on the Julia version
