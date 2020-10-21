@@ -30,10 +30,6 @@ addons:
       - tar
       - gzip
 
-# Temporary work around to make the package build on nightly
-env:
-  - JULIA_PKG_PRECOMPILE_AUTO=0
-
 jobs:
   #allow_failures:
   #  - julia: nightly
@@ -43,21 +39,19 @@ jobs:
       env:
         - BINARYBUILDER_RUNNER=privileged
         - BINARYBUILDER_USE_SQUASHFS=true
-        - JULIA_PKG_PRECOMPILE_AUTO=0
 
     # Add a job that uses the unprivileged builder with unpacked shards
     - julia: nightly
       env:
         - BINARYBUILDER_RUNNER=unprivileged
         - BINARYBUILDER_USE_SQUASHFS=false
-        - JULIA_PKG_PRECOMPILE_AUTO=0
 
     # Add a job that uses the docker builder with unpacked shards
     - julia: nightly
       env:
         - BINARYBUILDER_RUNNER=docker
         - BINARYBUILDER_USE_SQUASHFS=false
-        - JULIA_PKG_PRECOMPILE_AUTO=0
+
     - stage: "Documentation"
       julia: nightly
       os: linux
