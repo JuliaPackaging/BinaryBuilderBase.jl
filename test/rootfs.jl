@@ -19,6 +19,12 @@ using BinaryBuilderBase
     ]
     @test expand_gfortran_versions([Platform("x86_64", "freebsd"; libgfortran_version=v"3")]) ==
         [Platform("x86_64", "freebsd"; libgfortran_version=v"3")]
+    @test expand_gfortran_versions([Platform("x86_64", "macos"), Platform("aarch64", "macos")]) == [
+        Platform("x86_64",  "macos"; libgfortran_version=v"3"),
+        Platform("x86_64",  "macos"; libgfortran_version=v"4"),
+        Platform("x86_64",  "macos"; libgfortran_version=v"5"),
+        Platform("aarch64", "macos"; libgfortran_version=v"5"),
+    ]
 
     # expand_cxxstring_abis
     @test expand_cxxstring_abis(Platform("x86_64", "linux"; libc="musl")) == [
