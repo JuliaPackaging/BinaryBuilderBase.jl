@@ -674,14 +674,22 @@ matching.  If the given `Platform` already specifies a `libgfortran_version`
 (as opposed to `nothing`) only that `Platform` is returned.
 """
 function expand_gfortran_versions(platform::AbstractPlatform)
-    # If this platform cannot be expanded, then exit out fast here.
+    # If this platform is already explicitly libgfortran-versioned, exit out fast here.
     if libgfortran_version(platform) != nothing
         return [platform]
     end
 
-    # Otherwise, generate new versions!
-    libgfortran_versions = [v"3", v"4", v"5"]
-    return map([v"3", v"4", v"5"]) do v
+    # If this is an platform that has limited GCC support (such as aarch64-apple-darwin),
+    # the libgfortran versions we can expand to are similarly limited.
+    local libgfortran_versions
+    if Sys.isapple(platform) && arch(platform) == "aarch64"
+        libgfortran_versions = [v"5"]
+    else
+        libgfortran_versions = [v"3", v"4", v"5"]
+    end
+
+    # Create a new platform for each libgfortran version
+    return map(libgfortran_versions) do v
         p = deepcopy(platform)
         p["libgfortran_version"] = string(v)
         return p
