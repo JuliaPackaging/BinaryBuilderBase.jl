@@ -65,7 +65,7 @@ using BinaryBuilderBase
         # Platform("armv6l", "linux"; libc="glibc", call_abi="eabihf", march="arm1176jzfs"),
         Platform("armv7l", "linux"; libc="glibc", call_abi="eabihf", march="armv7l"),
         Platform("armv7l", "linux"; libc="glibc", call_abi="eabihf", march="neonvfpv4"),
-        Platform("i686", "linux"; libc="glibc", march="i686"),
+        Platform("i686", "linux"; libc="glibc", march="pentium4"),
         Platform("i686", "linux"; libc="glibc", march="prescott"),
         Platform("powerpc64le", "linux"; libc="glibc", march="power8"),
         Platform("x86_64", "linux"; libc="glibc", march="avx"),
