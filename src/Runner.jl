@@ -801,6 +801,24 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
         end
     end
 
+    function csl_paths(p::AbstractPlatform)
+        libcs = if Sys.islinux(p) && proc_family(p) == "intel" && libc(p) == "musl"
+            # We need to push musl directories before glibc ones
+            ("musl", "glibc")
+        else
+            ("glibc", "musl")
+        end
+
+        archs = if Sys.islinux(p) && proc_family(p) == "intel" && arch(p) == "i686"
+            # We need to push i686 directories before x86_64 ones
+            ("i686", "x86_64")
+        else
+            ("x86", "i686_64")
+        end
+
+        return join(["/usr/lib/csl-$(libc)-$(arch)" for libc in libcs, arch in archs], ":")
+    end
+
     merge!(mapping, Dict(
         "PATH" => join((
             # First things first, our compiler wrappers trump all
@@ -820,7 +838,7 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
             # Add our loader directories
             "/lib64:/lib",
             # Add our CSL libraries for all architectures that can natively run within this environment
-            join(["/usr/lib/csl-$(libc)-$(arch)" for libc in ("glibc", "musl"), arch in ("x86_64", "i686")], ":"),
+            csl_paths(host_platform),
             # Add our target/host-specific library directories for compiler support libraries
             target_lib_dir(host_platform),
             target_lib_dir(rust_host),

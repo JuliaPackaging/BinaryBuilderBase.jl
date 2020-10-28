@@ -68,13 +68,67 @@ end
         end
     end
 
-    @testset "Compilation" begin
+    if lowercase(get(ENV, "BINARYBUILDER_FULL_SHARD_TEST", "false")) == "true"
+        @info("Beginning full shard test... (this can take a while)")
+        platforms = supported_platforms()
+    else
+        platforms = (Platform("x86_64", "linux"; libc="musl"),)
+    end
+
+    # This tests only that compilers for all platforms can build a simple C program
+    @testset "Compilation - $(platform)" for platform in platforms
         mktempdir() do dir
-            ur = preferred_runner()(dir; platform=Platform("x86_64", "linux"; libc="musl"))
+            ur = preferred_runner()(dir; platform=platform)
             iobuff = IOBuffer()
             @test run(ur, `/bin/bash -c "echo 'int main() {return 0;}' | cc -x c -"`, iobuff; tee_stream=devnull)
             seekstart(iobuff)
             @test split(String(read(iobuff)), "\n")[2] == ""
+        end
+    end
+
+    # This tests that compilers for all Intel Linux platforms can build a simple
+    # C program that we can also run
+    @testset "Compilation and running" begin
+        mktempdir() do dir
+            platforms = filter(p -> Sys.islinux(p) && proc_family(p) == "intel", supported_platforms())
+
+            @testset "C - $(platform)" for platform in platforms
+                ur = preferred_runner()(dir; platform=platform)
+                iobuff = IOBuffer()
+                test_c = """
+                #include <stdio.h>
+                int main() {
+                    printf("Hello World!\\n");
+                    return 0;
+                }
+                """
+                cmd = `/bin/bash -c "echo '$(test_c)' > test.c && cc -o test test.c && ./test"`
+                @test run(ur, cmd, iobuff; tee_stream=devnull)
+                seekstart(iobuff)
+                # Test that we get the output we expect
+                @test endswith(readchomp(iobuff), "Hello World!")
+            end
+
+            # This tests that compilers for all Intel Linux platforms can build a simple
+            # Fortran program that we can also run
+            @testset "Fortran - $(platform)" for platform in filter(p -> Sys.islinux(p) && proc_family(p) == "intel", supported_platforms())
+                ur = preferred_runner()(dir; platform=platform)
+                iobuff = IOBuffer()
+                test_f = """
+                      program hello
+                          print *, "Hello World!"
+                      end program
+                """
+                cmd = `/bin/bash -c "echo '$(test_f)' > test.f && gfortran -o test test.f && ./test"`
+                if arch(platform) == "i686" && libc(platform) == "musl"
+                    @test_broken run(ur, cmd, iobuff; tee_stream=devnull)
+                else
+                    @test run(ur, cmd, iobuff; tee_stream=devnull)
+                    seekstart(iobuff)
+                    # Test that we get the output we expect
+                    @test endswith(readchomp(iobuff), "Hello World!")
+                end
+            end
         end
     end
 
