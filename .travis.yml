@@ -49,7 +49,6 @@ jobs:
         - BINARYBUILDER_RUNNER=unprivileged
         - BINARYBUILDER_USE_SQUASHFS=false
         - JULIA_PKG_SERVER=
-        - BINARYBUILDER_FULL_SHARD_TEST=true
         - BINARYBUILDER_AUTOMATIC_APPLE=true
 
     # Add a job that uses the docker builder with unpacked shards
@@ -58,7 +57,6 @@ jobs:
         - BINARYBUILDER_RUNNER=docker
         - BINARYBUILDER_USE_SQUASHFS=false
         - JULIA_PKG_SERVER=
-        - BINARYBUILDER_FULL_SHARD_TEST=true
         - BINARYBUILDER_AUTOMATIC_APPLE=true
 
     - stage: "Documentation"
