@@ -370,7 +370,7 @@ const available_gcc_builds = [
     GCCBuild(v"7.1.0", (libgfortran_version = v"4", libstdcxx_version = v"3.4.23", cxxstring_abi = "cxx11")),
     GCCBuild(v"8.1.0", (libgfortran_version = v"5", libstdcxx_version = v"3.4.25", cxxstring_abi = "cxx11")),
     GCCBuild(v"9.1.0", (libgfortran_version = v"5", libstdcxx_version = v"3.4.26", cxxstring_abi = "cxx11")),
-    GCCBuild(v"11-iains", (libgfortran_version = v"5", libstdcxx_version = v"3.4.26", cxxstring_abi = "cxx11")),
+    GCCBuild(v"11.0.0-iains", (libgfortran_version = v"5", libstdcxx_version = v"3.4.28", cxxstring_abi = "cxx11")),
 ]
 const available_llvm_builds = [
     LLVMBuild(v"6.0.1"),
@@ -500,6 +500,11 @@ function choose_shards(p::AbstractPlatform;
     host_platform = Platform("x86_64", "linux"; libc="musl")
 
     function find_shard(name, version, archive_type; target = nothing)
+        # Ugly hack alert!  Because GCC 11 has somehow broken C++, we pair GCC 9 with GCC 11 on MacOS
+        if name == "GCCBootstrap" && version.major == 11 && target !== nothing && Sys.islinux(target)
+            version = v"9.1.0"
+        end
+
         for cs in all_compiler_shards()
             if cs.name == name && cs.version == version &&
                (target === nothing || platforms_match(cs.target, target)) &&
@@ -522,9 +527,12 @@ function choose_shards(p::AbstractPlatform;
                 return false
             end
         end
-        if !shard_exists("GCCBootstrap", getversion(GCC_build), archive_type; target=host_platform)
-            return false
-        end
+
+        # Ugly hack alert!  We disable this check because we don't even ship a GCC 11 build
+        # for the host platform because it's prerelease and broken.
+        #if !shard_exists("GCCBootstrap", getversion(GCC_build), archive_type; target=host_platform)
+        #    return false
+        #end
         return true
     end
 
