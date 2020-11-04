@@ -370,7 +370,7 @@ const available_gcc_builds = [
     GCCBuild(v"7.1.0", (libgfortran_version = v"4", libstdcxx_version = v"3.4.23", cxxstring_abi = "cxx11")),
     GCCBuild(v"8.1.0", (libgfortran_version = v"5", libstdcxx_version = v"3.4.25", cxxstring_abi = "cxx11")),
     GCCBuild(v"9.1.0", (libgfortran_version = v"5", libstdcxx_version = v"3.4.26", cxxstring_abi = "cxx11")),
-    GCCBuild(v"11.0.0-iains", (libgfortran_version = v"5", libstdcxx_version = v"3.4.26", cxxstring_abi = "cxx11")),
+    GCCBuild(v"11.0.0-iains", (libgfortran_version = v"5", libstdcxx_version = v"3.4.28", cxxstring_abi = "cxx11")),
 ]
 const available_llvm_builds = [
     LLVMBuild(v"6.0.1"),
