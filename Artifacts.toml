@@ -2094,27 +2094,27 @@ os = "linux"
     sha256 = "511a9e97c2b45fd1b799f09838b1902987489c5b3893d731fddfde2231531e17"
     url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2020.11.6/PlatformSupport-x86_64-linux-musl.v2020.11.6.x86_64-linux-musl.unpacked.tar.gz"
 
-[["PlatformSupport-x86_64-unknown-freebsd.v2020.11.6.x86_64-linux-musl.squashfs"]]
+[["PlatformSupport-x86_64-unknown-freebsd11.1.v2020.11.6.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
-git-tree-sha1 = "cb01654fff48f68d813c86f3219d6ccdff828077"
+git-tree-sha1 = "04bdf362af59ce5eae1cb85a0e0bc2029eb4b66a"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["PlatformSupport-x86_64-unknown-freebsd.v2020.11.6.x86_64-linux-musl.squashfs".download]]
-    sha256 = "da993ec9b9384a1b71ce6c14b890be9730cef563a558cc8022c73d6ad1c99a85"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2020.11.6/PlatformSupport-x86_64-unknown-freebsd.v2020.11.6.x86_64-linux-musl.squashfs.tar.gz"
+    [["PlatformSupport-x86_64-unknown-freebsd11.1.v2020.11.6.x86_64-linux-musl.squashfs".download]]
+    sha256 = "9a5c1c45079d2b82ae07a7ed6204dc1d74c79b526da5ee2332298a022983037a"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2020.11.6/PlatformSupport-x86_64-unknown-freebsd11.1.v2020.11.6.x86_64-linux-musl.squashfs.tar.gz"
 
-[["PlatformSupport-x86_64-unknown-freebsd.v2020.11.6.x86_64-linux-musl.unpacked"]]
+[["PlatformSupport-x86_64-unknown-freebsd11.1.v2020.11.6.x86_64-linux-musl.unpacked"]]
 arch = "x86_64"
-git-tree-sha1 = "3b7c608dfbf248a3ccd78a8298f7dbdf60e22ed5"
+git-tree-sha1 = "5af46d45f851c3f953f36711c6c9931b166c5c98"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["PlatformSupport-x86_64-unknown-freebsd.v2020.11.6.x86_64-linux-musl.unpacked".download]]
-    sha256 = "c0791fc91527b07650964e51b83f800a8c6f6c29c8daadfdf7d22aa191479a58"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2020.11.6/PlatformSupport-x86_64-unknown-freebsd.v2020.11.6.x86_64-linux-musl.unpacked.tar.gz"
+    [["PlatformSupport-x86_64-unknown-freebsd11.1.v2020.11.6.x86_64-linux-musl.unpacked".download]]
+    sha256 = "2b299cab7bb774cabca5db624832fe17eab912944a901200597650cc4281a668"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2020.11.6/PlatformSupport-x86_64-unknown-freebsd11.1.v2020.11.6.x86_64-linux-musl.unpacked.tar.gz"
 
 [["PlatformSupport-x86_64-w64-mingw32.v2020.11.6.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
