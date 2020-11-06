@@ -481,7 +481,7 @@ consists of four shards, but that may not always be the case.
 function choose_shards(p::AbstractPlatform;
             compilers::Vector{Symbol} = [:c],
             rootfs_build::VersionNumber=v"2020.08.19",
-            ps_build::VersionNumber=v"2020.08.19",
+            ps_build::VersionNumber=v"2020.11.06",
             GCC_builds::Vector{GCCBuild}=available_gcc_builds,
             LLVM_builds::Vector{LLVMBuild}=available_llvm_builds,
             Rust_build::VersionNumber=v"1.18.3",
@@ -536,16 +536,16 @@ function choose_shards(p::AbstractPlatform;
         return true
     end
 
-    # Select GCC and LLVM versions given the compiler ABI and target requirements given in `p`
-    GCC_build, LLVM_build = select_compiler_versions(p,
-        this_platform_GCC_builds,
-        LLVM_builds,
-        preferred_gcc_version,
-        preferred_llvm_version,
-    )
-
     shards = CompilerShard[]
     if isempty(bootstrap_list)
+        # Select GCC and LLVM versions given the compiler ABI and target requirements given in `p`
+        GCC_build, LLVM_build = select_compiler_versions(p,
+            this_platform_GCC_builds,
+            LLVM_builds,
+            preferred_gcc_version,
+            preferred_llvm_version,
+        )
+
         # We _always_ need Rootfs and PlatformSupport for our target, at least
         append!(shards, [
             find_shard("Rootfs", rootfs_build, archive_type),
