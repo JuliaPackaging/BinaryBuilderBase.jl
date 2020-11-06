@@ -57,10 +57,16 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
                                      compilers::Vector{Symbol} = [:c],
                                      allow_unsafe_flags::Bool = false,
                                      lock_microarchitecture::Bool = true,
+                                     bootstrap::Bool = !isempty(bootstrap_list),
                                      )
     # Wipe that directory out, in case it already had compiler wrappers
     rm(bin_path; recursive=true, force=true)
     mkpath(bin_path)
+
+    # Early-exit if we're bootstrapping
+    if bootstrap
+        return
+    end
 
     target = aatriplet(platform)
     host_target = aatriplet(host_platform)
