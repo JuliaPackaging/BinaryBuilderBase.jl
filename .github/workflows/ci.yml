@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: "master"
+    tags: ["*"]
+  pull_request:
+
+env:
+  JULIA_PKG_SERVER: ""
+  BINARYBUILDER_FULL_SHARD_TEST: true
+  BINARYBUILDER_AUTOMATIC_APPLE: true
+
+jobs:
+  test:
+    name: Julia nightly - x64 - runner ${{ matrix.runner }} - SquashFS ${{ matrix.squashfs }}
+    runs-on: ubuntu-latest
+    env:
+      BINARYBUILDER_RUNNER: ${{ matrix.runner }}
+      BINARYBUILDER_USE_SQUASHFS: ${{ matrix.squashfs }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Add a job that uses the privileged builder with squashfs shards
+          - runner: privileged
+            squashfs: true
+
+          # Add a job that uses the unprivileged builder with unpacked shards
+          - runner: unprivileged
+            squashfs: false
+
+          # Add a job that uses the docker builder with unpacked shards
+          - runner: docker
+            squashfs: false
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: julia-actions/setup-julia@v1
+        with:
+          version: "nightly"
+          arch: x64
+      - uses: julia-actions/julia-buildpkg@latest
+      - name: System info
+        run: julia --project=. --color=yes -e "using BinaryBuilderBase; BinaryBuilderBase.versioninfo()"
+      - uses: julia-actions/julia-runtest@latest
