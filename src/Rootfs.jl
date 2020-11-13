@@ -1,6 +1,7 @@
 export supported_platforms, expand_gfortran_versions, expand_cxxstring_abis, expand_microarchitectures
 
 using Pkg.Artifacts: load_artifacts_toml, ensure_all_artifacts_installed
+using Base.BinaryPlatforms: set_compare_strategy!, compare_version_cap
 
 # This is a type that encompasses a shard; it makes it easy to pass it around,
 # get its download url, extraction url, mounting url, etc...
@@ -108,6 +109,11 @@ function all_compiler_shards()
                 CompilerShard(name)
             catch
                 continue
+            end
+
+            # If this compiler shard has an os_version, that should be interpreted as the bound it is.
+            if cs.target !== nothing && os_version(cs.target) !== nothing
+                set_compare_strategy!(cs.target, "os_version", compare_version_cap)
             end
             push!(ALL_SHARDS[], cs)
         end
