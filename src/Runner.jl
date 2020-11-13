@@ -241,6 +241,31 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         return flags
     end
 
+    function min_macos_version_flag(p::AbstractPlatform)
+        # If no `os_version` is specified in `p`, default to the oldest we support in the Julia world,
+        # which is `10.8`, but if it is actually specified, then set that corresponding value.
+        #min_macos_version = something(os_version(p), v"14.0.0")
+
+        # Eventually, we'll take this in `os_version(p)`, but not just yet.  We need to fix the paths
+        # to the compiler shards first, since right now they have `14` at the end
+        min_macos_version = v"14.0.0"
+
+        kernel_to_macos = Dict(
+            12 => "10.8",
+            13 => "10.9",
+            14 => "10.10",
+            15 => "10.11",
+            16 => "10.12",
+            17 => "10.13",
+            18 => "10.14",
+            19 => "10.15",
+            20 => "11.0",
+        )
+
+        # Ask compilers to compile for a minimum macOS version
+        return "-mmacosx-version-min=$(kernel_to_macos[min_macos_version.major])"
+    end
+
     function clang_compile_flags!(p::AbstractPlatform, flags::Vector{String} = String[])
         if lock_microarchitecture
             append!(flags, get_march_flags(arch(p), march(p), "clang"))
@@ -258,6 +283,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
                 # `clang` as a linker (and we have no real way to detect that in the wrapper), which will
                 # cause `clang` to complain about compiler flags being passed in.
                 "-Wno-unused-command-line-argument",
+                min_macos_version_flag(p),
             ])
         end
         return flags
@@ -283,15 +309,13 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
 
 
     function macos_gcc_flags!(p::AbstractPlatform, flags::Vector{String} = String[])
-        # Always ask for a minimum macOS version of 10.8, as is default for the whole Julia world
-        push!(flags, "-mmacosx-version-min=10.8")
-        
         # On macOS, if we're on an old GCC, the default -syslibroot that gets
         # passed to the linker isn't calculated correctly, so we have to manually set it.
         gcc_version, llvm_version = select_compiler_versions(p)
         if gcc_version.major in (4, 5)
             push!(flags, "-Wl,-syslibroot,/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root")
         end
+        push!(flags, min_macos_version_flag(p))
         return flags
     end
 
