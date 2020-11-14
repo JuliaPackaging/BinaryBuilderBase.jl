@@ -1,6 +1,6 @@
 module BinaryBuilderBase
 
-using Pkg, Pkg.Artifacts, Random, Libdl
+using Pkg, Pkg.Artifacts, Random, Libdl, InteractiveUtils
 using Base.BinaryPlatforms
 using Downloads
 using JSON, OutputCollectors
@@ -68,6 +68,102 @@ use_squashfs = false
 allow_ecryptfs = false
 use_ccache = false
 bootstrap_list = Symbol[]
+
+function get_bbb_version(dir=@__DIR__, uuid="7f725544-6523-48cd-82d1-3fa08ff4056e")
+    # Get BinaryBuilder.jl's version and git sha
+    version = Pkg.TOML.parsefile(joinpath(dir, "..", "Project.toml"))["version"]
+    try
+        # get the gitsha if we can
+        repo = LibGit2.GitRepo(dirname(@__DIR__))
+        gitsha = string(LibGit2.GitHash(LibGit2.GitCommit(repo, "HEAD")))
+        return VersionNumber("$(version)-git-$(gitsha[1:10])")
+    catch
+        try
+            # Settle for the treehash otherwise
+            env = Pkg.Types.Context().env
+            bb_uuid = Pkg.Types.UUID(uuid)
+            treehash = bytes2hex(env.manifest[bb_uuid].tree_hash.bytes)
+            return VersionNumber("$(version)-tree-$(treehash[1:10])")
+        catch
+            # Something went so wrong, we can't get any of that.
+            return VersionNumber(version)
+        end
+    end
+end
+
+"""
+    versioninfo()
+
+Helper function to print out some debugging information
+"""
+function versioninfo(; name=@__MODULE__, version=get_bbb_version())
+    @info("Julia versioninfo(): ")
+    InteractiveUtils.versioninfo()
+
+    @info("$(name).jl version: $(version)")
+
+    @static if Sys.isunix()
+        @info("Kernel version: $(readchomp(`uname -r`))")
+    end
+
+    # Dump if some important directories are encrypted:
+    @static if Sys.islinux()
+        print_enc(n, path) = begin
+            is_encrypted, mountpoint = is_ecryptfs(path)
+            if is_encrypted
+                @info("$n is encrypted on mountpoint $mountpoint")
+            else
+                @info("$n is NOT encrypted on mountpoint $mountpoint")
+            end
+        end
+
+        print_enc("pkg dir", dirname(@__FILE__))
+        print_enc("storage dir", storage_dir())
+    end
+
+    # Dump any relevant environment variables:
+    @info("Relevant environment variables:")
+    env_var_suffixes = [
+        "AUTOMATIC_APPLE",
+        "USE_SQUASHFS",
+        "STORAGE_DIR",
+        "RUNNER",
+        "ALLOW_ECRYPTFS",
+        "USE_CCACHE",
+    ]
+    for e in env_var_suffixes
+        envvar = "BINARYBUILDER_$(e)"
+        if haskey(ENV, envvar)
+            @info("  $(envvar): \"$(ENV[envvar])\"")
+        end
+    end
+
+    # Print out the preferred runner stuff here:
+    @info("Preferred runner: $(preferred_runner())")
+
+    # Try to run 'echo julia' in Linux x86_64 environment
+    @info("Trying to run `echo hello julia` within a Linux x86_64 environment...")
+
+    runner = preferred_runner()(
+        pwd();
+        cwd="/workspace/",
+        platform=Platform("x86_64", "linux"),
+        verbose=true
+    )
+    run_interactive(runner, `/bin/bash -c "echo hello julia"`)
+
+    # If we use ccache, dump the ccache stats
+    if use_ccache
+        @info("ccache stats:")
+        runner = preferred_runner()(
+            pwd();
+            cwd="/workspace/",
+            platform=Platform("x86_64", "linux"),
+        )
+        run_interactive(runner, `/usr/bin/ccache -s`)
+    end
+    return nothing
+end
 
 function __init__()
     global runner_override, use_squashfs, allow_ecryptfs
