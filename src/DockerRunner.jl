@@ -209,8 +209,13 @@ function Base.read(dr::DockerRunner, cmd; verbose=false)
 end
 
 function run_interactive(dr::DockerRunner, cmd::Cmd; stdin = nothing, stdout = nothing, stderr = nothing, verbose::Bool = false)
-    tty_or_nothing(s) = s === nothing || typeof(s) <: Base.TTY
-    run_flags = all(tty_or_nothing.((stdin, stdout, stderr))) ? "-ti" : "-i"
+    function tty_or_nothing((s, bs))
+        # If the `s` stream is `nothing`, we need to check whether the
+        # corresponding Base stream `bs` is a TTY.
+        s === nothing && (s = bs)
+        return typeof(s) <: Base.TTY
+    end
+    run_flags = all(tty_or_nothing.(((stdin, Base.stdin), (stdout, Base.stdout), (stderr, Base.stderr)))) ? "-ti" : "-i"
     docker_cmd = `$(dr.docker_cmd) $(run_flags) -i $(docker_image(dr.shards[1])) $(cmd.exec)`
     if cmd.ignorestatus
         docker_cmd = ignorestatus(docker_cmd)
