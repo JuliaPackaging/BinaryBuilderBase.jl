@@ -38,7 +38,6 @@ aatriplet(p::AnyPlatform) = aatriplet(Platform("x86_64", "linux"; libc="musl"))
 """
     generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::AbstractString,
                                 host_platform::AbstractPlatform = Platform("x86_64", "linux"; libc="musl"),
-                                rust_platform::AbstractPlatform = Platform("x86_64", "linux"; libc="glibc"),
                                 compilers::Vector{Symbol} = [:c],
                                 allow_unsafe_flags::Bool = false,
                                 lock_microarchitecture::Bool = true)
@@ -53,7 +52,6 @@ and even simple programs will not compile without them.
 """
 function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::AbstractString,
                                      host_platform::AbstractPlatform = Platform("x86_64", "linux"; libc="musl"),
-                                     rust_platform::AbstractPlatform = Platform("x86_64", "linux"; libc="glibc"),
                                      compilers::Vector{Symbol} = [:c],
                                      allow_unsafe_flags::Bool = false,
                                      lock_microarchitecture::Bool = true,
@@ -70,7 +68,6 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
 
     target = aatriplet(platform)
     host_target = aatriplet(host_platform)
-    rust_target = aatriplet(rust_platform)
 
 
     # If the ABI-agnostic triplets of the target and the host platform are the
@@ -436,9 +433,9 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         end
         return flags
     end
-    rustc(io::IO, p::AbstractPlatform) = wrapper(io, "/opt/$(rust_target)/bin/rustc"; flags=rust_flags!(p), allow_ccache=false)
-    rustup(io::IO, p::AbstractPlatform) = wrapper(io, "/opt/$(rust_target)/bin/rustup"; allow_ccache=false)
-    cargo(io::IO, p::AbstractPlatform) = wrapper(io, "/opt/$(rust_target)/bin/cargo"; allow_ccache=false)
+    rustc(io::IO, p::AbstractPlatform) = wrapper(io, "/opt/$(host_target)/bin/rustc"; flags=rust_flags!(p), allow_ccache=false)
+    rustup(io::IO, p::AbstractPlatform) = wrapper(io, "/opt/$(host_target)/bin/rustup"; allow_ccache=false)
+    cargo(io::IO, p::AbstractPlatform) = wrapper(io, "/opt/$(host_target)/bin/cargo"; allow_ccache=false)
 
     # Meson REQUIRES that `CC`, `CXX`, etc.. are set to the host utils.  womp womp.
     function meson(io::IO, p::AbstractPlatform)
@@ -636,7 +633,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     # `x86_64-linux-gnu`, while other build systems might say `x86_64-linux-musl` with no less accuracy.  So for
     # safety, we just ship all three all the time.
     if :rust in compilers
-        for p in unique((platform, host_platform, rust_platform))
+        for p in unique((platform, host_platform))
             t = aatriplet(p)
             write_wrapper(rustc, p, "$(t)-rustc")
             write_wrapper(rustup, p, "$(t)-rustup")
@@ -710,9 +707,6 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
     target = aatriplet(platform)
     host_target = aatriplet(host_platform)
 
-    # Rust has a different host, because it doesn't run on `musl` properly yet.
-    rust_host = Platform("x86_64", "linux"; libc="glibc")
-
     # Prefix, libdir, etc...
     prefix = "/workspace/destdir"
     if Sys.iswindows(platform)
@@ -753,7 +747,7 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
         # Also give people access to the full `-cxxYY` and `-libgfortranX` triplet if they really want it
         "bb_full_target" => triplet(platform),
         "rust_target" => map_rust_target(platform),
-        "rust_host" => map_rust_target(rust_host), # use glibc since musl is broken. :( https://github.com/rust-lang/rust/issues/59302
+        "rust_host" => map_rust_target(host_platform),
         "nproc" => "$(get(ENV, "BINARYBUILDER_NPROC", Sys.CPU_THREADS))",
         "nbits" => string(nbits(platform)),
         "proc_family" => string(proc_family(platform)),
@@ -847,7 +841,6 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
             csl_paths(host_platform),
             # Add our target/host-specific library directories for compiler support libraries
             target_lib_dir(host_platform),
-            target_lib_dir(rust_host),
             target_lib_dir(platform),
             # Finally, dependencies
             "$(prefix)/lib64:$(prefix)/lib",
@@ -869,9 +862,10 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
 
         # Rust stuff
         "CARGO_BUILD_TARGET" => map_rust_target(platform),
-        "CARGO_HOME" => "/opt/$(aatriplet(rust_host))",
-        "RUSTUP_HOME" => "/opt/$(aatriplet(rust_host))",
-        "RUSTUP_TOOLCHAIN" => "stable-$(map_rust_target(rust_host))",
+        "CARGO_HOME" => "/opt/$(host_target)",
+        "RUSTUP_HOME" => "/opt/$(host_target)",
+        # TODO: we'll need a way to parameterize this toolchain number
+        "RUSTUP_TOOLCHAIN" => "1.48.0-$(map_rust_target(host_platform))",
 
         # We conditionally add on some compiler flags; we'll cull empty ones at the end
         "USE_CCACHE" => "$(use_ccache)",
