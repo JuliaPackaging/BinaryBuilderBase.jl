@@ -328,7 +328,7 @@ function probe_unprivileged_containers(;verbose::Bool=false)
 
     function test_sandbox(; verbose=verbose, workspace_tmpdir=false, map_shard=false)
         # Choose and prepare our shards
-        shards = choose_shards(Platform("x86_64", "linux"; libc="musl"))
+        shards = choose_shards(default_host_platform)
         root_shard = first(shards)
         other_shard = last(shards)
 

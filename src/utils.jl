@@ -59,4 +59,4 @@ end
 
 # XXX: we want the AnyPlatform to look like `x86_64-linux-musl`,
 get_concrete_platform(::AnyPlatform, shards::Vector{CompilerShard}) =
-    get_concrete_platform(Platform("x86_64", "linux"; libc="musl"), shards)
+    get_concrete_platform(default_host_platform, shards)

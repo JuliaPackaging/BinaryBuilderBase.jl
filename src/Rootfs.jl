@@ -15,7 +15,7 @@ struct CompilerShard
     # Things like Platform("x86_64", "windows"; libgfortran_version=v"3")
     target::Union{Nothing,Platform}
 
-    # Usually `Platform("x86_64", "linux"; libc="musl")`
+    # Usually `default_host_platform`
     host::AbstractPlatform
     
     # :unpacked or :squashfs.  Possibly more in the future.
@@ -332,7 +332,7 @@ function macos_sdk_already_installed()
     css = all_compiler_shards()
     macos_artifact_names = artifact_name.(filter(cs -> cs.target !== nothing && Sys.isapple(cs.target), css))
 
-    host_platform = Platform("x86_64", "linux"; libc="musl")
+    host_platform = default_host_platform
     artifacts_toml = joinpath(dirname(@__DIR__), "Artifacts.toml")
     macos_artifact_hashes = artifact_hash.(macos_artifact_names, artifacts_toml; platform=host_platform)
 
@@ -497,8 +497,8 @@ function choose_shards(p::AbstractPlatform;
             preferred_llvm_version::VersionNumber = getversion(LLVM_builds[end]),
         )
 
-    # Our host platform is x86_64-linux-musl
-    host_platform = Platform("x86_64", "linux"; libc="musl")
+    # Our host platform is x86_64-linux-musl-cxx11
+    host_platform = default_host_platform
 
     function find_shard(name, version, archive_type; target = nothing)
         # Ugly hack alert!  Because GCC 11 has somehow broken C++, we pair GCC 9 with GCC 11 on MacOS
@@ -606,7 +606,7 @@ function choose_shards(p::AbstractPlatform;
 end
 
 # XXX: we want AnyPlatform to look like `x86_64-linux-musl` in the build environment.
-choose_shards(::AnyPlatform; kwargs...) = choose_shards(Platform("x86_64", "linux"; libc="musl"); kwargs...)
+choose_shards(::AnyPlatform; kwargs...) = choose_shards(default_host_platform; kwargs...)
 
 """
     supported_platforms(;exclude::Union{Vector{<:Platform},Function}=x->false)
@@ -874,7 +874,7 @@ function download_all_artifacts(; verbose::Bool = false)
         artifacts_toml;
         include_lazy=true,
         verbose=verbose,
-        platform=Platform("x86_64", "linux"; libc="musl"),
+        platform=default_host_platform,
     )
 end
 
