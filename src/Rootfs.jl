@@ -332,9 +332,8 @@ function macos_sdk_already_installed()
     css = all_compiler_shards()
     macos_artifact_names = artifact_name.(filter(cs -> cs.target !== nothing && Sys.isapple(cs.target), css))
 
-    host_platform = default_host_platform
     artifacts_toml = joinpath(dirname(@__DIR__), "Artifacts.toml")
-    macos_artifact_hashes = artifact_hash.(macos_artifact_names, artifacts_toml; platform=host_platform)
+    macos_artifact_hashes = artifact_hash.(macos_artifact_names, artifacts_toml; platform=default_host_platform)
 
     # Return `true` if _any_ of these artifacts exist on-disk:
     return any(artifact_exists.(macos_artifact_hashes))
@@ -497,9 +496,6 @@ function choose_shards(p::AbstractPlatform;
             preferred_llvm_version::VersionNumber = getversion(LLVM_builds[end]),
         )
 
-    # Our host platform is x86_64-linux-musl-cxx11
-    host_platform = default_host_platform
-
     function find_shard(name, version, archive_type; target = nothing)
         # Ugly hack alert!  Because GCC 11 has somehow broken C++, we pair GCC 9 with GCC 11 on MacOS
         if name == "GCCBootstrap" && version.major == 11 && target !== nothing && Sys.islinux(target)
@@ -531,7 +527,7 @@ function choose_shards(p::AbstractPlatform;
 
         # Ugly hack alert!  We disable this check because we don't even ship a GCC 11 build
         # for the host platform because it's prerelease and broken.
-        #if !shard_exists("GCCBootstrap", getversion(GCC_build), archive_type; target=host_platform)
+        #if !shard_exists("GCCBootstrap", getversion(GCC_build), archive_type; target=default_host_platform)
         #    return false
         #end
         return true
@@ -566,19 +562,19 @@ function choose_shards(p::AbstractPlatform;
                 find_shard("RustToolchain", Rust_build, archive_type; target=p),
             ])
 
-            if !platforms_match(p, host_platform)
+            if !platforms_match(p, default_host_platform)
                 # In case we need to bootstrap stuff and we bootstrap it for the actual host platform
-                push!(shards, find_shard("RustToolchain", Rust_build, archive_type; target=host_platform))
+                push!(shards, find_shard("RustToolchain", Rust_build, archive_type; target=default_host_platform))
             end
         end
 
         if :rust in compilers || :c in compilers
             # If we're not building for the host platform, then add host shard for host tools
             # This is necessary for both rust and c compilers
-            if !platforms_match(p, host_platform)
+            if !platforms_match(p, default_host_platform)
                 append!(shards, [
-                    find_shard("PlatformSupport", ps_build, archive_type; target=host_platform),
-                    find_shard("GCCBootstrap", GCC_build, archive_type; target=host_platform),
+                    find_shard("PlatformSupport", ps_build, archive_type; target=default_host_platform),
+                    find_shard("GCCBootstrap", GCC_build, archive_type; target=default_host_platform),
                 ])
             end
         end

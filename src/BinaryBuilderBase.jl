@@ -33,6 +33,7 @@ include("Products.jl")
 include("Platforms.jl")
 
 include("Runner.jl")
+include("BuildToolchains.jl")
 include("Rootfs.jl")
 include("squashfs_utils.jl")
 include("UserNSRunner.jl")
