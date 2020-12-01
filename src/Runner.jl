@@ -886,7 +886,7 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
         "CARGO_HOME" => "/opt/$(host_target)",
         "RUSTUP_HOME" => "/opt/$(host_target)",
         # TODO: we'll need a way to parameterize this toolchain number
-        "RUSTUP_TOOLCHAIN" => "1.48.0-$(map_rust_target(host_platform))",
+        "RUSTUP_TOOLCHAIN" => "1.43.0-$(map_rust_target(host_platform))",
 
         # We conditionally add on some compiler flags; we'll cull empty ones at the end
         "USE_CCACHE" => "$(use_ccache)",
