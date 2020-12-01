@@ -75,6 +75,25 @@ end
         platforms = (Platform("x86_64", "linux"; libc="musl"),)
     end
 
+    # Checks that the wrappers provide the correct C++ string ABI
+    @testset "Compilation - C++ string ABI" begin
+        mktempdir() do dir
+            # Host is x86_64-linux-musl-cxx11 and target is x86_64-linux-musl-cxx03
+            ur = preferred_runner()(dir; platform=Platform("x86_64", "linux"; libc="musl", cxxstring_abi="cxx03"), preferred_gcc_version=v"5")
+            iobuff = IOBuffer()
+            test_script = raw"""
+            set -e
+
+            # Building for the target uses C++03 string ABI
+            echo 'int main() {return 0;}' | SUPER_VERBOSE=1 ${CC} -x c - 2>&1 | grep -- "-D_GLIBCXX_USE_CXX11_ABI=0"
+
+            # Building for the host uses C++11 string ABI
+            echo 'int main() {return 0;}' | SUPER_VERBOSE=1 ${HOSTCC} -x c - 2>&1 | grep -v -- "-D_GLIBCXX_USE_CXX11_ABI=0"
+            """
+            @test run(ur, `/bin/bash -c "$(test_script)"`, iobuff; tee_stream=devnull)
+        end
+    end
+
     # This tests only that compilers for all platforms can build a simple C program
     @testset "Compilation - $(platform)" for platform in platforms
         mktempdir() do dir

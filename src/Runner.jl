@@ -1,6 +1,11 @@
 import Base: strip
 abstract type Runner; end
 
+# Host platform _must_ match the C++ string ABI of the binaries we get from the
+# repositories.  Note: when preferred_gcc_version=v"4" we can't really build for
+# that C++ string ABI :-(
+const default_host_platform = Platform("x86_64", "linux"; libc="musl", cxxstring_abi="cxx11")
+
 function nbits(p::AbstractPlatform)
     if arch(p) in ("i686", "armv6l", "armv7l")
         return 32
@@ -33,11 +38,11 @@ function aatriplet(p::AbstractPlatform)
     return t
 end
 # XXX: we want AnyPlatform to look like `x86_64-linux-musl` in the build environment.
-aatriplet(p::AnyPlatform) = aatriplet(Platform("x86_64", "linux"; libc="musl"))
+aatriplet(p::AnyPlatform) = aatriplet(default_host_platform)
 
 """
     generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::AbstractString,
-                                host_platform::AbstractPlatform = Platform("x86_64", "linux"; libc="musl"),
+                                host_platform::AbstractPlatform = $(repr(default_host_platform)),
                                 compilers::Vector{Symbol} = [:c],
                                 allow_unsafe_flags::Bool = false,
                                 lock_microarchitecture::Bool = true)
@@ -51,7 +56,7 @@ difficult to override, as the flags embedded in these wrappers are absolutely ne
 and even simple programs will not compile without them.
 """
 function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::AbstractString,
-                                     host_platform::AbstractPlatform = Platform("x86_64", "linux"; libc="musl"),
+                                     host_platform::AbstractPlatform = default_host_platform,
                                      compilers::Vector{Symbol} = [:c],
                                      allow_unsafe_flags::Bool = false,
                                      lock_microarchitecture::Bool = true,
@@ -68,31 +73,6 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
 
     target = aatriplet(platform)
     host_target = aatriplet(host_platform)
-
-
-    # If the ABI-agnostic triplets of the target and the host platform are the
-    # same, then we have to be very careful: we can't have distinct wrappers, so
-    # we have to be sure that their ABIs are consistent and that we're correctly
-    # writing the wrappers for the target platform.  In  particular, what we care
-    # about with regard to the wrappers is the C++ string ABI:
-    #   * they are equal: this is fine
-    #   * they're different and the host has a preference for the C++ string ABI:
-    #     we can't deal with this situation as the host wrappers will be always
-    #     overwritten, then error out
-    #   * in all other cases we don't do anything here, below we'll let
-    #     the host wrappers be overwritten by the wrappers for the target
-    if target == host_target
-        target_cxxabi = cxxstring_abi(platform)
-        host_cxxabi   = cxxstring_abi(host_platform)
-        if target_cxxabi !== host_cxxabi
-            if host_cxxabi !== nothing
-                # This is a very unlikely situation as ideally the host
-                # shouldn't have particular preferences for the ABI, thus in
-                # practice we should never reach this.
-                error("Incompatible C++ string ABIs between the host and target platforms")
-            end
-        end
-    end
 
     function wrapper(io::IO,
                      prog::String;
@@ -579,14 +559,13 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     end
 
     function write_wrapper(wrappergen, p, fname)
-        open(io -> Base.invokelatest(wrappergen, io, p), joinpath(bin_path, fname), "w")
-        chmod(joinpath(bin_path, fname), 0o775)
+        file_path = joinpath(bin_path, triplet(p), fname)
+        mkpath(dirname(file_path))
+        open(io -> Base.invokelatest(wrappergen, io, p), file_path, "w")
+        chmod(file_path, 0o775)
     end
 
-    ## Generate compiler wrappers for both our host and our target.  In
-    ## particular, we write the wrapper for the target after those for the host,
-    ## to override host-specific ABI in case this is incompatible with that of
-    ## the target
+    ## Generate compiler wrappers for both our host and our target.
     for p in unique((host_platform, platform))
         t = aatriplet(p)
 
@@ -709,7 +688,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     end
     # Create symlinks for default compiler invocations, invoke target toolchain
     for tool in default_tools
-        symlink("$(target)-$(tool)", joinpath(bin_path, tool))
+        symlink("$(target)-$(tool)", joinpath(bin_path, triplet(platform), tool))
     end
 end
 
@@ -738,7 +717,7 @@ defined target architecture.  Examples of things set are `PATH`, `CC`,
 `RANLIB`, as well as nonstandard things like `target`.
 """
 function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
-                       host_platform = Platform("x86_64", "linux"; libc="musl"),
+                       host_platform = default_host_platform,
                        bootstrap::Bool=!isempty(bootstrap_list),
                        verbose::Bool = false)
     global use_ccache
@@ -862,9 +841,11 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
     merge!(mapping, Dict(
         "PATH" => join((
             # First things first, our compiler wrappers trump all
-            "/opt/bin",
+            "/opt/bin/$(triplet(platform))",
             # Allow users to use things like x86_64-linux-gnu here
             "/opt/$(target)/bin",
+            # Also wrappers for the host
+            "/opt/bin/$(triplet(host_platform))",
             "/opt/$(host_target)/bin",
             # Default alpine PATH
             mapping["PATH"],
@@ -913,10 +894,10 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
         "LLVM_HOST_TARGET" => host_target,
 
         # Let the user parameterize their scripts for toolchain locations
-        "CMAKE_HOST_TOOLCHAIN" => "/opt/$(host_target)/$(host_target).cmake",
-        "CMAKE_TARGET_TOOLCHAIN" => "/opt/$(target)/$(target).cmake",
-        "MESON_HOST_TOOLCHAIN" => "/opt/$(host_target)/$(host_target).meson",
-        "MESON_TARGET_TOOLCHAIN" => "/opt/$(target)/$(target).meson",
+        "CMAKE_HOST_TOOLCHAIN" => "/opt/toolchains/$(triplet(host_platform))/$(host_target).cmake",
+        "CMAKE_TARGET_TOOLCHAIN" => "/opt/toolchains/$(triplet(platform))/$(target).cmake",
+        "MESON_HOST_TOOLCHAIN" => "/opt/toolchains/$(triplet(host_platform))/$(host_target).meson",
+        "MESON_TARGET_TOOLCHAIN" => "/opt/toolchains/$(triplet(platform))/$(target).meson",
 
         # We should always be looking for packages already in the prefix
         "PKG_CONFIG_PATH" => "$(prefix)/lib/pkgconfig:$(prefix)/lib64/pkgconfig:$(prefix)/share/pkgconfig",
@@ -941,17 +922,21 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
     # so we set all the environment variables that we've seen them called
     # and hope for the best.
     for host_map in (tool -> "HOST$(tool)", tool -> "$(tool)_FOR_BUILD", tool -> "BUILD_$(tool)", tool -> "$(tool)_BUILD")
+        # Use full path to avoid collisions when the target is similar to the
+        # host (e.g., `x86_64-linux-musl-cxx03` and `x86_64-linux-musl-cxx11`)
+        host_bin_dir = "/opt/bin/$(triplet(host_platform))"
+
         # First, do the simple tools where it's just X => $(host_target)-x:
         for tool in ("AR", "AS", "LD", "LIPO", "NM", "RANLIB", "READELF", "OBJCOPY", "OBJDUMP", "STRIP")
-            mapping[host_map(tool)] = "$(host_target)-$(lowercase(tool))"
+            mapping[host_map(tool)] = "$(host_bin_dir)/$(host_target)-$(lowercase(tool))"
         end
 
         # Next, the more custom tool mappings
         for (env_name, tool) in (
-            "CC" => "$(host_target)-gcc",
-            "CXX" => "$(host_target)-g++",
+            "CC" => "$(host_bin_dir)/$(host_target)-gcc",
+            "CXX" => "$(host_bin_dir)/$(host_target)-g++",
             "DSYMUTIL" => "llvm-dsymutil",
-            "FC" => "$(host_target)-gfortran"
+            "FC" => "$(host_bin_dir)/$(host_target)-gfortran"
            )
             mapping[host_map(env_name)] = tool
         end

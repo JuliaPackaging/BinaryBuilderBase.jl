@@ -2,7 +2,7 @@ using Test
 using Base.BinaryPlatforms
 using BinaryBuilderBase
 using BinaryBuilderBase: abi_agnostic, get_concrete_platform, march, platform_dlext, platform_exeext,
-                         nbits, proc_family
+                         nbits, proc_family, default_host_platform
 
 @testset "Supported Platforms" begin
     all = supported_platforms()
@@ -46,13 +46,13 @@ end
             preferred_gcc_version = v"7",
             preferred_llvm_version = v"9",
         ) == get_concrete_platform(
-            Platform("x86_64", "linux"; libc="musl");
+            default_host_platform;
             compilers = [:c],
             preferred_gcc_version = v"7",
             preferred_llvm_version = v"9",
         )
-    @test BinaryBuilderBase.choose_shards(AnyPlatform()) == BinaryBuilderBase.choose_shards(Platform("x86_64", "linux"; libc="musl"))
-    @test BinaryBuilderBase.aatriplet(AnyPlatform()) == BinaryBuilderBase.aatriplet(Platform("x86_64", "linux"; libc="musl"))
+    @test BinaryBuilderBase.choose_shards(AnyPlatform()) == BinaryBuilderBase.choose_shards(default_host_platform)
+    @test BinaryBuilderBase.aatriplet(AnyPlatform()) == BinaryBuilderBase.aatriplet(default_host_platform)
 end
 
 @testset "Target properties" begin

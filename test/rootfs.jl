@@ -145,16 +145,18 @@ end
     @testset "Compiler wrappers" begin
         platform = Platform("x86_64", "linux"; libc="musl")
         mktempdir() do bin_path
+            platform_bin_dir = joinpath(bin_path, triplet(platform))
             generate_compiler_wrappers!(platform; bin_path = bin_path)
             # Make sure the C++ string ABI is not set
-            @test !occursin("-D_GLIBCXX_USE_CXX11_ABI", read(joinpath(bin_path, "gcc"), String))
+            @test !occursin("-D_GLIBCXX_USE_CXX11_ABI", read(joinpath(platform_bin_dir, "gcc"), String))
             # Make sure gfortran doesn't uses ccache when BinaryBuilderBase.use_ccache is true
-            BinaryBuilderBase.use_ccache && @test !occursin("ccache", read(joinpath(bin_path, "gfortran"), String))
+            BinaryBuilderBase.use_ccache && @test !occursin("ccache", read(joinpath(platform_bin_dir, "gfortran"), String))
         end
         platform = Platform("x86_64", "linux"; libc="musl", cxxstring_abi="cxx03")
         mktempdir() do bin_path
+            platform_bin_dir = joinpath(bin_path, triplet(platform))
             generate_compiler_wrappers!(platform; bin_path = bin_path)
-            gcc = read(joinpath(bin_path, "gcc"), String)
+            gcc = read(joinpath(platform_bin_dir, "gcc"), String)
             # Make sure the C++ string ABI is set as expected
             @test occursin("-D_GLIBCXX_USE_CXX11_ABI=0", gcc)
             # Make sure the unsafe flags check is there
@@ -162,8 +164,9 @@ end
         end
         platform = Platform("x86_64", "linux"; libc="musl", cxxstring_abi="cxx11")
         mktempdir() do bin_path
+            platform_bin_dir = joinpath(bin_path, triplet(platform))
             generate_compiler_wrappers!(platform; bin_path = bin_path, allow_unsafe_flags = true)
-            gcc = read(joinpath(bin_path, "gcc"), String)
+            gcc = read(joinpath(platform_bin_dir, "gcc"), String)
             # Make sure the C++ string ABI is set as expected
             @test occursin("-D_GLIBCXX_USE_CXX11_ABI=1", gcc)
             # Make sure the unsafe flags check is not there in this case
@@ -171,24 +174,15 @@ end
         end
         platform = Platform("x86_64", "freebsd")
         mktempdir() do bin_path
+            platform_bin_dir = joinpath(bin_path, triplet(platform))
             generate_compiler_wrappers!(platform; bin_path = bin_path, compilers = [:c, :rust, :go])
-            clang = read(joinpath(bin_path, "clang"), String)
+            clang = read(joinpath(platform_bin_dir, "clang"), String)
             # Check link flags
             @test occursin("-L/opt/$(triplet(platform))/$(triplet(platform))/lib", clang)
             @test occursin("fuse-ld=$(triplet(platform))", clang)
             # Other compilers
-            @test occursin("GOOS=\"freebsd\"", read(joinpath(bin_path, "go"), String))
-            @test occursin("--target=x86_64-unknown-freebsd", read(joinpath(bin_path, "rustc"), String))
-        end
-        platform      = Platform("x86_64", "linux"; libc="musl", cxxstring_abi="cxx03")
-        host_platform = Platform("x86_64", "linux"; libc="musl", cxxstring_abi="cxx11")
-        mktempdir() do bin_path
-            @test_throws ErrorException generate_compiler_wrappers!(platform; bin_path = bin_path, host_platform = host_platform)
-        end
-        platform      = Platform("x86_64", "linux"; libc="musl")
-        host_platform = Platform("x86_64", "linux"; libc="musl", cxxstring_abi="cxx03")
-        mktempdir() do bin_path
-            @test_throws ErrorException generate_compiler_wrappers!(platform; bin_path = bin_path, host_platform = host_platform)
+            @test occursin("GOOS=\"freebsd\"", read(joinpath(platform_bin_dir, "go"), String))
+            @test occursin("--target=x86_64-unknown-freebsd", read(joinpath(platform_bin_dir, "rustc"), String))
         end
     end
 end

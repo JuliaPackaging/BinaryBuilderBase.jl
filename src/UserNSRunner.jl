@@ -26,6 +26,7 @@ function UserNSRunner(workspace_root::String;
                       extra_env=Dict{String, String}(),
                       verbose::Bool = false,
                       compiler_wrapper_path::String = mktempdir(),
+                      toolchains_path::String = mktempdir(),
                       src_name::AbstractString = "",
                       shards = nothing,
                       kwargs...)
@@ -45,6 +46,10 @@ function UserNSRunner(workspace_root::String;
     # JIT out some compiler wrappers, add it to our mounts
     generate_compiler_wrappers!(platform; bin_path=compiler_wrapper_path, extract_kwargs(kwargs, (:compilers,:allow_unsafe_flags,:lock_microarchitecture))...)
     push!(workspaces, compiler_wrapper_path => "/opt/bin")
+
+    # Generate CMake and Meson files
+    generate_toolchain_files!(platform; toolchains_path=toolchains_path)
+    push!(workspaces, toolchains_path => "/opt/toolchains")
 
     # the workspace_root is always a workspace, and we always mount it first
     insert!(workspaces, 1, workspace_root => "/workspace")
@@ -328,7 +333,7 @@ function probe_unprivileged_containers(;verbose::Bool=false)
 
     function test_sandbox(; verbose=verbose, workspace_tmpdir=false, map_shard=false)
         # Choose and prepare our shards
-        shards = choose_shards(Platform("x86_64", "linux"; libc="musl"))
+        shards = choose_shards(default_host_platform)
         root_shard = first(shards)
         other_shard = last(shards)
 
