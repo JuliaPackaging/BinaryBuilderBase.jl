@@ -150,7 +150,7 @@ function toolchain_file(bt::Meson, p::AbstractPlatform)
     return """
     [binaries]
     c = '/opt/bin/$(target)/$(aatarget)-$(c_compiler(bt))'
-    cpp = '/opt/bin/$(target)/$(aatarget)-$(c_compiler(bt))'
+    cpp = '/opt/bin/$(target)/$(aatarget)-$(cxx_compiler(bt))'
     fortran = '/opt/bin/$(target)/$(aatarget)-$(fortran_compiler(bt))'
     objc = '/opt/bin/$(target)/$(aatarget)-objc'
     ar = '/opt/bin/$(target)/$(aatarget)-ar'
