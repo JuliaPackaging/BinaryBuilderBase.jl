@@ -8,16 +8,16 @@ using Base.BinaryPlatforms: set_compare_strategy!, compare_version_cap
 struct CompilerShard
     # Something like "RootFS", or "GCCBootstrap"
     name::String
-    
+
     # Something like v"7.1.0"
     version::VersionNumber
 
     # Things like Platform("x86_64", "windows"; libgfortran_version=v"3")
     target::Union{Nothing,Platform}
 
-    # Usually `default_host_platform`
+    # Usually `Platform("x86_64", "linux"; libc="musl")`, with the NOTABLE exception of `Rust`
     host::AbstractPlatform
-    
+
     # :unpacked or :squashfs.  Possibly more in the future.
     archive_type::Symbol
 
@@ -146,7 +146,7 @@ function shard_path(cs::CompilerShard)
     if artifacts_dict == nothing
         error("CompilerShard $(artifact_name(cs)) not registered in Artifacts.toml!")
     end
-    
+
     return artifact_path(artifacts_dict["git-tree-sha1"])
 end
 
@@ -335,6 +335,11 @@ function macos_sdk_already_installed()
     artifacts_toml = joinpath(dirname(@__DIR__), "Artifacts.toml")
     macos_artifact_hashes = artifact_hash.(macos_artifact_names, artifacts_toml; platform=default_host_platform)
 
+    # The Rust shards will return `nothing` above (so we filter them out here) since they
+    # are TECHNICALLY `Platform("x86_64", "linux"; libc="glibc")`-hosted.  Whatever. You need to download
+    # one of the `PlatformSupport` shards for this anyway, so we don't really care.
+    macos_artifact_hashes = filter(x -> x != nothing, macos_artifact_hashes)
+
     # Return `true` if _any_ of these artifacts exist on-disk:
     return any(artifact_exists.(macos_artifact_hashes))
 end
@@ -484,7 +489,7 @@ function choose_shards(p::AbstractPlatform;
             ps_build::VersionNumber=v"2020.11.06",
             GCC_builds::Vector{GCCBuild}=available_gcc_builds,
             LLVM_builds::Vector{LLVMBuild}=available_llvm_builds,
-            Rust_build::VersionNumber=v"1.48.0",
+            Rust_build::VersionNumber=v"1.18.3",
             Go_build::VersionNumber=v"1.13",
             archive_type::Symbol = (use_squashfs ? :squashfs : :unpacked),
             bootstrap_list::Vector{Symbol} = bootstrap_list,
@@ -557,12 +562,21 @@ function choose_shards(p::AbstractPlatform;
         end
 
         if :rust in compilers
+            # Our rust shards are technically x86_64-linux-gnu, not x86_64-linux-musl, since rust is broken when hosted on `musl`:
+            Rust_host = Platform("x86_64", "linux"; libc="glibc")
             append!(shards, [
                 find_shard("RustBase", Rust_build, archive_type),
                 find_shard("RustToolchain", Rust_build, archive_type; target=p),
             ])
 
-            if !platforms_match(p, default_host_platform)
+            if !platforms_match(p, Rust_host) && !platforms_match(Rust_host, default_host_platform)
+                push!(shards, find_shard("RustToolchain", Rust_build, archive_type; target=Rust_host))
+
+                # We have to add these as well for access to linkers and whatnot for Rust.  Sigh.
+                push!(shards, find_shard("PlatformSupport", ps_build, archive_type; target=Rust_host))
+                push!(shards, find_shard("GCCBootstrap", GCC_build, archive_type, target=Rust_host))
+            end
+            if !platforms_match(p, host_platform)
                 # In case we need to bootstrap stuff and we bootstrap it for the actual host platform
                 push!(shards, find_shard("RustToolchain", Rust_build, archive_type; target=default_host_platform))
             end
@@ -866,12 +880,17 @@ binaries.
 """
 function download_all_artifacts(; verbose::Bool = false)
     artifacts_toml = joinpath(dirname(@__DIR__), "Artifacts.toml")
-    ensure_all_artifacts_installed(
-        artifacts_toml;
-        include_lazy=true,
-        verbose=verbose,
-        platform=default_host_platform,
-    )
+    # First, download all the "normal" shards, then all the rust shards (this will become
+    # less clunky once Rust actually supports hosting on `musl`)
+    Rust_host = Platform("x86_64", "linux"; libc="glibc")
+    for platform in (default_host_platform, Rust_host)
+        ensure_all_artifacts_installed(
+            artifacts_toml;
+            include_lazy=true,
+            verbose=verbose,
+            platform=default_host_platform
+        )
+    end
 end
 
 _sudo_cmd = nothing
