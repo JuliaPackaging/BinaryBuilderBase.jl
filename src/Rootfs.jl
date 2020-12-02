@@ -484,7 +484,7 @@ function choose_shards(p::AbstractPlatform;
             ps_build::VersionNumber=v"2020.11.06",
             GCC_builds::Vector{GCCBuild}=available_gcc_builds,
             LLVM_builds::Vector{LLVMBuild}=available_llvm_builds,
-            Rust_build::VersionNumber=v"1.48.0",
+            Rust_build::VersionNumber=v"1.43.0",
             Go_build::VersionNumber=v"1.13",
             archive_type::Symbol = (use_squashfs ? :squashfs : :unpacked),
             bootstrap_list::Vector{Symbol} = bootstrap_list,
