@@ -37,10 +37,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - uses: julia-actions/setup-julia@v1
-        with:
-          version: "nightly"
-          arch: x64
+      - name: Setup Julia
+        run: |
+          curl -LsS "https://julialangnightlies.s3.amazonaws.com/bin/linux/x64/1.6/julia-377aa809eb-linux64.tar.gz" | tar -xz
+          echo "${PWD}/julia-377aa809eb/bin" >> ${GITHUB_PATH}
       - uses: julia-actions/julia-buildpkg@latest
       - name: System info
         run: julia --project=. --color=yes -e "using BinaryBuilderBase; BinaryBuilderBase.versioninfo()"
