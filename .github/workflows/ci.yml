@@ -49,3 +49,25 @@ jobs:
         continue-on-error: true
       - uses: julia-actions/julia-uploadcoveralls@v0.1
         continue-on-error: true
+
+  Documentation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: julia-actions/setup-julia@latest
+        with:
+          version: nightly
+      - name: Cache artifacts
+        uses: actions/cache@v2
+        env:
+          cache-name: cache-artifacts
+        with:
+          path: ~/.julia/artifacts
+          key: ${{ runner.os }}-test-${{ env.cache-name }}-${{ hashFiles('**/docs/Project.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-test-${{ env.cache-name }}-
+            ${{ runner.os }}-test-
+            ${{ runner.os }}-
+      - uses: julia-actions/julia-docdeploy@releases/v1
+        env:
+          DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
