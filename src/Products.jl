@@ -73,6 +73,49 @@ that refers to `"/lib/libnettle.so"`, the "directory" would be "/lib", and the
 "libname" would be "libnettle".  Note that a `LibraryProduct` can support
 multiple libnames, as some software projects change the libname based on the
 build configuration.
+
+---
+
+    LibraryProduct(libname, varname::Symbol; dir_paths=String[],
+                                             dont_dlopen=false,
+                                             dlopen_flags=Symbol[])
+
+Declares a `LibraryProduct` that points to a library located within the prefix.
+`libname` specifies the basename of the library, `varname` is the name of the
+variable in the JLL package that can be used to call into the library.  By
+default, the library is searched in the `libdir`, but you can add other
+directories within the prefix to the `dir_paths` keyword argument.  You can
+specify the flags to pass to `dlopen` as a vector of `Symbols` with the
+`dlopen_flags` keyword argument.  If the library should not be dlopen'ed
+automatically by the JLL package, set `dont_dlopen=true`.
+
+For example, if the `libname` is `libnettle`, this would be satisfied by the
+following paths:
+
+* `lib/libnettle.so` or `lib/libnettle.so.6` on Linux and FreeBSD;
+* `lib/libnettle.6.dylib` on macOS;
+* `lib/libnettle-6.dll` on Windows.
+
+Libraries matching the search pattern are rejected if they are not
+`dlopen()`'able.
+
+If you are unsure what value to use for `libname`, you can use
+`Base.BinaryPlatforms.parse_dl_name_version`:
+
+```
+julia> using Base.BinaryPlatforms
+
+julia> parse_dl_name_version("sfml-audio-2.dll", "windows")[1]
+"sfml-audio"
+```
+
+If the library would have different basenames on different operating systems
+(e.g., `libz.so` on Linux and FreeBSD, `libz.dylib` on macOS, and `zlib.dll` on
+Windows), `libname` can be also a vector of `String`s with the different
+alternatives:
+```
+LibraryProduct(["libz", "zlib"], :libz)
+```
 """
 struct LibraryProduct <: Product
     libnames::Vector{String}
@@ -81,22 +124,6 @@ struct LibraryProduct <: Product
     dont_dlopen::Bool
     dlopen_flags::Vector{Symbol}
 
-    """
-        LibraryProduct(libnames, varname::Symbol)
-
-    Declares a [`LibraryProduct`](@ref) that points to a library located within
-    the `libdir` of the given `Prefix`, with a name containing `libname`.  As an
-    example, given that `libdir(prefix)` is equal to `usr/lib`, and `libname` is
-    equal to `libnettle`, this would be satisfied by the following paths:
-
-        usr/lib/libnettle.so
-        usr/lib/libnettle.so.6
-        usr/lib/libnettle.6.dylib
-        usr/lib/libnettle-6.dll
-
-    Libraries matching the search pattern are rejected if they are not
-    `dlopen()`'able.
-    """
     LibraryProduct(libname::AbstractString, varname, args...; kwargs...) = LibraryProduct([libname], varname, args...; kwargs...)
     LibraryProduct(libnames::Vector{<:AbstractString}, varname::Symbol, dir_path::AbstractString, args...; kwargs...) = LibraryProduct(libnames, varname, [dir_path], args...; kwargs...)
     function LibraryProduct(libnames::Vector{<:AbstractString}, varname::Symbol,
@@ -124,7 +151,9 @@ struct LibraryProduct <: Product
 end
 
 function dlopen_flags_str(p::LibraryProduct)
-    if length(p.dlopen_flags) > 0
+    if p.dont_dlopen
+        return "nothing"
+    elseif length(p.dlopen_flags) > 0
         return join(p.dlopen_flags, " | ")
     else
         # This is the default if no flags are specified
@@ -233,20 +262,21 @@ This implies that for cross-platform builds where a library is provided as a Fra
 on macOS and as a normal library on other platforms, two calls to BinaryBuilder's `build_tarballs`
 are needed: one with the `LibraryProduct` and all non-macOS platforms, and one with the `FrameworkProduct`
 and the `MacOS` platforms.
+
+---
+
+    FrameworkProduct(fwnames, varname::Symbol)
+
+Declares a macOS `FrameworkProduct` that points to a framework located within
+the prefix, with a name containing `fwname` appended with `.framework`.  As an
+example, given that `fwname` is equal to `QtCore`, this would be satisfied by
+the following path:
+
+    lib/QtCore.framework
 """
 struct FrameworkProduct <: Product
     libraryproduct::LibraryProduct
 
-    """
-        FrameworkProduct(fwnames, varname::Symbol)
-
-    Declares a macOS [`FrameworkProduct`](@ref) that points to a framework located within
-    the `libdir` of the given `Prefix`, with a name containing `fwname` appended with `.framework`.  As an
-    example, given that `libdir(prefix)` is equal to `usr/lib`, and `fwname` is
-    equal to `QtCore`, this would be satisfied by the following paths:
-
-        usr/lib/QtCore.framework
-    """
     FrameworkProduct(fwname::AbstractString, varname, args...; kwargs...) = FrameworkProduct([fwname], varname, args...; kwargs...)
     function FrameworkProduct(fwnames::Vector{<:AbstractString}, varname::Symbol,
                             dir_paths::Vector{<:AbstractString}=String[];
@@ -306,18 +336,22 @@ On all platforms, an ExecutableProduct checks for existence of the file.  On
 non-Windows platforms, it will check for the executable bit being set.  On
 Windows platforms, it will check that the file ends with ".exe", (adding it on
 automatically, if it is not already present).
+
+---
+
+    ExecutableProduct(binname, varname::Symbol, dir_path="bin")
+
+Declares an `ExecutableProduct` that points to an executable located within the
+prefix.  `binname` specifies the basename of the executable, `varname` is the
+name of the variable in the JLL package that can be used to call into the
+library.  By default, the library is searched in the `bindir`, but you can
+specify a different directory within the prefix with the `dir_path` argument.
 """
 struct ExecutableProduct <: Product
     binnames::Vector{String}
     variable_name::Symbol
     dir_path::Union{String, Nothing}
 
-    """
-        ExecutableProduct(binnames::Vector{String}, varname::Symbol)
-
-    Declares an `ExecutableProduct` that points to an executable located within
-    the `bindir` of the given `Prefix`, named one of the given `binname`s.
-    """
     function ExecutableProduct(binnames::Vector{String}, varname::Symbol, dir_path::Union{AbstractString, Nothing}=nothing)
         if isdefined(Base, varname)
             error("`$(varname)` is already defined in Base")
