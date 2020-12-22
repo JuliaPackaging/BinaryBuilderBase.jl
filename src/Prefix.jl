@@ -254,7 +254,11 @@ end
 function setup(source::SetupSource{GitSource}, targetdir, verbose)
     mkpath(targetdir)
     # Chop off the `.git` at the end of the source.path
-    repo_dir = joinpath(targetdir, basename(source.path)[1:end-4])
+    name = basename(source.path)
+    if endswith(name, ".git")
+        name = name[1:end-4]
+    end
+    repo_dir = joinpath(targetdir, name)
     if verbose
         # Need to strip the trailing separator
         path = strip_backslash(targetdir)
