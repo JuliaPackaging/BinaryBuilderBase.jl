@@ -585,7 +585,7 @@ function choose_shards(p::AbstractPlatform;
     else
         function find_latest_version(name)
             versions = [cs.version for cs in all_compiler_shards()
-                if cs.name == name && cs.archive_type == archive_type && (something(cs.target, p) == p)
+                if cs.name == name && cs.archive_type == archive_type && platforms_match(something(cs.target, p), p)
             ]
             isempty(versions) && error("No latest shard found for $name")
             return maximum(versions)
