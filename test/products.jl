@@ -2,7 +2,7 @@ using Test
 using Base.BinaryPlatforms
 import Libdl
 using BinaryBuilderBase
-using BinaryBuilderBase: template
+using BinaryBuilderBase: template, dlopen_flags_str
 
 # The platform we're running on
 const platform = HostPlatform()
@@ -190,8 +190,10 @@ end
     fp = FrameworkProduct("libfoo2", :libfoo2; dlopen_flags=[:RTLD_GLOBAL, :RTLD_NOLOAD])
     @test fp.libraryproduct.dlopen_flags == [:RTLD_GLOBAL, :RTLD_NOLOAD]
     for p in (lp, fp)
-        flag_str = BinaryBuilderBase.dlopen_flags_str(p)
+        flag_str = dlopen_flags_str(p)
         @test flag_str == "RTLD_GLOBAL | RTLD_NOLOAD"
         @test Libdl.eval(Meta.parse(flag_str)) == (Libdl.RTLD_NOLOAD | Libdl.RTLD_GLOBAL)
     end
+    lp = LibraryProduct("libfoo2", :libfoo2; dont_dlopen=true)
+    @test dlopen_flags_str(lp) == "nothing"
 end
