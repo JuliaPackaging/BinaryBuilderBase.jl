@@ -3,7 +3,7 @@ module BinaryBuilderBase
 using Pkg, Pkg.Artifacts, Random, Libdl, InteractiveUtils
 using Base.BinaryPlatforms
 using Downloads
-using JSON, OutputCollectors
+using JSON, OutputCollectors, Scratch
 
 # Re-export useful stuff from Base.BinaryPlatforms:
 export HostPlatform, platform_dlext, valid_dl_path, arch, libc,

@@ -128,26 +128,26 @@ Return the path to this shard on-disk; for unpacked shards, this is a directory.
 For squashfs shards, this is a file.  This will not cause a shard to be downloaded.
 """
 function shard_path(cs::CompilerShard)
-    if cs.shard_type == :squashfs
-        mutable_artifacts_toml = joinpath(dirname(@__DIR__), "MutableArtifacts.toml")
-        artifacts_dict = artifact_meta(
-            artifact_name(cs),
-            artifacts_toml;
-            platform=something(cs.target, cs.host),
-        )
+    artifacts_toml = joinpath(dirname(@__DIR__), "Artifacts.toml")
+    name = artifact_name(cs)
+    hash = artifact_hash(
+        name,
+        artifacts_toml;
+        platform=something(cs.target, cs.host)
+    )
+    if hash === nothing
+        error("Compiler shard $(name) not found in $(artifacts_toml)")
     end
 
-    artifacts_toml = joinpath(dirname(@__DIR__), "Artifacts.toml")
-    artifacts_dict = artifact_meta(
-        artifact_name(cs),
-        artifacts_toml;
-        platform=something(cs.target, cs.host),
-    )
-    if artifacts_dict == nothing
-        error("CompilerShard $(artifact_name(cs)) not registered in Artifacts.toml!")
+    # .squashfs files get modified per-UID
+    if cs.shard_type == :squashfs
+        # Store the UID-altered .squashfs in a scratchspace specific to this artifact,
+        # and keyed by the name/UUID.  This allows old scratchspaces to be cleaned up
+        # as artifacts are retired, and also for multiple users to share a scratchspace.
+        return joinpath(@get_scratch!(bytes2hex(hash.bytes)), "$(name)_$(new_uid).squashfs")
     end
     
-    return artifact_path(artifacts_dict["git-tree-sha1"])
+    return artifact_path(hash)
 end
 
 """
@@ -930,34 +930,4 @@ function unmount_shards(ur::Runner; verbose::Bool = false)
         rm(joinpath(ur.workspace_root, ".mounts"))
     catch
     end
-end
-
-
-
-"""
-    create_and_bind_mutable_artifact!(f::Function, art_name::String)
-
-Create (and bind) an artifact to `MutableArtifacts.toml` in one fell swoop.
-Used in things like .squashfs UID remapping and BB wizard state serialization.
-"""
-function create_and_bind_mutable_artifact!(f::Function, art_name::String)
-    mutable_artifacts_toml = joinpath(dirname(@__DIR__), "MutableArtifacts.toml")
-    art_hash = create_artifact(f)
-    bind_artifact!(mutable_artifacts_toml, art_name, art_hash; force=true)
-end
-
-"""
-    get_mutable_artifact_path(art_name::String)
-
-Convenience wrapper to get an artifact bound within `MutableArtifacts.toml`.
-Returns `nothing` if artifact not bound yet.
-"""
-function get_mutable_artifact_path(art_name::String)
-    mutable_artifacts_toml = joinpath(dirname(@__DIR__), "MutableArtifacts.toml")
-    hash = artifact_hash(art_name, mutable_artifacts_toml)
-    if hash === nothing
-        return nothing
-    end
-
-    return artifact_path(hash)
 end
