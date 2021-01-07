@@ -121,30 +121,35 @@ function all_compiler_shards()
     return ALL_SHARDS[]
 end
 
+function shard_source_artifact_hash(cs::CompilerShard)
+    artifacts_toml = joinpath(dirname(@__DIR__), "Artifacts.toml")
+    name = artifact_name(cs)
+    hash = artifact_hash(
+        name,
+        artifacts_toml;
+        platform=cs.host,
+    )
+    if hash === nothing
+        error("Compiler shard $(name) for platform $(triplet(something(cs.target, cs.host))) not found in $(artifacts_toml)")
+    end
+    return hash
+end
+
 """
     shard_path(cs::CompilerShard)
 
 Return the path to this shard on-disk; for unpacked shards, this is a directory.
 For squashfs shards, this is a file.  This will not cause a shard to be downloaded.
 """
-function shard_path(cs::CompilerShard)
-    artifacts_toml = joinpath(dirname(@__DIR__), "Artifacts.toml")
-    name = artifact_name(cs)
-    hash = artifact_hash(
-        name,
-        artifacts_toml;
-        platform=something(cs.target, cs.host)
-    )
-    if hash === nothing
-        error("Compiler shard $(name) not found in $(artifacts_toml)")
-    end
+function shard_path(cs::CompilerShard; uid = getuid())
+    hash = shard_source_artifact_hash(cs)
 
     # .squashfs files get modified per-UID
-    if cs.shard_type == :squashfs
+    if cs.archive_type == :squashfs
         # Store the UID-altered .squashfs in a scratchspace specific to this artifact,
         # and keyed by the name/UUID.  This allows old scratchspaces to be cleaned up
         # as artifacts are retired, and also for multiple users to share a scratchspace.
-        return joinpath(@get_scratch!(bytes2hex(hash.bytes)), "$(name)_$(new_uid).squashfs")
+        return joinpath(@get_scratch!(bytes2hex(hash.bytes)), "$(artifact_name(cs))_$(getuid()).squashfs")
     end
     
     return artifact_path(hash)
