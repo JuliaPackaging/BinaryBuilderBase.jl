@@ -444,22 +444,23 @@ function setup_dependencies(prefix::Prefix, dependencies::Vector{PkgSpec}, platf
             Pkg.Types.PackageSpec(name=p.name, uuid=u, tree_hash=p.tree_hash) for (u, p) in ctx.env.manifest if endswith(p.name, "_jll")
         ]
 
-        # Some JLLs are also standard libraries that may be present in the
-        # manifest because pulled by other stdlibs.  Filter them out if they're
-        # present in the manifest but aren't direct dependencies or dependencies
-        # of other JLLS.
+        # Some JLLs are also standard libraries that may be present in the manifest because
+        # they were pulled by other stdlibs (e.g. through dependence on `Pkg`), not beacuse
+        # they were actually required for this package. Filter them out if they're present
+        # in the manifest but aren't direct dependencies or dependencies of other JLLS.
         manifest = TOML.parsefile(ctx.env.manifest_file)
         dependencies_names = Set(getfield.(dependencies, :name))
-        jlls = collect_jlls(manifest, dependencies_names)
-        for jll in filter(s -> endswith(s, "_jll"), collect(values(Pkg.Types.stdlibs())))
-            if jll ∉ jlls
-                filter!(p -> p.name != jll, installed_jlls)
-            end
-        end
+        jll_direct_deps = collect_jlls(manifest, dependencies_names)
+        filter!(jll -> jll.name ∈ jll_direct_deps, installed_jlls)
 
         # Load their Artifacts.toml files
         for dep in installed_jlls
-            dep_path = Pkg.Operations.source_path(ctx, dep)
+            local dep_path
+            if dep.tree_hash === nothing
+                dep_path = Pkg.Types.stdlib_path(dep.name)
+            else
+                dep_path = Pkg.Operations.find_installed(dep.name, dep.uuid, dep.tree_hash)
+            end
             name = getname(dep)
 
             # Skip dependencies that didn't get installed?
@@ -471,26 +472,25 @@ function setup_dependencies(prefix::Prefix, dependencies::Vector{PkgSpec}, platf
             # Load the Artifacts.toml file
             artifacts_toml = joinpath(dep_path, "Artifacts.toml")
             if !isfile(artifacts_toml)
-                @warn("Dependency $(name) does not have an Artifacts.toml at $(artifacts_toml)!")
-                continue
-            end
-
-            # Get the path to the main artifact
-            artifact_hash = Pkg.Artifacts.artifact_hash(name[1:end-4], artifacts_toml; platform=platform)
-            if artifact_hash === nothing
-                @warn("Dependency $(name) does not have a mapping for artifact $(name[1:end-4]) for platform $(platform)")
-                continue
+                # Try `StdlibArtifacts.toml` instead
+                artifacts_toml = joinpath(dep_path, "StdlibArtifacts.toml")
+                if !isfile(artifacts_toml)
+                    @warn("Dependency $(name) does not have an (Stdlib)Artifacts.toml in $(dep_path)!")
+                    continue
+                end
             end
 
             # If the artifact is available for the given platform, make sure it
-            # is also installed.  It may not be the case for lazy artifacts
+            # is also installed.  It may not be the case for lazy artifacts or stdlibs.
             meta = artifact_meta(name[1:end-4], artifacts_toml; platform=platform)
-            if meta !== nothing
-                ensure_artifact_installed(name[1:end-4], meta, artifacts_toml; platform=platform)
+            if meta === nothing
+                @warn("Dependency $(name) does not have a mapping for artifact $(name[1:end-4]) for platform $(triplet(platform))")
+                continue
             end
+            ensure_artifact_installed(name[1:end-4], meta, artifacts_toml; platform=platform)
 
             # Copy the artifact from the global installation location into this build-specific artifacts collection
-            src_path = Pkg.Artifacts.artifact_path(artifact_hash)
+            src_path = Pkg.Artifacts.artifact_path(Base.SHA1(meta["git-tree-sha1"]))
             dest_path = joinpath(prefix, "artifacts", basename(src_path))
             cp(src_path, dest_path)
 

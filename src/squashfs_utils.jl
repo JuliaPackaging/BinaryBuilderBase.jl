@@ -41,15 +41,15 @@ GIDs to the given `new_uid` (which defaults to the current user's UID).
 function generate_per_uid_squashfs(cs, new_uid = getuid(); verbose::Bool = false)
     # Because the source .squashfs file comes as an immutable artifact, we will create
     # a copy that is based off of the .squashfs artifact, but with rewritten UIDs
-    cache_path = shard_path(cs)
+    cache_path = shard_path(cs; uid=new_uid)
 
     # Regenerate the cache if it doesn't exist.
     if !isfile(cache_path)
+        filename = artifact_name(cs)
         # Grab the progenitor path, downloading it if necessary
-        progenitor_path = joinpath(artifact_path(progenitor_hash), name)
-
+        progenitor_path = joinpath(artifact_path(shard_source_artifact_hash(cs)), filename)
         if !isfile(progenitor_path)
-            error("Compiler shard $(name) missing from disk at $(progenitor_path)")
+            error("Compiler shard $(filename) missing from disk at $(progenitor_path)")
         end
 
         # Copy .squashfs file over to our local directory, make it writable

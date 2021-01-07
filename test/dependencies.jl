@@ -85,8 +85,7 @@ end
             ap = @test_logs setup_dependencies(prefix, getpkg.(dependencies), platform)
             @test "libcurl." * platform_dlext(platform) in readdir(last(libdirs(Prefix(joinpath(dir, "destdir")))))
             @test "curl.h" in readdir(joinpath(dir, "destdir", "include", "curl"))
-            # `LibSSH2_jll` is a dependency of `LibCURL_jll` but it isn't currently automatically installed
-            @test_broken "libssh2." * platform_dlext(platform) in readdir(last(libdirs(Prefix(joinpath(dir, "destdir")))))
+            @test "libssh2." * platform_dlext(platform) in readdir(last(libdirs(Prefix(joinpath(dir, "destdir")))))
 
             # Make sure the directories are emptied by `cleanup_dependencies`
             @test_nowarn cleanup_dependencies(prefix, ap)
@@ -102,7 +101,7 @@ end
                 Dependency("LibOSXUnwind_jll")
             ]
             platform = Platform("i686", "linux"; libc="musl")
-            @test_logs (:warn, r"Dependency LibOSXUnwind_jll does not have a mapping for artifact LibOSXUnwind for platform") begin
+            @test_logs (:warn, r"Dependency LibOSXUnwind_jll does not have a mapping for artifact LibOSXUnwind for platform i686-linux-musl") begin
                 setup_dependencies(prefix, getpkg.(dependencies), platform)
             end
             @test "destdir" ∉ readdir(joinpath(dir))
