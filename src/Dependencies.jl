@@ -113,7 +113,7 @@ end
 # Add JSON serialization of dependencies
 string_or_nothing(x) = isnothing(x) ? x : string(x)
 
-# helper to get the version of a dependency (and no the build_version)
+# helper to get the version of a dependency (and not the build_version)
 version(d::AbstractDependency) = getpkg(d).version
 version(d::Dependency) = d.pkg.version
 
