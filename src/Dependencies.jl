@@ -113,37 +113,43 @@ end
 # Add JSON serialization of dependencies
 string_or_nothing(x) = isnothing(x) ? x : string(x)
 
-# helper to get the version of a dependency (and not the build_version)
-version(d::AbstractDependency) = getpkg(d).version
-version(d::Dependency) = d.pkg.version
+major(v::VersionNumber) = v.major
+minor(v::VersionNumber) = v.minor
+patch(v::VersionNumber) = v.patch
+major(v::Pkg.Types.VersionBound) = v.t[1]
+minor(v::Pkg.Types.VersionBound) = v.t[2]
+patch(v::Pkg.Types.VersionBound) = v.t[3]
+__version(v::VersionNumber) = v
+__version(v::Pkg.Types.VersionSpec) = v.ranges[1].lower
+version(d::AbstractDependency) = __version(getpkg(d).version)
+version(d::Dependency) = __version(d.pkg.version)
 
 for (type, type_descr) in ((Dependency, "dependency"), (BuildDependency, "builddependency"))
     JSON.lower(d::type) = Dict("type" => type_descr,
                                "name" => d.pkg.name,
                                "uuid" => string_or_nothing(d.pkg.uuid),
-                               "version" => JSON.parse(JSON.json(version(d))))
+                               "version-major" => major(version(d)),
+                               "version-minor" => minor(version(d)),
+                               "version-patch" => patch(version(d)))
 end
-
-import Pkg.Types: VersionBound, VersionRange, VersionSpec
-dejson(::Type{VersionBound}, d::Dict{String,Any}) = VersionBound(NTuple{d["n"],Int}(d["t"]))
-dejson(::Type{VersionRange}, d::Dict{String,Any}) = VersionRange(dejson(VersionBound, d["lower"]), dejson(VersionBound, d["upper"]))
-dejson(::Type{VersionSpec}, d::Dict{String,Any}) = VersionSpec([dejson(VersionRange, v) for v in d["ranges"]])
 
 # When deserialiasing the JSON file, the dependencies are in the form of
 # dictionaries.  This function converts the dictionary back to the appropriate
 # AbstractDependency.
 function dependencify(d::Dict)
-    if haskey(d, "uuid") && haskey(d, "version") && haskey(d, "name")
+    if d["type"] == "dependency"
         uuid = isnothing(d["uuid"]) ? d["uuid"] : UUID(d["uuid"])
-        version = dejson(VersionSpec, d["version"])
-        pkg = PackageSpec(; name = d["name"], uuid = uuid, version = version)
-        if d["type"] == "dependency"
-            return Dependency(pkg)
-        elseif d["type"] == "builddependency"
-            return BuildDependency(pkg)
-        end
+        version = VersionNumber(d["version-major"], d["version-minor"], d["version-patch"])
+        version = version == v"0" ? nothing : version
+        return Dependency(PackageSpec(; name = d["name"], uuid = uuid, version = version))
+    elseif d["type"] == "builddependency"
+        uuid = isnothing(d["uuid"]) ? d["uuid"] : UUID(d["uuid"])
+        version = VersionNumber(d["version-major"], d["version-minor"], d["version-patch"])
+        version = version == v"0" ? nothing : version
+        return BuildDependency(PackageSpec(; name = d["name"], uuid = uuid, version = version))
+    else
+        error("Cannot convert to dependency")
     end
-    error("Cannot convert to dependency")
 end
 
 

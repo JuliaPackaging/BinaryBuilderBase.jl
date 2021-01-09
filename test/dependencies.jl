@@ -1,7 +1,5 @@
 using Test
-using Base.BinaryPlatforms
-using Pkg
-using Pkg.Types: VersionSpec
+using Pkg, Base.BinaryPlatforms
 using BinaryBuilderBase
 using BinaryBuilderBase: getname, getpkg, dependencify
 using JSON
@@ -19,19 +17,11 @@ end
 
 @testset "Dependencies" begin
     name = "Foo_jll"
-
     dep = Dependency(PackageSpec(; name = name))
     @test Dependency(name) == dep
     @test getname(dep) == name
+    @test getname(PackageSpec(; name = name)) == name
     @test getpkg(dep) == PackageSpec(; name = name)
-
-    dep_version = Dependency(PackageSpec(; name = name, version = v"1"))
-    @test getname(dep_version) == name
-    @test getpkg(dep_version) == PackageSpec(; name = name, version = v"1")
-
-    dep_vspec = Dependency(PackageSpec(; name = name, version = VersionSpec("1.1-1.4.5")))
-    @test getname(dep_vspec) == name
-    @test getpkg(dep_vspec) == PackageSpec(; name = name, version = VersionSpec("1.1-1.4.5"))
 
     build_version = v"1.2.3"
     dep_buildver = Dependency(PackageSpec(; name = name), build_version)
@@ -43,89 +33,26 @@ end
     build_dep = BuildDependency(PackageSpec(; name = build_name))
     @test BuildDependency(build_name) == build_dep
     @test getname(build_dep) == build_name
+    @test getname(PackageSpec(; name = build_name)) == build_name
     @test getpkg(build_dep) == PackageSpec(; name = build_name)
 
     @testset "JSON (de)serialization" begin
         jdep = JSON.lower(dep)
-        @test jdep == Dict(
-          "type" => "dependency",
-          "name" => name,
-          "uuid" => nothing,
-          "version" => Dict(
-            "ranges" => [
-              Dict(
-                "lower" => Dict("t" => [0,0,0], "n" => 0),
-                "upper" => Dict("t" => [0,0,0], "n" => 0)
-              )
-            ]
-          )
-        )
+        @test jdep == Dict("type" => "dependency", "name" => name, "uuid" => nothing, "version-major" => 0x0, "version-minor" => 0x0, "version-patch" => 0x0)
         @test dependencify(jdep) == dep
 
-        jdep_vspec = JSON.lower(dep_vspec)
-        @test jdep_vspec == Dict(
-          "type" => "dependency",
-          "name" => name,
-          "uuid" => nothing,
-          "version" => Dict(
-            "ranges" => [
-              Dict(
-                "lower" => Dict("t" => [1,1,0], "n" => 2),
-                "upper" => Dict("t" => [1,4,5], "n" => 3)
-              )
-            ]
-          )
-        )
-        @test dependencify(jdep_vspec) == dep_vspec
-
         jdep_buildver = JSON.lower(dep_buildver)
-        @test jdep_buildver == Dict(
-          "type" => "dependency",
-          "name" => name,
-          "uuid" => nothing,
-          "version" => Dict(
-            "ranges" => [
-              Dict(
-                "lower" => Dict("t" => [0,0,0], "n" => 0),
-                "upper" => Dict("t" => [0,0,0], "n" => 0)
-              )
-            ]
-          )
-        )
+        @test jdep_buildver == Dict("type" => "dependency", "name" => name, "uuid" => nothing, "version-major" => 0x0, "version-minor" => 0x0, "version-patch" => 0x0)
         # the build_version is currently not serialized, so the following test fails
         @test_broken dependencify(jdep_buildver) == dep_buildver
 
         jbuild_dep = JSON.lower(build_dep)
-        @test jbuild_dep == Dict(
-          "type" => "builddependency",
-          "name" => build_name,
-          "uuid" => nothing,
-          "version" => Dict(
-            "ranges" => [
-              Dict(
-                "lower" => Dict("t" => [0,0,0], "n" => 0),
-                "upper" => Dict("t" => [0,0,0], "n" => 0)
-              )
-            ]
-          )
-        )
+        @test jbuild_dep == Dict("type" => "builddependency", "name" => build_name, "uuid" => nothing, "version-major" => 0x0, "version-minor" => 0x0, "version-patch" => 0x0)
         @test dependencify(jbuild_dep) == build_dep
 
         full_dep = Dependency(PackageSpec(; name = "Baz_jll", uuid = "00000000-1111-2222-3333-444444444444", version = "3.1.4"))
         jfull_dep = JSON.lower(full_dep)
-        @test jfull_dep == Dict(
-          "type" => "dependency",
-          "name" => "Baz_jll",
-          "uuid" => "00000000-1111-2222-3333-444444444444",
-          "version" => Dict(
-            "ranges" => [
-              Dict(
-                "lower" => Dict("t" => [3,1,4], "n" => 3),
-                "upper" => Dict("t" => [3,1,4], "n" => 3)
-              )
-            ]
-          )
-        )
+        @test jfull_dep == Dict("type" => "dependency", "name" => "Baz_jll", "uuid" => "00000000-1111-2222-3333-444444444444", "version-major" => 0x3, "version-minor" => 0x1, "version-patch" => 0x4)
         @test dependencify(jfull_dep) == full_dep
         @test_throws ErrorException dependencify(Dict("type" => "git"))
     end
