@@ -83,6 +83,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
                      # Flags that are postpended if we think we're linking (e.g. no `-c`)
                      link_only_flags::Vector = String[],
                      allow_ccache::Bool = true,
+                     no_soft_float::Bool = false,
                      hash_args::Bool = false,
                      extra_cmds::String = "",
                      env::Dict{String,String} = Dict{String,String}(),
@@ -155,6 +156,16 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             write(io, raw"""
                       if [[ " ${ARGS[@]} " == *"-march="* ]]; then
                           echo "Cannot force an architecture" >&2
+                          exit 1
+                      fi
+                      """)
+            println(io)
+        end
+
+        if no_soft_float
+            write(io, raw"""
+                      if [[ " ${ARGS[@]} " == *"-mfloat-abi=soft"* ]]; then
+                          echo "${target} platform does not support soft-float ABI" >&2
                           exit 1
                       fi
                       """)
@@ -351,6 +362,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             unsafe_flags=gcc_unsafe_flags!(p),
             hash_args = true,
             allow_ccache,
+            no_soft_float=arch(p) in ("armv6l", "armv7l"),
         )
     end
 
@@ -362,6 +374,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             flags=flags,
             compile_only_flags=clang_compile_flags!(p),
             link_only_flags=clang_link_flags!(p),
+            no_soft_float=arch(p) in ("armv6l", "armv7l"),
         )
     end
 
