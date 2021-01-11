@@ -100,13 +100,13 @@ const ARCHITECTURE_FLAGS = Dict(
         ),
         "armv6l" => Dict(
             # This is the only known armv6l chip that runs Julia, so it's the only one we care about.
-            "arm1176jzfs" => ["-mcpu=arm1176jzf-s", "-mfpu=vfp"],
+            "arm1176jzfs" => ["-mcpu=arm1176jzf-s", "-mfpu=vfp", "-mfloat-abi=hard"],
         ),
         "armv7l" => Dict(
             # Base armv7l architecture, with the most basic of FPU's
-            "armv7l"   => ["-march=armv7-a", "-mtune=generic-armv7-a", "-mfpu=vfpv3"],
+            "armv7l"   => ["-march=armv7-a", "-mtune=generic-armv7-a", "-mfpu=vfpv3", "-mfloat-abi=hard"],
             # armv7l plus NEON and vfpv4, (Raspberry Pi 2B+, RK3328, most boards Elliot has access to)
-            "neonvfpv4" => ["-march=armv7-a", "-mtune=cortex-a53", "-mfpu=neon-vfpv4"],
+            "neonvfpv4" => ["-march=armv7-a", "-mtune=cortex-a53", "-mfpu=neon-vfpv4", "-mfloat-abi=hard"],
         ),
         "aarch64" => Dict(
             # Base armv8.0-a architecture, tune for generic cortex-a57
