@@ -2424,27 +2424,27 @@ os = "linux"
     sha256 = "cf7ca67248d275b98fd683d8937814d78249614adf75367c1d721470bb920354"
     url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2020.11.6/PlatformSupport-x86_64-w64-mingw32.v2020.11.6.x86_64-linux-musl.unpacked.tar.gz"
 
-[["Rootfs.v2020.8.19.x86_64-linux-musl.squashfs"]]
+[["Rootfs.v2021.1.12.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
-git-tree-sha1 = "cbcc11a5e76dee39e31ccea25b28a95572300f48"
+git-tree-sha1 = "03ee77386431674a600aab1b0aea8a8e9baf1951"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["Rootfs.v2020.8.19.x86_64-linux-musl.squashfs".download]]
-    sha256 = "759883747613410b706d704e11a02cf90393de02d20870fe761c8baef075e0aa"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/Rootfs-v2020.8.19/Rootfs.v2020.8.19.x86_64-linux-musl.squashfs.tar.gz"
+    [["Rootfs.v2021.1.12.x86_64-linux-musl.squashfs".download]]
+    sha256 = "febe16de8878397f015a56912c8b25f095b786ff06a57da055307c297f682411"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/Rootfs-v2021.1.12/Rootfs.v2021.1.12.x86_64-linux-musl.squashfs.tar.gz"
 
-[["Rootfs.v2020.8.19.x86_64-linux-musl.unpacked"]]
+[["Rootfs.v2021.1.12.x86_64-linux-musl.unpacked"]]
 arch = "x86_64"
-git-tree-sha1 = "fa69bff63cb89d64f71a88fdd89f7dde38cc8098"
+git-tree-sha1 = "d27730b9941cc8b22dfc8c60a01794a45c3bb33a"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["Rootfs.v2020.8.19.x86_64-linux-musl.unpacked".download]]
-    sha256 = "f4d1a5dcb111ee844a9eaa679540b88cc7395da81d406f1024209cf4bf77df10"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/Rootfs-v2020.8.19/Rootfs.v2020.8.19.x86_64-linux-musl.unpacked.tar.gz"
+    [["Rootfs.v2021.1.12.x86_64-linux-musl.unpacked".download]]
+    sha256 = "8b685aa858e864049c3d95b59a3763b2e6236d7af9f49f357287da4d4802aa47"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/Rootfs-v2021.1.12/Rootfs.v2021.1.12.x86_64-linux-musl.unpacked.tar.gz"
 
 [["RustBase.v1.43.0.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
