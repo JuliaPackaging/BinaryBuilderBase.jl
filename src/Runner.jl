@@ -76,8 +76,11 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
 
     function wrapper(io::IO,
                      prog::String;
-                     # Flags that are always prepended
-                     flags::Vector{String} = String[],
+                     # Flags that are prepended.  These flags are always prepended
+                     # unless the entry is a tuple of the form (token, flag) in which case
+                     # they are added only if `token` is _not_ found in ARGS.
+                     flags::Vector{<:Union{String,Tuple{String,String}}} = String[],
+                     postflags::Vector{<:Union{String,Tuple{String,String}}} = String[],
                      # Flags that are prepended if we think we're compiling (e.g. no `-x assembler`)
                      compile_only_flags::Vector = String[],
                      # Flags that are postpended if we think we're linking (e.g. no `-c`)
@@ -110,14 +113,28 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             """)
         end
 
-        # If we're given always-prepend flags, include them
-        if !isempty(flags)
-            println(io)
-            for cf in flags
-                println(io, "PRE_FLAGS+=( $cf )")
+        function generate_flag_insertions(io::IO, prepost::String, flags::Vector{<:Union{String,Tuple{String,String}}})
+            # If we're given always-prepend flags, include them
+            if !isempty(flags)
+                println(io)
+                for x in flags
+                    if isa(x, Tuple{String,String})
+                        token, flag = x
+                        println(io, """
+                        if [[ \" \${ARGS[@]} \" != *'$(x[1])'* ]]; then
+                            $(prepost)+=( $(x[2]) )
+                        fi
+                        """)
+                    else
+                        println(io, "$(prepost)+=( $x )")
+                    end
+                end
+                println(io)
             end
-            println(io)
         end
+
+        # Generate our `PRE_FLAGS` from `flags`
+        generate_flag_insertions(io, "PRE_FLAGS", flags)
 
         # If we're given compile-only flags, include them only if `-x assembler` is not provided
         if !isempty(compile_only_flags)
@@ -129,6 +146,9 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             println(io, "fi")
             println(io)
         end
+
+        # Generate our `POST_FLAGS` from `postflags`
+        generate_flag_insertions(io, "POST_FLAGS", postflags)
 
         # If we're given link-only flags, include them only if `-c` or other link-disablers are not provided.
         if !isempty(link_only_flags)
@@ -432,20 +452,22 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     end
 
     # Rust stuff
-    function rust_flags!(p::AbstractPlatform, flags::Vector{String} = String[])
-        push!(flags, "--target=$(map_rust_target(p))")
+    function rust_flags!(p::AbstractPlatform, flags::Vector = Union{String,Tuple{String,String}}[])
+        push!(flags, ("--target", "--target=$(map_rust_target(p))"))
+        push!(flags, ("-Clto", "-Clto=on"))
+
         if Sys.islinux(p)
-            push!(flags, "-Clinker=$(aatriplet(p))-gcc")
+            push!(flags, ("-Clinker=", "-Clinker=$(aatriplet(p))-gcc"))
 
             # Add aarch64 workaround https://github.com/rust-lang/rust/issues/46651#issuecomment-402850885
             if arch(p) == "aarch64" && libc(p) == "musl"
-                push!(flags, "-C link-arg=-lgcc")
+                push!(flags, "-Clink-arg=-lgcc")
             end
         elseif Sys.iswindows(p)
             # Rust on i686 mingw32 can't deal with exceptions
             # https://github.com/rust-lang/rust/issues/12859
             if arch(p) == "i686"
-                push!(flags, "-C panic=abort")
+                push!(flags, "-Cpanic=abort")
             end
         end
         return flags
@@ -471,17 +493,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
 
     # Patchelf needs some page-alignment on aarch64 and ppc64le forced into its noggin
     # https://github.com/JuliaPackaging/BinaryBuilder.jl/commit/cce4f8fdbb16425d245ab87a50f60d1a16d04948
-    function patchelf(io::IO, p::AbstractPlatform)
-        extra_cmds = ""
-        if Sys.islinux(p) && arch(p) in ("aarch64", "powerpc64le")
-            extra_cmds = raw"""
-            if [[ " ${ARGS[@]} " != *'--page-size'* ]]; then
-                PRE_FLAGS+=( '--page-size' '65536' )
-            fi
-            """
-        end
-        wrapper(io, "/usr/bin/patchelf"; allow_ccache=false, extra_cmds=extra_cmds)
-    end
+    patchelf(io::IO, p::AbstractPlatform) = wrapper(io, "/usr/bin/patchelf"; allow_ccache=false, flags=[("--page-size", "--page-size 65536")])
 
     # We pass `-D` to all `ar` invocations (unless `-U` is explicitly passed) for reproducibility
     function ar(io::IO, p::AbstractPlatform)
@@ -706,7 +718,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
 end
 
 # Translation mappers for our target names to cargo-compatible ones
-map_rust_arch(p::AbstractPlatform) = replace(arch(p), "armv7l" => "armv7")
+map_rust_arch(p::AbstractPlatform) = replace(replace(arch(p), "armv7l" => "armv7"), "armv6l" => "arm")
 function map_rust_target(p::AbstractPlatform)
     if Sys.isapple(p)
         return "$(map_rust_arch(p))-apple-darwin"
@@ -719,6 +731,9 @@ function map_rust_target(p::AbstractPlatform)
         call_abi_str = something(call_abi(p), "")
         return "$(map_rust_arch(p))-unknown-linux-$(libc_str)$(call_abi_str)"
     end
+end
+function env_rust_target(p::AbstractPlatform)
+    return replace(uppercase(map_rust_target(p)), "-" => "_")
 end
 
 """
@@ -797,6 +812,7 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
 
         # Fancyness!
         "USER" => get(ENV, "USER", "julia"),
+        "HOME" => "/workspace/srcdir",
         # Docker filters out `PS1` so we route around it
         "HIDDEN_PS1" => PS1,
         "VERBOSE" => "$(verbose)",
@@ -895,11 +911,21 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
         "GOARM" => GOARM(platform),
 
         # Rust stuff
+        "CARGO_BUILD_RUSTC" => "$(aatriplet(platform))-rustc",
         "CARGO_BUILD_TARGET" => map_rust_target(platform),
+        "CARGO_TARGET_$(env_rust_target(platform))_LINKER" => "$(aatriplet(platform))-gcc",
+        "CARGO_TARGET_$(env_rust_target(host_platform))_LINKER" => "$(aatriplet(host_platform))-gcc",
+        "CARGO_TARGET_$(env_rust_target(platform))_RUSTC" => "$(aatriplet(platform))-rustc",
+        "CARGO_TARGET_$(env_rust_target(host_platform))_RUSTC" => "$(aatriplet(host_platform))-rustc",
+        # Because `cargo` has a lot of `rustc` internals knowledge, if we don't tell `cargo` itself
+        # that we're gonna do LTO, it passes incompatible args.  So we tell it here.
+        "CARGO_PROFILE_RELEASE_LTO" => "true",
+        "CARGO_PROFILE_DEV_LTO" => "true",
+        "CARGO_PROFILE_TEST_LTO" => "true",
         "CARGO_HOME" => "/opt/$(host_target)",
         "RUSTUP_HOME" => "/opt/$(host_target)",
         # TODO: we'll need a way to parameterize this toolchain number
-        "RUSTUP_TOOLCHAIN" => "1.43.0-$(map_rust_target(host_platform))",
+        "RUSTUP_TOOLCHAIN" => "1.43.1-$(map_rust_target(host_platform))",
 
         # We conditionally add on some compiler flags; we'll cull empty ones at the end
         "USE_CCACHE" => "$(use_ccache)",
