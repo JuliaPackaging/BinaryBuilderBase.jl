@@ -859,7 +859,7 @@ function preferred_cxxstring_abi(platform::AbstractPlatform, shard::CompilerShar
 end
 
 """
-    download_all_shards(; verbose::Bool=false)
+    download_all_artifacts(; verbose::Bool=false)
 
 Helper function to download all shards/helper binaries so that no matter what
 happens, you don't need an internet connection to build your precious, precious
