@@ -39,7 +39,7 @@ jobs:
       - uses: actions/checkout@v2
       - name: Setup Julia
         run: |
-          curl -LsS "https://julialangnightlies.s3.amazonaws.com/bin/linux/x64/1.6/julia-377aa809eb-linux64.tar.gz" | tar -xz
+          curl -LsS "https://github.com/JuliaPackaging/BinaryBuilderBase.jl/releases/download/tmp/julia-377aa809eb-linux64.tar.gz" | tar -xz
           echo "${PWD}/julia-377aa809eb/bin" >> ${GITHUB_PATH}
       - uses: julia-actions/julia-buildpkg@latest
       - name: System info
