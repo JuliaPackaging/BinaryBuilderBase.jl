@@ -560,7 +560,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             return (io, p) -> nothing
         end
 
-        return wrapper(io, "/opt/$(aatriplet(p))/bin/llvm-dsymutil"; allow_ccache=false)
+        return wrapper(io, "/opt/$(aatriplet(p))/bin/dsymutil"; allow_ccache=false)
     end
 
     function readelf(io::IO, p::AbstractPlatform)
@@ -948,7 +948,7 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
         for (env_name, tool) in (
             "CC" => "$(host_bin_dir)/$(host_target)-gcc",
             "CXX" => "$(host_bin_dir)/$(host_target)-g++",
-            "DSYMUTIL" => "llvm-dsymutil",
+            "DSYMUTIL" => "dsymutil",
             "FC" => "$(host_bin_dir)/$(host_target)-gfortran"
            )
             mapping[host_map(env_name)] = tool
