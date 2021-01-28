@@ -1,4 +1,6 @@
-using Downloads, Tar, p7zip_jll, SimpleBufferStream, SHA
+using Base: SHA1
+using Downloads, Tar, p7zip_jll, pigz_jll, SimpleBufferStream, SHA
+using Pkg.Artifacts: artifact_exists, artifact_path, query_override
 
 export unpack, list_tarball_files, verify, download_verify
 
@@ -144,5 +146,39 @@ function download_verify(url, hash, path)
             error("download failed: $(e)")
         end
         verify(path, hash) || error("Verification failed")
+    end
+end
+
+# Copy of `Pkg.Artifacts.archive_artifact` that supports a custom `package` function
+function _archive_artifact(hash::SHA1, tarball_path::String;
+                           honor_overrides::Bool=false,
+                           package::Function=_package_fast)
+
+    if !honor_overrides
+        if query_override(hash) !== nothing
+            error("Will not archive an overridden artifact unless `honor_overrides` is set!")
+        end
+    end
+
+    if !artifact_exists(hash)
+        error("Unable to archive artifact $(bytes2hex(hash.bytes)): does not exist!")
+    end
+
+    # Package it up
+    package(artifact_path(hash), tarball_path)
+
+    # Calculate its sha256 and return that
+    return open(tarball_path, "r") do io
+        return bytes2hex(sha256(io))
+    end
+end
+
+# Copy of `Pkg.PlatformEngines.package` but using `pigz` instead of `7z`
+function _package_fast(src_dir::AbstractString, tarball_path::AbstractString)
+    rm(tarball_path, force=true)
+    pigz() do pigz_exe
+        open(pipeline(`$pigz_exe -9`, stdout=tarball_path), write=true) do io
+            Tar.create(src_dir, io)
+        end
     end
 end
