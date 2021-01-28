@@ -87,7 +87,7 @@ is_runtime_dependency(::BuildDependency) = false
     HostBuildDependency(dep::Union{PackageSpec,String})
 
 Define a binary dependency that is necessary only to build the package.
-Differently from the [`BuildDependency`](@ref), the artifact for the host
+Different from the [`BuildDependency`](@ref), the artifact for the host
 platform will be installed, instead of that for the target platform.
 
 The argument can be either a string with the name of the JLL package or a

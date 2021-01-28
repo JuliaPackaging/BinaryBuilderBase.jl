@@ -351,6 +351,8 @@ function setup_workspace(build_path::AbstractString, sources::Vector,
     metadir = joinpath(workspace, "metadir")
     mkpath.((srcdir, target_destdir, host_destdir, metadir))
     # Create the symlink /workspace/destdir -> /workspace/TARGET_TRIPLET/destdir
+    # Necessary for compatibility with recipes that hardcode `/workspace/destdir` in them,
+    # as well as `.pc` files that contain absolute paths to `/workspace/destdir/...`
     symlink("$(triplet(target_platform))/destdir", joinpath(workspace, "destdir"))
 
     # Setup all sources
