@@ -149,16 +149,11 @@ function download_verify(url, hash, path)
     end
 end
 
-# Copy of `Pkg.Artifacts.archive_artifact` that supports a custom `package` function
+# Stripped down copy of `Pkg.Artifacts.archive_artifact` that supports a custom `package`
+# function
 function _archive_artifact(hash::SHA1, tarball_path::String;
                            honor_overrides::Bool=false,
                            package::Function=_package_fast)
-
-    if !honor_overrides
-        if query_override(hash) !== nothing
-            error("Will not archive an overridden artifact unless `honor_overrides` is set!")
-        end
-    end
 
     if !artifact_exists(hash)
         error("Unable to archive artifact $(bytes2hex(hash.bytes)): does not exist!")
