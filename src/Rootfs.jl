@@ -482,7 +482,7 @@ consists of four shards, but that may not always be the case.
 function choose_shards(p::AbstractPlatform;
             compilers::Vector{Symbol} = [:c],
             rootfs_build::VersionNumber=v"2021.1.12",
-            ps_build::VersionNumber=v"2020.11.06",
+            ps_build::VersionNumber=v"2021.01.28",
             GCC_builds::Vector{GCCBuild}=available_gcc_builds,
             LLVM_builds::Vector{LLVMBuild}=available_llvm_builds,
             Rust_build::VersionNumber=v"1.43.0",
