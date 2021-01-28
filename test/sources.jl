@@ -96,7 +96,7 @@ using JSON
                 mkpath(workspace)
                 prefix = @test_logs(
                     (:info, r"^Copying"), (:info, r"^Copying"), (:info, r"^Copying"), (:info, r"^Copying"), (:info, r"^Cloning"),
-                    setup_workspace(workspace, [sfs, sds_follow, sds_nofollow, sds_target, sgs]; verbose=true)
+                    setup_workspace(workspace, [sfs, sds_follow, sds_nofollow, sds_target, sgs], HostPlatform(); verbose=true)
                 )
                 @test Set(readdir(joinpath(prefix.path, "srcdir"))) == Set(
                     ["ARCHDefs", "file-source.tar.gz", "patches_follow", "patches_nofollow", "ds_unpack_target"]
