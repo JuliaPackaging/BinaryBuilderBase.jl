@@ -300,23 +300,29 @@ so will error out if something goes awry.  Note that this function only does
 something when using a squashfs shard on Linux.  All other combinations of
 shard archive type and platform result in a no-op.
 """
-function unmount(cs::CompilerShard, build_prefix::String; verbose::Bool = false, fail_on_error::Bool = false)
+function unmount(cs::CompilerShard, build_prefix::String; verbose::Bool = false, fail_on_error::Bool = false, tries::Int = 3)
     # Only try to unmount if it's mounted
     if Sys.islinux() && is_mounted(cs, build_prefix)
         mpath = mount_path(cs, build_prefix)
         if verbose
             @debug("Unmounting $(mpath)`")
         end
-        try
-            cmd = `$(sudo_cmd()) umount $(mpath)`
-            run(cmd, verbose ? (devnull, stdout, stderr) : (devnull, devnull, devnull))
+        # Try to unmount a few times
+        for ntry in 1:tries
+            try
+                cmd = `$(sudo_cmd()) umount $(mpath)`
+                run(cmd, verbose ? (devnull, stdout, stderr) : (devnull, devnull, devnull))
 
-            # Remove mountpoint directory
-            rm(mpath; force=true, recursive=false)
-        catch e
-            # By default we don't error out if this unmounting fails
-            if e isa InterruptException || fail_on_error
-                rethrow(e)
+                # Remove mountpoint directory
+                rm(mpath; force=true, recursive=false)
+                break
+            catch e
+                # By default we don't error out if this unmounting fails
+                if e isa InterruptException || fail_on_error
+                    rethrow(e)
+                end
+                @info("Couldn't unmount $(mpath), trying again...")
+                sleep(0.1)
             end
         end
     end
