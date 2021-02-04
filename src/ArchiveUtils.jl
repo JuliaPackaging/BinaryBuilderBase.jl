@@ -151,9 +151,9 @@ end
 
 # Stripped down copy of `Pkg.Artifacts.archive_artifact` that supports a custom `package`
 # function
-function _archive_artifact(hash::SHA1, tarball_path::String;
-                           honor_overrides::Bool=false,
-                           package::Function=_package_fast)
+function archive_artifact(hash::SHA1, tarball_path::String;
+                          honor_overrides::Bool=false,
+                          package::Function=package)
 
     if !artifact_exists(hash)
         error("Unable to archive artifact $(bytes2hex(hash.bytes)): does not exist!")
@@ -168,12 +168,20 @@ function _archive_artifact(hash::SHA1, tarball_path::String;
     end
 end
 
-# Copy of `Pkg.PlatformEngines.package` but using `pigz` instead of `7z`
-function _package_fast(src_dir::AbstractString, tarball_path::AbstractString)
+# An improved version of `Pkg.PlatformEngines.package`
+function package(src_dir::AbstractString, tarball_path::AbstractString;
+                 format::AbstractString="gzip")
     rm(tarball_path, force=true)
-    pigz() do pigz_exe
-        open(pipeline(`$pigz_exe -9`, stdout=tarball_path), write=true) do io
-            Tar.create(src_dir, io)
-        end
+
+    # Note: For compressing gzip files we use pigz since it uses threading where as p7zip
+    # does not.
+    compress_cmd = if format == "gzip"
+        pipeline(`$(pigz()) -9`, stdout=tarball_path)
+    else
+        pipeline(`$(p7zip()) a -si -t$format -mx9 $tarball_path`, stdout=devnull)
+    end
+
+    open(compress_cmd, write=true) do io
+        Tar.create(src_dir, io)
     end
 end
