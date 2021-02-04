@@ -1,16 +1,24 @@
 [["GCCBootstrap-aarch64-apple-darwin20.v11.0.0-iains.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
-git-tree-sha1 = "6dda72b11a42c7713dd342a769cc7f8ec320019b"
+git-tree-sha1 = "5ef3969b802579d97f4f6f3049da5d268a6cd6b9"
 lazy = true
 libc = "musl"
 os = "linux"
 
+    [["GCCBootstrap-aarch64-apple-darwin20.v11.0.0-iains.x86_64-linux-musl.squashfs".download]]
+    sha256 = "f36167b489f9a5598d9aab3ed9657e7f3036878b98f35fd9be2353a6beaf49f7"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v11.0.0-iains/GCCBootstrap-aarch64-apple-darwin20.v11.0.0-iains.x86_64-linux-musl.squashfs.tar.gz"
+
 [["GCCBootstrap-aarch64-apple-darwin20.v11.0.0-iains.x86_64-linux-musl.unpacked"]]
 arch = "x86_64"
-git-tree-sha1 = "d23467bcfde07b6c362c8d08ad29a5a5e7793465"
+git-tree-sha1 = "fbb170fa64a06b66dd9a16aaa21bf12848042d9a"
 lazy = true
 libc = "musl"
 os = "linux"
+
+    [["GCCBootstrap-aarch64-apple-darwin20.v11.0.0-iains.x86_64-linux-musl.unpacked".download]]
+    sha256 = "e0d112457ef4543908c36c13c55b1d20d75f50380e071b5290e7c6b51855694b"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v11.0.0-iains/GCCBootstrap-aarch64-apple-darwin20.v11.0.0-iains.x86_64-linux-musl.unpacked.tar.gz"
 
 [["GCCBootstrap-aarch64-linux-gnu.v10.2.0.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
