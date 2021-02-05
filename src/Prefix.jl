@@ -173,7 +173,7 @@ function package(prefix::Prefix,
         @info("Tree hash of contents of $(basename(out_path)): $(tree_hash)")
     end
 
-    tarball_hash = _archive_artifact(tree_hash, out_path; honor_overrides=false)
+    tarball_hash = archive_artifact(tree_hash, out_path; honor_overrides=false)
     if verbose
         @info("SHA256 of $(basename(out_path)): $(tarball_hash)")
     end

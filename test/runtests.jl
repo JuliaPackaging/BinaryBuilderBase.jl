@@ -1,5 +1,6 @@
 # Run all our tests
 include("compat.jl")
+include("archive_utils.jl")
 include("dependencies.jl")
 include("platforms.jl")
 include("prefix.jl")
