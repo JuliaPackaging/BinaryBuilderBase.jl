@@ -2044,6 +2044,28 @@ os = "linux"
     sha256 = "b8488f009c117eb7135b2ac139009836518587aacea772eba83271c794afa420"
     url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/Go-v1.13.0+0/Go.v1.13.0.x86_64-linux-musl.unpacked.tar.gz"
 
+[["LLVMBootstrap.v11.0.1.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "5ab848b00d11e579786ffcca46f2ab0173e30d48"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["LLVMBootstrap.v11.0.1.x86_64-linux-musl.squashfs".download]]
+    sha256 = "b33850954f65d988278b2a81d561bd3fdaa2c8e7bb08fcce553df1fc27cc9f8e"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/LLVMBootstrap-v11.0.1/LLVMBootstrap.v11.0.1.x86_64-linux-musl.squashfs.tar.gz"
+
+[["LLVMBootstrap.v11.0.1.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "0dbbe23941529c027bea16a585cb971f26ac058c"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["LLVMBootstrap.v11.0.1.x86_64-linux-musl.unpacked".download]]
+    sha256 = "fc9a3d15aca56d332cfa3caeba1a7bd6482cf1a82ef55ba53419a976c6a4e9e3"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/LLVMBootstrap-v11.0.1/LLVMBootstrap.v11.0.1.x86_64-linux-musl.unpacked.tar.gz"
+
 [["LLVMBootstrap.v6.0.1.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
 git-tree-sha1 = "474b55ee699607660a7375f4e38afc9a76583c41"
