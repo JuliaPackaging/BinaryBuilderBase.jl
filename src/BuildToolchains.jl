@@ -29,7 +29,7 @@ function cmake_os(p::AbstractPlatform)
     end
 end
 
-function toolchain_file(bt::CMake, p::AbstractPlatform)
+function toolchain_file(bt::CMake, p::AbstractPlatform; is_host::Bool=false)
     target = triplet(p)
     aatarget = aatriplet(p)
 
@@ -71,9 +71,14 @@ function toolchain_file(bt::CMake, p::AbstractPlatform)
         endif()
         """
     else
+        if is_host
+            system_name_var = "HOST_SYSTEM_NAME"
+        else
+            system_name_var = "SYSTEM_NAME"
+        end
         return """
         # CMake toolchain file for $(c_compiler(bt)) running on $(target)
-        set(CMAKE_SYSTEM_NAME $(cmake_os(p)))
+        set($(system_name_var) $(cmake_os(p)))
         set(CMAKE_SYSTEM_PROCESSOR $(cmake_arch(p)))
 
         set(CMAKE_SYSROOT /opt/$(aatarget)/$(aatarget)/sys-root/)
@@ -195,8 +200,8 @@ function generate_toolchain_files!(platform::AbstractPlatform;
         dir = joinpath(toolchains_path, triplet(p))
         mkpath(dir)
 
-        write(joinpath(dir, "$(aatriplet(p))_clang.cmake"), toolchain_file(CMake{:clang}(), p))
-        write(joinpath(dir, "$(aatriplet(p))_gcc.cmake"), toolchain_file(CMake{:gcc}(), p))
+        write(joinpath(dir, "$(aatriplet(p))_clang.cmake"), toolchain_file(CMake{:clang}(), p; is_host=platforms_match(p, host_platform)))
+        write(joinpath(dir, "$(aatriplet(p))_gcc.cmake"), toolchain_file(CMake{:gcc}(), p; is_host=platforms_match(p, host_platform)))
         write(joinpath(dir, "$(aatriplet(p))_clang.meson"), toolchain_file(Meson{:clang}(), p))
         write(joinpath(dir, "$(aatriplet(p))_gcc.meson"), toolchain_file(Meson{:gcc}(), p))
 
