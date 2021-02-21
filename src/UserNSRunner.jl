@@ -62,6 +62,19 @@ function UserNSRunner(workspace_root::String;
         push!(workspaces, ccache_dir() => "/root/.ccache")
     end
 
+    # If we are on a system that uses `/etc/resolv.conf` as a resolver
+    # configuration file (mainly *BSD and Linux), check if a nameserver is
+    # specified and if yes, mount the existing `/etc/resolv.conf` to make use
+    # of system-specific nameserver settings
+    if (Sys.isbsd() || Sys.islinux()) && isfile("/etc/resolv.conf")
+        for line in eachline("/etc/resolv.conf")
+            if startswith(line, "nameserver")
+              push!(workspaces, "/etc/resolv.conf" => "/etc/resolv.conf")
+              break
+            end
+        end
+    end
+
     if isnothing(shards)
         # Choose the shards we're going to mount
         shards = choose_shards(platform; extract_kwargs(kwargs, (:preferred_gcc_version,:preferred_llvm_version,:bootstrap_list,:compilers))...)
