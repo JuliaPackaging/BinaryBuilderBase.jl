@@ -67,12 +67,9 @@ function UserNSRunner(workspace_root::String;
     # specified and if yes, mount the existing `/etc/resolv.conf` to make use
     # of system-specific nameserver settings
     if (Sys.isbsd() || Sys.islinux()) && isfile("/etc/resolv.conf")
-        for line in eachline("/etc/resolv.conf")
-            if startswith(line, "nameserver")
-              push!(workspaces, "/etc/resolv.conf" => "/etc/resolv.conf")
-              break
-            end
-        end
+      if any(startswith(line, "nameserver") for line in eachline("/etc/resolv.conf"))
+        push!(workspaces, "/etc/resolv.conf" => "/etc/resolv.conf")
+      end
     end
 
     if isnothing(shards)
