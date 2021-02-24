@@ -67,14 +67,14 @@ function UserNSRunner(workspace_root::String;
     # specified and if yes, mount the existing `/etc/resolv.conf` to make use
     # of system-specific nameserver settings
     if (Sys.isbsd() || Sys.islinux()) && isfile("/etc/resolv.conf")
-      if any(startswith(line, "nameserver") for line in eachline("/etc/resolv.conf"))
-        # We copy the contents of `/etc/resolv.conf` to a temporary file and mount that one,
-        # such that `/etc/resolv.conf` is editable inside the container
-        tmppath, tmpio = mktemp()
-        write(tmpio, read("/etc/resolv.conf", String))
-        flush(tmpio) # required as otherwise `tmppath` remains empty
-        push!(workspaces, tmppath => "/etc/resolv.conf")
-      end
+        if any(startswith(line, "nameserver") for line in eachline("/etc/resolv.conf"))
+            # We copy the contents of `/etc/resolv.conf` to a temporary file and mount that one,
+            # such that `/etc/resolv.conf` is editable inside the container
+            tmppath, tmpio = mktemp()
+            write(tmpio, read("/etc/resolv.conf", String))
+            flush(tmpio) # required as otherwise `tmppath` remains empty
+            push!(workspaces, tmppath => "/etc/resolv.conf")
+        end
     end
 
     if isnothing(shards)
