@@ -333,7 +333,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
 
     function gcc_compile_flags!(p::AbstractPlatform, flags::Vector{String} = String[])
         if lock_microarchitecture
-            append!(flags, get_march_flags(arch(p), march(p), "clang"))
+            append!(flags, get_march_flags(arch(p), march(p), "gcc"))
         end
         return flags
     end
