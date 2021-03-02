@@ -928,8 +928,8 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
         "LLVM_HOST_TARGET" => host_target,
 
         # Let the user parameterize their scripts for toolchain locations
-        "CMAKE_HOST_TOOLCHAIN" => "/opt/toolchains/$(triplet(host_platform))/$(host_target).cmake",
-        "CMAKE_TARGET_TOOLCHAIN" => "/opt/toolchains/$(triplet(platform))/$(target).cmake",
+        "CMAKE_HOST_TOOLCHAIN" => "/opt/toolchains/$(triplet(host_platform))/host_$(host_target).cmake",
+        "CMAKE_TARGET_TOOLCHAIN" => "/opt/toolchains/$(triplet(platform))/target_$(target).cmake",
         "MESON_HOST_TOOLCHAIN" => "/opt/toolchains/$(triplet(host_platform))/$(host_target).meson",
         "MESON_TARGET_TOOLCHAIN" => "/opt/toolchains/$(triplet(platform))/$(target).meson",
 
