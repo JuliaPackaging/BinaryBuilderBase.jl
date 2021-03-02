@@ -162,7 +162,12 @@ function download_source(source::GitSource; verbose::Bool = false, downloads_dir
         @info "Cached repository found in $(src_path)"
         # If we didn't just mercilessly obliterate the cached git repo, use it!
         LibGit2.with(LibGit2.GitRepo(src_path)) do repo
-            LibGit2.fetch(repo)
+            # Only bother to fetch the remote repository if it doesn't already have
+            # the hash we want to build within it; this is not only faster, it avoids
+            # race conditions when we have multiple builders on the same machine.
+            if !LibGit2.iscommit(source.hash, repo)
+                LibGit2.fetch(repo)
+            end
         end
     else
         @info "Cloning $(source.url) to $(src_path)..."
