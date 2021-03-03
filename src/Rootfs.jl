@@ -749,26 +749,28 @@ as specified by the `ARCHITECTURE_FLAGS` mapping.  If the given `Platform` alrea
 julia> using BinaryBuilderBase
 
 julia> expand_microarchitectures(Platform("x86_64", "freebsd"))
-4-element Array{Platform,1}:
- ExtendedPlatform(Platform("x86_64", "freebsd"); march="avx")
- ExtendedPlatform(Platform("x86_64", "freebsd"); march="avx2")
- ExtendedPlatform(Platform("x86_64", "freebsd"); march="avx512")
- ExtendedPlatform(Platform("x86_64", "freebsd"); march="x86_64")
+4-element Vector{Platform}:
+ FreeBSD x86_64 {march=x86_64}
+ FreeBSD x86_64 {march=avx}
+ FreeBSD x86_64 {march=avx2}
+ FreeBSD x86_64 {march=avx512}
 
-julia> expand_microarchitectures(Platform("armv7l", "linux")
-3-element Array{Platform,1}:
- ExtendedPlatform(Linux(:armv7l, libc=:glibc, call_abi=:eabihf); march="armv7l")
- ExtendedPlatform(Linux(:armv7l, libc=:glibc, call_abi=:eabihf); march="neonvfpv4")
+julia> expand_microarchitectures(Platform("armv7l", "linux"))
+2-element Vector{Platform}:
+ Linux armv7l {call_abi=eabihf, libc=glibc, march=armv7l}
+ Linux armv7l {call_abi=eabihf, libc=glibc, march=neonvfpv4}
 
-julia> expand_microarchitectures(Platform("aarch64", "linux")
-3-element Array{Platform,1}:
- ExtendedPlatform(Platform("aarch64", "linux"; libc="glibc"); march="armv8")
- ExtendedPlatform(Platform("aarch64", "linux"; libc="glibc"); march="carmel")
- ExtendedPlatform(Platform("aarch64", "linux"; libc="glibc"); march="thunderx2")
+julia> expand_microarchitectures(Platform("aarch64", "linux"))
+4-element Vector{Platform}:
+ Linux aarch64 {libc=glibc, march=armv8_0}
+ Linux aarch64 {libc=glibc, march=armv8_4_crypto_sve}
+ Linux aarch64 {libc=glibc, march=armv8_2_crypto}
+ Linux aarch64 {libc=glibc, march=armv8_1}
 
-julia> expand_microarchitectures(Platform("i686", "windows")
-1-element Array{Windows,1}:
- Platform("i686", "windows")
+julia> expand_microarchitectures(Platform("i686", "windows"))
+2-element Vector{Platform}:
+ Windows i686 {march=pentium4}
+ Windows i686 {march=prescott}
 ```
 """
 function expand_microarchitectures(platform::AbstractPlatform)
@@ -793,19 +795,21 @@ Expand all platforms in the given vector with the supported microarchitectures.
 ```jldoctest
 julia> using BinaryBuilderBase
 
-julia> expand_microarchitectures(filter!(p -> p isa Linux && libc(p) == :glibc, supported_platforms()))
-12-element Array{Platform,1}:
- Platform("i686", "linux"; libc="glibc")
- ExtendedPlatform(Platform("x86_64", "linux"; libc="glibc"); march="avx")
- ExtendedPlatform(Platform("x86_64", "linux"; libc="glibc"); march="avx2")
- ExtendedPlatform(Platform("x86_64", "linux"; libc="glibc"); march="avx512")
- ExtendedPlatform(Platform("x86_64", "linux"; libc="glibc"); march="x86_64")
- ExtendedPlatform(Platform("aarch64", "linux"; libc="glibc"); march="armv8")
- ExtendedPlatform(Platform("aarch64", "linux"; libc="glibc"); march="carmel")
- ExtendedPlatform(Platform("aarch64", "linux"; libc="glibc"); march="thunderx2")
- ExtendedPlatform(Linux(:armv7l, libc=:glibc, call_abi=:eabihf); march="armv7l")
- ExtendedPlatform(Linux(:armv7l, libc=:glibc, call_abi=:eabihf); march="neonvfpv4")
- Platform("powerpc64le", "linux"; libc="glibc")
+julia> expand_microarchitectures(filter!(p -> Sys.islinux(p) && libc(p) == "glibc", supported_platforms()))
+13-element Vector{Platform}:
+ Linux i686 {libc=glibc, march=pentium4}
+ Linux i686 {libc=glibc, march=prescott}
+ Linux x86_64 {libc=glibc, march=x86_64}
+ Linux x86_64 {libc=glibc, march=avx}
+ Linux x86_64 {libc=glibc, march=avx2}
+ Linux x86_64 {libc=glibc, march=avx512}
+ Linux aarch64 {libc=glibc, march=armv8_0}
+ Linux aarch64 {libc=glibc, march=armv8_4_crypto_sve}
+ Linux aarch64 {libc=glibc, march=armv8_2_crypto}
+ Linux aarch64 {libc=glibc, march=armv8_1}
+ Linux armv7l {call_abi=eabihf, libc=glibc, march=armv7l}
+ Linux armv7l {call_abi=eabihf, libc=glibc, march=neonvfpv4}
+ Linux powerpc64le {libc=glibc, march=power8}
 ```
 """
 expand_microarchitectures(ps::Vector{<:AbstractPlatform}) = collect(Iterators.flatten(expand_microarchitectures.(ps)))
