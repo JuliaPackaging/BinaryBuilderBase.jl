@@ -15,6 +15,7 @@ env:
 jobs:
   test:
     name: Julia nightly - x64 - runner ${{ matrix.runner }} - SquashFS ${{ matrix.squashfs }}
+    timeout-minutes: 30
     runs-on: ubuntu-latest
     env:
       BINARYBUILDER_RUNNER: ${{ matrix.runner }}
@@ -51,6 +52,7 @@ jobs:
         continue-on-error: true
 
   Documentation:
+    timeout-minutes: 30
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
