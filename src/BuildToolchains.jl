@@ -29,9 +29,20 @@ function cmake_os(p::AbstractPlatform)
     end
 end
 
-function toolchain_file(bt::CMake, p::AbstractPlatform)
+function toolchain_file(bt::CMake, p::AbstractPlatform; is_host::Bool=false)
     target = triplet(p)
     aatarget = aatriplet(p)
+
+    # CMake uses the setting of `HOST_SYSTEM_NAME` and `SYSTEM_NAME` to decide
+    # whether the current build is a cross-compilation or not:
+    # <https://cmake.org/cmake/help/latest/variable/CMAKE_CROSSCOMPILING.html>.
+    # We want to have the host toolchain always setting `HOST_SYSTEM_NAME`, and
+    # the target toolchain always setting `SYSTEM_NAME`.
+    system_name_var = if is_host
+        "HOST_SYSTEM_NAME"
+    else
+        "SYSTEM_NAME"
+    end
 
     if Sys.isapple(p)
         darwin_ver = something(os_version(p), v"14.5.0")
@@ -39,7 +50,7 @@ function toolchain_file(bt::CMake, p::AbstractPlatform)
         min_ver = darwin_ver.minor
         return """
         # CMake toolchain file for $(c_compiler(bt)) running on $(target)
-        set(CMAKE_SYSTEM_NAME $(cmake_os(p)))
+        set($(system_name_var) $(cmake_os(p)))
         set(CMAKE_SYSTEM_PROCESSOR $(cmake_arch(p)))
         set(CMAKE_SYSTEM_VERSION $(maj_ver).$(min_ver))
         set(DARWIN_MAJOR_VERSION $(maj_ver))
@@ -73,7 +84,7 @@ function toolchain_file(bt::CMake, p::AbstractPlatform)
     else
         return """
         # CMake toolchain file for $(c_compiler(bt)) running on $(target)
-        set(CMAKE_SYSTEM_NAME $(cmake_os(p)))
+        set($(system_name_var) $(cmake_os(p)))
         set(CMAKE_SYSTEM_PROCESSOR $(cmake_arch(p)))
 
         set(CMAKE_SYSROOT /opt/$(aatarget)/$(aatarget)/sys-root/)
@@ -195,17 +206,29 @@ function generate_toolchain_files!(platform::AbstractPlatform;
         dir = joinpath(toolchains_path, triplet(p))
         mkpath(dir)
 
-        write(joinpath(dir, "$(aatriplet(p))_clang.cmake"), toolchain_file(CMake{:clang}(), p))
-        write(joinpath(dir, "$(aatriplet(p))_gcc.cmake"), toolchain_file(CMake{:gcc}(), p))
+        for compiler in (:clang, :gcc)
+            # Target CMake toolchain
+            if platforms_match(p, platform)
+                write(joinpath(dir, "target_$(aatriplet(p))_$(compiler).cmake"), toolchain_file(CMake{compiler}(), p; is_host=false))
+            end
+            # Host CMake toolchain
+            if platforms_match(p, host_platform)
+                write(joinpath(dir, "host_$(aatriplet(p))_$(compiler).cmake"), toolchain_file(CMake{compiler}(), p; is_host=true))
+            end
+        end
         write(joinpath(dir, "$(aatriplet(p))_clang.meson"), toolchain_file(Meson{:clang}(), p))
         write(joinpath(dir, "$(aatriplet(p))_gcc.meson"), toolchain_file(Meson{:gcc}(), p))
 
+        symlink_if_exists(target, link) = ispath(joinpath(dir, target)) && symlink(target, link)
+
         # On FreeBSD and MacOS we actually want to default to clang, otherwise gcc
         if Sys.isbsd(p)
-            symlink("$(aatriplet(p))_clang.cmake", joinpath(dir, "$(aatriplet(p)).cmake"))
+            symlink_if_exists("host_$(aatriplet(p))_clang.cmake", joinpath(dir, "host_$(aatriplet(p)).cmake"))
+            symlink_if_exists("target_$(aatriplet(p))_clang.cmake", joinpath(dir, "target_$(aatriplet(p)).cmake"))
             symlink("$(aatriplet(p))_clang.meson", joinpath(dir, "$(aatriplet(p)).meson"))
         else
-            symlink("$(aatriplet(p))_gcc.cmake", joinpath(dir, "$(aatriplet(p)).cmake"))
+            symlink_if_exists("host_$(aatriplet(p))_gcc.cmake", joinpath(dir, "host_$(aatriplet(p)).cmake"))
+            symlink_if_exists("target_$(aatriplet(p))_gcc.cmake", joinpath(dir, "target_$(aatriplet(p)).cmake"))
             symlink("$(aatriplet(p))_gcc.meson", joinpath(dir, "$(aatriplet(p)).meson"))
         end
     end
