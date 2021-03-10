@@ -39,9 +39,9 @@ function toolchain_file(bt::CMake, p::AbstractPlatform; is_host::Bool=false)
     # We want to have the host toolchain always setting `HOST_SYSTEM_NAME`, and
     # the target toolchain always setting `SYSTEM_NAME`.
     system_name_var = if is_host
-        "HOST_SYSTEM_NAME"
+        "CMAKE_HOST_SYSTEM_NAME"
     else
-        "SYSTEM_NAME"
+        "CMAKE_SYSTEM_NAME"
     end
 
     if Sys.isapple(p)
