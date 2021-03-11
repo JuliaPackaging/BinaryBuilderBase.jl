@@ -26,12 +26,24 @@ end
     @test getname(dep) == name
     @test getname(PackageSpec(; name = name)) == name
     @test getpkg(dep) == PackageSpec(; name = name)
+    @test getcompat(dep) == ""
 
     build_version = v"1.2.3"
     dep_buildver = Dependency(PackageSpec(; name = name), build_version)
     @test Dependency(name, build_version) == dep_buildver
     @test getname(dep_buildver) == name
     @test getpkg(dep_buildver) == PackageSpec(; name = name, version = build_version)
+    @test getcompat(dep_buildver) == ""
+
+    # the same but with compat info
+    dep_buildver = Dependency(PackageSpec(; name = name), build_version, compat = "~1.2")
+    @test Dependency(name, build_version) == dep_buildver
+    @test getname(dep_buildver) == name
+    @test getpkg(dep_buildver) == PackageSpec(; name = name, version = build_version)
+    @test getcompat(dep_buildver) == "~1.2"
+
+    # if build_version and compat don't match, an error should be thrown
+    @test_throws ArgumentError Dependency(PackageSpec(; name = name), build_version, compat = "2.0")
 
     build_name = "Foo_headers_jll"
     build_dep = BuildDependency(PackageSpec(; name = build_name))
@@ -57,25 +69,25 @@ end
 
     @testset "JSON (de)serialization" begin
         jdep = JSON.lower(dep)
-        @test jdep == Dict("type" => "dependency", "name" => name, "uuid" => nothing, "version-major" => 0x0, "version-minor" => 0x0, "version-patch" => 0x0)
+        @test jdep == Dict("type" => "dependency", "name" => name, "uuid" => nothing, "compat" => "", "version-major" => 0x0, "version-minor" => 0x0, "version-patch" => 0x0)
         @test dependencify(jdep) == dep
 
         jdep_buildver = JSON.lower(dep_buildver)
-        @test jdep_buildver == Dict("type" => "dependency", "name" => name, "uuid" => nothing, "version-major" => 0x0, "version-minor" => 0x0, "version-patch" => 0x0)
+        @test jdep_buildver == Dict("type" => "dependency", "name" => name, "uuid" => nothing, "compat" => "~1.2", "version-major" => 0x0, "version-minor" => 0x0, "version-patch" => 0x0)
         # the build_version is currently not serialized, so the following test fails
         @test_broken dependencify(jdep_buildver) == dep_buildver
 
         jbuild_dep = JSON.lower(build_dep)
-        @test jbuild_dep == Dict("type" => "builddependency", "name" => build_name, "uuid" => nothing, "version-major" => 0x0, "version-minor" => 0x0, "version-patch" => 0x0)
+        @test jbuild_dep == Dict("type" => "builddependency", "name" => build_name, "uuid" => nothing, "compat" => "", "version-major" => 0x0, "version-minor" => 0x0, "version-patch" => 0x0)
         @test dependencify(jbuild_dep) == build_dep
 
         jhost_dep = JSON.lower(host_dep)
-        @test jhost_dep == Dict("type" => "hostdependency", "name" => host_name, "uuid" => nothing, "version-major" => 0x0, "version-minor" => 0x0, "version-patch" => 0x0)
+        @test jhost_dep == Dict("type" => "hostdependency", "name" => host_name, "uuid" => nothing, "compat" => "", "version-major" => 0x0, "version-minor" => 0x0, "version-patch" => 0x0)
         @test dependencify(jhost_dep) == host_dep
 
         full_dep = Dependency(PackageSpec(; name = "Baz_jll", uuid = "00000000-1111-2222-3333-444444444444", version = "3.1.4"))
         jfull_dep = JSON.lower(full_dep)
-        @test jfull_dep == Dict("type" => "dependency", "name" => "Baz_jll", "uuid" => "00000000-1111-2222-3333-444444444444", "version-major" => 0x3, "version-minor" => 0x1, "version-patch" => 0x4)
+        @test jfull_dep == Dict("type" => "dependency", "name" => "Baz_jll", "uuid" => "00000000-1111-2222-3333-444444444444", "compat" => "", "version-major" => 0x3, "version-minor" => 0x1, "version-patch" => 0x4)
         @test dependencify(jfull_dep) == full_dep
         @test_throws ErrorException dependencify(Dict("type" => "git"))
     end

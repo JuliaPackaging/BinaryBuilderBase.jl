@@ -57,13 +57,33 @@ is_runtime_dependency
 Define a binary dependency that is necessary to build the package and load the
 generated JLL package.  The argument can be either a string with the name of the
 JLL package or a `Pkg.PackageSpec`.
+
+The optional keyword argument `build_version` can be used to specify the version
+of the dependency to be installed when building it.
+
+The optional keyword argument `compat` can be used to specify a string for
+use in the `Project.toml` of the generated Julia package.
 """
 struct Dependency <: AbstractDependency
     pkg::PkgSpec
     build_version::Union{VersionNumber,Nothing}
-    Dependency(pkg::PkgSpec, build_version = nothing) = new(pkg, build_version)
+    compat::String  # semver string for use in Project.toml of the JLL
+    function Dependency(pkg::PkgSpec, build_version = nothing; compat::String = "")
+        if length(compat) > 0
+            spec = Pkg.Types.semver_spec(compat) # verify compat is valid
+            if build_version !== nothing && !(build_version in spec)
+                throw(ArgumentError("build_version and compat for $(pkg) are incompatible"))
+            end
+            if pkg.version != Pkg.Types.VersionSpec("*") && !(pkg.version in spec)
+                throw(ArgumentError("PackageSpec version and compat for $(pkg) are incompatible"))
+            end
+        end
+        new(pkg, build_version, compat)
+    end
 end
-Dependency(dep::AbstractString, build_version = nothing) = Dependency(PackageSpec(; name = dep), build_version)
+function Dependency(dep::AbstractString, build_version = nothing; compat::String = "")
+    return Dependency(PackageSpec(; name = dep), build_version, compat = compat)
+end
 is_host_dependency(::Dependency) = false
 is_build_dependency(::Dependency) = true
 is_runtime_dependency(::Dependency) = true
@@ -181,10 +201,15 @@ __version(v::Pkg.Types.VersionSpec) = v.ranges[1].lower
 version(d::AbstractDependency) = __version(getpkg(d).version)
 version(d::Dependency) = __version(d.pkg.version)
 
+
+getcompat(d::AbstractDependency) = ""
+getcompat(d::Dependency) = d.compat
+
 for (type, type_descr) in ((Dependency, "dependency"), (BuildDependency, "builddependency"), (HostBuildDependency, "hostdependency"))
     JSON.lower(d::type) = Dict("type" => type_descr,
                                "name" => d.pkg.name,
                                "uuid" => string_or_nothing(d.pkg.uuid),
+                               "compat" => getcompat(d),
                                "version-major" => major(version(d)),
                                "version-minor" => minor(version(d)),
                                "version-patch" => patch(version(d)))
@@ -196,19 +221,19 @@ end
 function dependencify(d::Dict)
     if d["type"] in ("dependency", "builddependency", "hostdependency")
         uuid = isnothing(d["uuid"]) ? d["uuid"] : UUID(d["uuid"])
+        compat = d["compat"]
         version = VersionNumber(d["version-major"], d["version-minor"], d["version-patch"])
         version = version == v"0" ? nothing : version
-        T = if d["type"] == "dependency"
-            Dependency
+        spec = PackageSpec(; name = d["name"], uuid = uuid, version = version)
+        if d["type"] == "dependency"
+            return Dependency(spec; compat = compat)
         elseif d["type"] == "builddependency"
-            BuildDependency
+            return BuildDependency(spec)
         elseif d["type"] == "hostdependency"
-            HostBuildDependency
+            return HostBuildDependency(spec)
         end
-        return T(PackageSpec(; name = d["name"], uuid = uuid, version = version))
-    else
-        error("Cannot convert to dependency")
     end
+    error("Cannot convert to dependency")
 end
 
 
