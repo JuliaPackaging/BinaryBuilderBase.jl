@@ -734,7 +734,7 @@ function expand_cxxstring_abis(platform::AbstractPlatform; skip=Sys.isbsd)
         return p
     end
 end
-function expand_cxxstring_abis(ps::Vector{<:Platform}; kwargs...)
+function expand_cxxstring_abis(ps::Vector{<:AbstractPlatform}; kwargs...)
     return collect(Iterators.flatten(expand_cxxstring_abis.(ps; kwargs...)))
 end
 
