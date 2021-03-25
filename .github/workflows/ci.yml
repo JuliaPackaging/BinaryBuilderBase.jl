@@ -14,7 +14,7 @@ env:
 
 jobs:
   test:
-    name: Julia nightly - x64 - runner ${{ matrix.runner }} - SquashFS ${{ matrix.squashfs }}
+    name: Julia ${{ matrix.julia-version }} - x64 - runner ${{ matrix.runner }} - SquashFS ${{ matrix.squashfs }}
     timeout-minutes: 30
     runs-on: ubuntu-latest
     env:
@@ -27,20 +27,23 @@ jobs:
           # Add a job that uses the privileged builder with squashfs shards
           - runner: privileged
             squashfs: true
+            julia-version: "1.6"
 
           # Add a job that uses the unprivileged builder with unpacked shards
           - runner: unprivileged
             squashfs: false
+            julia-version: "1.6"
 
           # Add a job that uses the docker builder with unpacked shards
           - runner: docker
             squashfs: false
+            julia-version: "1.6"
 
     steps:
       - uses: actions/checkout@v2
       - uses: julia-actions/setup-julia@v1
         with:
-          version: "1.6-nightly"
+          version: ${{ matrix.julia-version }}
           arch: x64
       - uses: julia-actions/julia-buildpkg@latest
       - name: System info
@@ -58,17 +61,17 @@ jobs:
       - uses: actions/checkout@v2
       - uses: julia-actions/setup-julia@latest
         with:
-          version: 1.6-nightly
+          version: "1.6"
       - name: Cache artifacts
         uses: actions/cache@v2
         env:
           cache-name: cache-artifacts
         with:
           path: ~/.julia/artifacts
-          key: ${{ runner.os }}-test-${{ env.cache-name }}-${{ hashFiles('**/docs/Project.toml') }}
+          key: ${{ runner.os }}-docs-${{ env.cache-name }}-${{ hashFiles('**/docs/Project.toml') }}
           restore-keys: |
-            ${{ runner.os }}-test-${{ env.cache-name }}-
-            ${{ runner.os }}-test-
+            ${{ runner.os }}-docs-${{ env.cache-name }}-
+            ${{ runner.os }}-docs-
             ${{ runner.os }}-
       - uses: julia-actions/julia-docdeploy@releases/v1
         env:
