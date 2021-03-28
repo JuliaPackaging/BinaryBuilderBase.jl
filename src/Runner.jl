@@ -823,6 +823,9 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
         "HISTFILE"=>"/meta/.bash_history",
         "TERM" => "screen",
         "SRC_NAME" => src_name,
+        # The environment inherits the `SHELL` variable from the host, but some
+        # tools refer to this variable, make it consistent with our environment
+        "SHELL" => "/bin/bash",
     )
 
     # If we're bootstrapping, that's it, quit out.
