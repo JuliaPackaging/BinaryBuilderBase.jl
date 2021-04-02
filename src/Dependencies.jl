@@ -164,7 +164,7 @@ function getpkg(d::Dependency)
     pkg = d.pkg
     if d.build_version !== nothing
         pkg = deepcopy(pkg)
-        pkg.version = Pkg.Types.VersionSpec(d.build_version)
+        pkg.version = PKG_VERSIONS.VersionSpec(d.build_version)
     end
     return pkg
 end
@@ -183,7 +183,11 @@ filter_platforms(deps::AbstractVector{<:AbstractDependency}, p::AbstractPlatform
 # Wrapper around `Pkg.Types.registry_resolve!` which keeps the type of the
 # dependencies.  TODO: improve this
 function registry_resolve!(ctx, dependencies::Vector{<:AbstractDependency})
-    resolved_dependencies = Pkg.Types.registry_resolve!(ctx, getpkg.(dependencies))
+    @static if VERSION < v"1.7-DEV"
+        resolved_dependencies = Pkg.Types.registry_resolve!(ctx, getpkg.(dependencies))
+    else
+        resolved_dependencies = Pkg.Types.registry_resolve!(ctx.registries, getpkg.(dependencies))
+    end
     for idx in eachindex(dependencies)
         dependencies[idx] = typeof(dependencies[idx])(resolved_dependencies[idx]; platforms=dependencies[idx].platforms)
     end
@@ -192,11 +196,11 @@ end
 
 # We only want to update the registry once per run
 registry_updated = false
-function update_registry(ctx = Pkg.Types.Context(), outs = stdout)
+function update_registry(outs = stdout)
     global registry_updated
     if !registry_updated
-        Pkg.Registry.update(ctx,
-            [Pkg.Types.RegistrySpec(uuid = "23338594-aafe-5451-b93e-139f81909106")];
+        Pkg.Registry.update(
+            [Pkg.RegistrySpec(uuid = "23338594-aafe-5451-b93e-139f81909106")];
             io=outs,
         )
         registry_updated = true
@@ -218,7 +222,7 @@ function resolve_jlls(dependencies::Vector; ctx = Pkg.Types.Context(), outs=stdo
     end
 
     # Resolve, returning the newly-resolved dependencies
-    update_registry(ctx, outs)
+    update_registry(outs)
     dependencies = registry_resolve!(ctx, dependencies)
 
     # But first, check to see if anything failed to resolve, and warn about it:
@@ -242,7 +246,7 @@ major(v::Pkg.Types.VersionBound) = v.t[1]
 minor(v::Pkg.Types.VersionBound) = v.t[2]
 patch(v::Pkg.Types.VersionBound) = v.t[3]
 __version(v::VersionNumber) = v
-__version(v::Pkg.Types.VersionSpec) = v.ranges[1].lower
+__version(v::PKG_VERSIONS.VersionSpec) = v.ranges[1].lower
 version(d::AbstractDependency) = __version(getpkg(d).version)
 version(d::Dependency) = __version(d.pkg.version)
 
