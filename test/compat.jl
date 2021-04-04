@@ -1,6 +1,6 @@
 using Test
 using BinaryBuilderBase: extract_kwargs, extract_fields, strip_backslash, ArchiveSource
-
+using Downloads: RequestError
 @testset "Compat functions" begin
     foo(; kwargs...) = collect(extract_kwargs(kwargs, (:bar, :qux)))
     @test foo(; a = 1) == Pair[]
@@ -43,7 +43,7 @@ using BinaryBuilderBase: download_verify, list_tarball_files
         # Test that a 404 throws
         url = "https://github.com/not_a_file"
         dest = joinpath(dir, "blah")
-        @test_logs (:info, "Downloading $(url) to $(dest)...") @test_throws ErrorException download_verify(url, "0"^64, dest)
+        @test_logs (:info, "Downloading $(url) to $(dest)...") @test_throws RequestError download_verify(url, "0"^64, dest)
 
         # Test that a bad hash logs a message and fails
         url = "https://github.com/staticfloat/small_bin/raw/master/socrates.tar.xz"

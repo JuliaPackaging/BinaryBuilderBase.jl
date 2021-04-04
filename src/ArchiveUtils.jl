@@ -134,17 +134,10 @@ function download_verify(url, hash, path)
         return true
     else
         mkpath(dirname(path))
-        # `curl` doesn't automatically overwrite an existing file, delete it
-        # before attempting the download.
-        rm(path; force=true)
         @info "Downloading $(url) to $(path)..."
-        # Temporarily shell out to `curl` to download, until `Downloads` bugs are squashed
-        try
-            run(`curl -C - -s -\# -f -L $(url) -o $(path)`)
-        catch e
-            # Downloads throws an ErrorException, so we'll do the same
-            error("download failed: $(e)")
-        end
+        
+        rm(path; force=true)
+        Downloads.download(url, path)
         verify(path, hash) || error("Verification failed")
     end
 end
