@@ -133,6 +133,8 @@ function download_verify(url, hash, path)
         @info "Cached file found in $(path)"
         return true
     else
+        mkpath(dirname(path))
+        @info "Downloading $(url) to $(path)..."
         Downloads.download(url, path)
         verify(path, hash) || error("Verification failed")
     end
