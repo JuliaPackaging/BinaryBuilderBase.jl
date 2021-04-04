@@ -135,6 +135,8 @@ function download_verify(url, hash, path)
     else
         mkpath(dirname(path))
         @info "Downloading $(url) to $(path)..."
+        
+        rm(path; force=true)
         Downloads.download(url, path)
         verify(path, hash) || error("Verification failed")
     end
