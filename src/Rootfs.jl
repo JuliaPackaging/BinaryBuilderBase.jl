@@ -8,7 +8,7 @@ using Base.BinaryPlatforms: set_compare_strategy!, compare_version_cap
 struct CompilerShard
     # Something like "RootFS", or "GCCBootstrap"
     name::String
-    
+
     # Something like v"7.1.0"
     version::VersionNumber
 
@@ -17,7 +17,7 @@ struct CompilerShard
 
     # Usually `default_host_platform`
     host::AbstractPlatform
-    
+
     # :unpacked or :squashfs.  Possibly more in the future.
     archive_type::Symbol
 
@@ -151,7 +151,7 @@ function shard_path(cs::CompilerShard; uid = getuid())
         # as artifacts are retired, and also for multiple users to share a scratchspace.
         return joinpath(@get_scratch!(bytes2hex(hash.bytes)), "$(artifact_name(cs))_$(getuid()).squashfs")
     end
-    
+
     return artifact_path(hash)
 end
 
