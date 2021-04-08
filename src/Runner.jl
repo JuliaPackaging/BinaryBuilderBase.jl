@@ -437,6 +437,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         )
         return wrapper(io, "/opt/$(host_target)/go/bin/go"; env=env, allow_ccache=false)
     end
+    gofmt(io::IO, p::AbstractPlatform) = wrapper(io, "/opt/$(host_target)/go/bin/gofmt"; allow_ccache=false)
 
     # Rust stuff
     function rust_flags!(p::AbstractPlatform, flags::Vector{String} = String[])
@@ -645,6 +646,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         # Generate go stuff
         if :go in compilers
             write_wrapper(go, p, "$(t)-go")
+            write_wrapper(gofmt, p, "$(t)-gofmt")
         end
 
         # Misc. utilities
@@ -704,7 +706,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         append!(default_tools, ("rustc","rustup","cargo"))
     end
     if :go in compilers
-        append!(default_tools, ("go",))
+        append!(default_tools, ("go", "gofmt"))
     end
     # Create symlinks for default compiler invocations, invoke target toolchain
     for tool in default_tools
