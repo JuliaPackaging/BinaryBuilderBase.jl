@@ -200,7 +200,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         vrun \${CCACHE} $(prog) "\${PRE_FLAGS[@]}" "\${ARGS[@]}" "\${POST_FLAGS[@]}"
         """)
     end
-    
+
     # Helper invocations
     target_tool(io::IO, tool::String, args...; kwargs...) = wrapper(io, "/opt/$(target)/bin/$(target)-$(tool)", args...; kwargs...)
     llvm_tool(io::IO, tool::String, args...; kwargs...) = wrapper(io, "/opt/$(host_target)/bin/llvm-$(tool)", args...; kwargs...)
@@ -208,13 +208,13 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     # For now this is required for Clang, since apple spells aarch64 as "arm64".
     # Should probably be fixed upstream, but will do for now
     clang_target_triplet(p::AbstractPlatform) = replace(aatriplet(p), "aarch64" => "arm64")
-    
+
     function clang_flags!(p::AbstractPlatform, flags::Vector{String} = String[])
         # Focus the clang targeting laser
         append!(flags, [
             # Set the `target` for `clang` so it generates the right kind of code
             "-target $(clang_target_triplet(p))",
-            # Set our sysroot to the platform-specific location, dropping compiler ABI annotations 
+            # Set our sysroot to the platform-specific location, dropping compiler ABI annotations
             "--sysroot=/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root",
         ])
         # For MacOS and FreeBSD, we don't set `-rtlib`, and FreeBSD is special-cased within the LLVM source tree
@@ -410,7 +410,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         end
     end
     fc(io::IO, p::AbstractPlatform) = gfortran(io, p)
-    
+
     # Go stuff where we build an environment mapping each time we invoke `go-${target}`
     function GOOS(p::AbstractPlatform)
         if os(p) == "macos"
@@ -437,6 +437,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         )
         return wrapper(io, "/opt/$(host_target)/go/bin/go"; env=env, allow_ccache=false)
     end
+    gofmt(io::IO, p::AbstractPlatform) = wrapper(io, "/opt/$(host_target)/go/bin/gofmt"; allow_ccache=false)
 
     # Rust stuff
     function rust_flags!(p::AbstractPlatform, flags::Vector{String} = String[])
@@ -549,7 +550,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
                  :strip, :install_name_tool, :dlltool, :windres, :winmc, :lipo)
         @eval $(tool)(io::IO, p::AbstractPlatform) = $(wrapper)(io, string("/opt/", aatriplet(p), "/bin/", aatriplet(p), "-", $(string(tool))); allow_ccache=false)
     end
- 
+
     # c++filt is hard to write in symbols
     function cxxfilt(io::IO, p::AbstractPlatform)
         if Sys.isapple(p)
@@ -645,6 +646,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         # Generate go stuff
         if :go in compilers
             write_wrapper(go, p, "$(t)-go")
+            write_wrapper(gofmt, p, "$(t)-gofmt")
         end
 
         # Misc. utilities
@@ -704,7 +706,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         append!(default_tools, ("rustc","rustup","cargo"))
     end
     if :go in compilers
-        append!(default_tools, ("go",))
+        append!(default_tools, ("go", "gofmt"))
     end
     # Create symlinks for default compiler invocations, invoke target toolchain
     for tool in default_tools
