@@ -14,9 +14,9 @@ env:
 
 jobs:
   test:
-    name: Julia ${{ matrix.julia-version }} - x64 - runner ${{ matrix.runner }} - SquashFS ${{ matrix.squashfs }}
+    name: Julia ${{ matrix.julia-version }} - ${{ matrix.os }} - x64 - runner ${{ matrix.runner }} - SquashFS ${{ matrix.squashfs }}
     timeout-minutes: 30
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     env:
       BINARYBUILDER_RUNNER: ${{ matrix.runner }}
       BINARYBUILDER_USE_SQUASHFS: ${{ matrix.squashfs }}
@@ -28,16 +28,24 @@ jobs:
           - runner: privileged
             squashfs: true
             julia-version: "1.6"
+            os: ubuntu-latest
 
           # Add a job that uses the unprivileged builder with unpacked shards
           - runner: unprivileged
             squashfs: false
             julia-version: "1.6"
+            os: ubuntu-latest
 
           # Add a job that uses the docker builder with unpacked shards
           - runner: docker
             squashfs: false
             julia-version: "1.6"
+            os: ubuntu-latest
+
+          - runner: docker
+            squashfs: false
+            julia-version: "1.6"
+            os: macos-latest
 
     steps:
       - uses: actions/checkout@v2
@@ -45,6 +53,11 @@ jobs:
         with:
           version: ${{ matrix.julia-version }}
           arch: x64
+      - name: Install Docker
+        if: ${{ matrix.os == 'macos-latest' }}
+        run: |
+          brew install docker-machine docker
+          docker-machine start
       - uses: julia-actions/julia-buildpkg@latest
       - name: System info
         run: julia --project=. --color=yes -e "using BinaryBuilderBase; BinaryBuilderBase.versioninfo()"
