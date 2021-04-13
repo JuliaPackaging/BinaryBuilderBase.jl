@@ -2506,49 +2506,27 @@ os = "linux"
     sha256 = "d9bab2d2b19966509a070a92f6f982389d3ab418577a3a17dfbb0f03065216a6"
     url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2021.1.28/PlatformSupport-x86_64-w64-mingw32.v2021.1.28.x86_64-linux-musl.unpacked.tar.gz"
 
-[["Rootfs.v2021.1.12.x86_64-linux-musl.squashfs"]]
+[["Rootfs.v2021.4.13.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
-git-tree-sha1 = "03ee77386431674a600aab1b0aea8a8e9baf1951"
+git-tree-sha1 = "062aab1f28edd19ddf0d772a3c44bdea76ef2954"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["Rootfs.v2021.1.12.x86_64-linux-musl.squashfs".download]]
-    sha256 = "febe16de8878397f015a56912c8b25f095b786ff06a57da055307c297f682411"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/Rootfs-v2021.1.12/Rootfs.v2021.1.12.x86_64-linux-musl.squashfs.tar.gz"
+    [["Rootfs.v2021.4.13.x86_64-linux-musl.squashfs".download]]
+    sha256 = "0931efa0e8fca0531284c8f4f2700db754085bfc00ce64c99444cfc91790db3b"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/Rootfs-v2021.4.13/Rootfs.v2021.4.13.x86_64-linux-musl.squashfs.tar.gz"
 
-[["Rootfs.v2021.1.12.x86_64-linux-musl.unpacked"]]
+[["Rootfs.v2021.4.13.x86_64-linux-musl.unpacked"]]
 arch = "x86_64"
-git-tree-sha1 = "d27730b9941cc8b22dfc8c60a01794a45c3bb33a"
+git-tree-sha1 = "7fe81cdb1a0a6de39295f30e222283b79f12c325"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["Rootfs.v2021.1.12.x86_64-linux-musl.unpacked".download]]
-    sha256 = "8b685aa858e864049c3d95b59a3763b2e6236d7af9f49f357287da4d4802aa47"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/Rootfs-v2021.1.12/Rootfs.v2021.1.12.x86_64-linux-musl.unpacked.tar.gz"
-
-[["Rootfs.v2021.1.22.x86_64-linux-musl.squashfs"]]
-arch = "x86_64"
-git-tree-sha1 = "c00439a5aac2cd79e14acf22c6fd329297be0559"
-lazy = true
-libc = "musl"
-os = "linux"
-
-    [["Rootfs.v2021.1.22.x86_64-linux-musl.squashfs".download]]
-    sha256 = "0ac9b959afd58282751e0ca04b13cf8fc090e18f43dee03d3b27a964318f5136"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/Rootfs-v2021.1.22/Rootfs.v2021.1.22.x86_64-linux-musl.squashfs.tar.gz"
-
-[["Rootfs.v2021.1.22.x86_64-linux-musl.unpacked"]]
-arch = "x86_64"
-git-tree-sha1 = "e61855d1fe79df053c1d5ebfe0c7e75e8b899b23"
-lazy = true
-libc = "musl"
-os = "linux"
-
-    [["Rootfs.v2021.1.22.x86_64-linux-musl.unpacked".download]]
-    sha256 = "aac80e9ba2f6551fe5eee54c23de2a5bb0bc3d3173a591df0a1c67bab5b9fd55"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/Rootfs-v2021.1.22/Rootfs.v2021.1.22.x86_64-linux-musl.unpacked.tar.gz"
+    [["Rootfs.v2021.4.13.x86_64-linux-musl.unpacked".download]]
+    sha256 = "f4b177ef1d6b2f7b6876e3c02c7399cd524c6d8f362fb2aca1bafa1f8cab57df"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/Rootfs-v2021.4.13/Rootfs.v2021.4.13.x86_64-linux-musl.unpacked.tar.gz"
 
 [["RustBase.v1.43.0.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
