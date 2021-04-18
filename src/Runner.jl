@@ -917,6 +917,7 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
             csl_paths(host_platform),
             # Add our target/host-specific library directories for compiler support libraries
             target_lib_dir(host_platform),
+            "$host_libdir",
             target_lib_dir(platform),
             # Finally, dependencies
             "$(prefix)/lib64:$(prefix)/lib",
