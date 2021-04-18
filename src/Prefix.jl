@@ -517,13 +517,13 @@ function setup_dependencies(prefix::Prefix, dependencies::Vector{PkgSpec}, platf
     return artifact_paths
 end
 
-function cleanup_dependencies(prefix::Prefix, artifact_paths)
+function cleanup_dependencies(prefix::Prefix, artifact_paths, platform)
     for art_path in artifact_paths
         # Unsymlink all destdirs within the prefix
         for dir in readdir(prefix.path; join=true)
-            destdir = joinpath(dir, "destdir")
-            if isdir(destdir)
-                unsymlink_tree(art_path, destdir)
+            ddir = destdir(prefix, platform)
+            if isdir(ddir)
+                unsymlink_tree(art_path, ddir)
             end
         end
     end

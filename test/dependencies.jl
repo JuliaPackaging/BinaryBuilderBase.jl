@@ -105,7 +105,7 @@ end
             @test readdir(joinpath(destdir(dir, platform), "logs")) == ["Zlib.log.gz"]
 
             # Make sure the directories are emptied by `cleanup_dependencies`
-            @test_nowarn cleanup_dependencies(prefix, ap)
+            @test_nowarn cleanup_dependencies(prefix, ap, platform)
             @test readdir(joinpath(destdir(dir, platform), "include")) == []
             @test readdir(joinpath(destdir(dir, platform), "logs")) == []
         end
@@ -123,7 +123,7 @@ end
             @test "libssh2." * platform_dlext(platform) in readdir(last(libdirs(Prefix(destdir(dir, platform)))))
 
             # Make sure the directories are emptied by `cleanup_dependencies`
-            @test_nowarn cleanup_dependencies(prefix, ap)
+            @test_nowarn cleanup_dependencies(prefix, ap, platform)
             # This shuld be empty, but the `curl/` directory is left here, empty
             @test_broken readdir(joinpath(destdir(dir, platform), "include")) == []
             @test readdir(joinpath(destdir(dir, platform), "logs")) == []
