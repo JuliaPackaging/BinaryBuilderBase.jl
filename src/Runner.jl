@@ -915,6 +915,8 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
             "/lib64:/lib",
             # Add our CSL libraries for all architectures that can natively run within this environment
             csl_paths(host_platform),
+            # Libdir of the host platform, to run programs in `HostBuildDependency`
+            "$(host_libdir)",
             # Add our target/host-specific library directories for compiler support libraries
             target_lib_dir(host_platform),
             target_lib_dir(platform),
