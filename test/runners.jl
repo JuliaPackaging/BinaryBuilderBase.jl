@@ -189,3 +189,18 @@ end
         end
     end
 end
+
+@testset "Shards" begin
+    # Run the testsuite as sanity check
+    @testset "testsuite" begin
+        mktempdir() do dir
+            ur = preferred_runner()(dir; platform=Platform("x86_64", "linux"; libc="glibc"), preferred_gcc_version=v"5", compilers=[:c, :rust, :go])
+            iobuff = IOBuffer()
+            test_script = raw"""
+            set -e
+            make -j${nproc} -sC /usr/share/testsuite install
+            """
+            @test run(ur, `/bin/bash -c "$(test_script)"`, iobuff; tee_stream=devnull)
+        end
+    end
+end
