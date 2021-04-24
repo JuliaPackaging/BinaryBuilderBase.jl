@@ -457,7 +457,6 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
 
     # Rust stuff
     function rust_flags!(p::AbstractPlatform, flags::Vector{String} = String[])
-        push!(flags, "--target=$(map_rust_target(p))")
         if Sys.islinux(p)
             push!(flags, "-Clinker=$(aatriplet(p))-gcc")
 
@@ -474,7 +473,20 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         end
         return flags
     end
-    rustc(io::IO, p::AbstractPlatform) = wrapper(io, "/opt/$(host_target)/bin/rustc"; flags=rust_flags!(p), allow_ccache=false)
+    function rustc(io::IO, p::AbstractPlatform)
+        extra_cmds = """
+        if [[ " \${ARGS[@]} " == *'--target'* ]]; then
+            if ! [[ " \${ARGS[@]} " =~ --target(=| )$(map_rust_target(p)) ]]; then
+                echo "Attempting to invoke targeted 'rustc' wrapper with a different target! (Expected $(map_rust_target(p)))" >&2
+                echo "args: \${ARGS[@]}" >&2
+                exit 1
+            fi
+        else
+            PRE_FLAGS+=( '--target=$(map_rust_target(p))' )
+        fi
+        """
+        wrapper(io, "/opt/$(host_target)/bin/rustc"; flags=rust_flags!(p), allow_ccache=false, extra_cmds=extra_cmds)
+    end
     rustup(io::IO, p::AbstractPlatform) = wrapper(io, "/opt/$(host_target)/bin/rustup"; allow_ccache=false)
     cargo(io::IO, p::AbstractPlatform) = wrapper(io, "/opt/$(host_target)/bin/cargo"; allow_ccache=false)
 
