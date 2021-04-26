@@ -46,6 +46,8 @@ jobs:
           version: ${{ matrix.julia-version }}
           arch: x64
       - uses: julia-actions/julia-buildpkg@latest
+      - name: Clean up
+        run: sudo rm -rf /opt
       - name: System info
         run: julia --project=. --color=yes -e "using BinaryBuilderBase; BinaryBuilderBase.versioninfo()"
       - uses: julia-actions/julia-runtest@latest
