@@ -698,14 +698,14 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             if Sys.isbsd(p) && os_version(p) !== nothing
                 tmp_p = deepcopy(p)
                 delete!(tags(tmp_p), "os_version")
-                symlink("$(t)-gcc", joinpath(bin_path, "$(aatriplet(tmp_p))-gcc"))
+                symlink("$(t)-gcc", joinpath(bin_path, triplet(p), "$(aatriplet(tmp_p))-gcc"))
             end
             # Currently our Rust toolchain expects the linker for armv7l and
             # armv6l with the platform "*l" suffix in the platform.  Until
             # https://github.com/JuliaPackaging/Yggdrasil/pull/2168 makes it to
             # the Rust toolchain, we create a symlink to work around this issue.
             if proc_family(p) == "arm" && nbits(p) == 32
-                symlink("$(t)-gcc", joinpath(bin_path, "$(triplet(abi_agnostic(p)))-gcc"))
+                symlink("$(t)-gcc", joinpath(bin_path, triplet(p), "$(triplet(abi_agnostic(p)))-gcc"))
             end
         end
     end
