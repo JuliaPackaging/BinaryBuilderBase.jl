@@ -41,10 +41,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+      - run: which -a julia
       - uses: julia-actions/setup-julia@v1
         with:
           version: ${{ matrix.julia-version }}
           arch: x64
+      - run: which -a julia
       - uses: julia-actions/julia-buildpkg@latest
       - name: Clean up
         run: sudo rm -rf /opt
