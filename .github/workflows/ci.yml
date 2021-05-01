@@ -42,6 +42,8 @@ jobs:
     steps:
       - name: Delete /opt
         run: sudo rm -rf /opt
+      - name: Create /opt
+        run: sudo mkdir /opt         
       - uses: actions/checkout@v2
       - uses: julia-actions/setup-julia@v1
         with:
