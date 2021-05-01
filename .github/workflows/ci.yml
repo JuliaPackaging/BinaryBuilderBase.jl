@@ -14,7 +14,7 @@ env:
 
 jobs:
   test:
-    name: Julia ${{ matrix.julia-version }} - x64 - runner ${{ matrix.runner }} - SquashFS ${{ matrix.squashfs }}
+    name: Julia - x64 - runner ${{ matrix.runner }} - SquashFS ${{ matrix.squashfs }}
     timeout-minutes: 30
     runs-on: ubuntu-latest
     env:
@@ -27,24 +27,17 @@ jobs:
           # Add a job that uses the privileged builder with squashfs shards
           - runner: privileged
             squashfs: true
-            julia-version: "1.6"
 
           # Add a job that uses the unprivileged builder with unpacked shards
           - runner: unprivileged
             squashfs: false
-            julia-version: "1.6"
 
           # Add a job that uses the docker builder with unpacked shards
           - runner: docker
             squashfs: false
-            julia-version: "1.6"
 
     steps:
       - uses: actions/checkout@v2
-      - uses: julia-actions/setup-julia@v1
-        with:
-          version: ${{ matrix.julia-version }}
-          arch: x64
       - uses: julia-actions/julia-buildpkg@latest
       - name: Clean up
         run: sudo rm -rf /opt
