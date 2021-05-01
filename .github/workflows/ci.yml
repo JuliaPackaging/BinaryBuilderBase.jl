@@ -40,6 +40,8 @@ jobs:
             julia-version: "1.6"
 
     steps:
+      - run: ls -lad /opt
+      - run: ls -lad /opt/hostedtoolcache
       - name: Delete /opt
         run: sudo rm -rf /opt
       - name: Create /opt
