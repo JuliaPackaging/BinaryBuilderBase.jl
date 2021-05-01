@@ -43,7 +43,9 @@ jobs:
       - name: Delete /opt
         run: sudo rm -rf /opt
       - name: Create /opt
-        run: sudo mkdir /opt         
+        run: sudo mkdir /opt
+      - name: Create /opt/hostedtoolcache
+        run: sudo mkdir /opt/hostedtoolcache
       - uses: actions/checkout@v2
       - uses: julia-actions/setup-julia@v1
         with:
