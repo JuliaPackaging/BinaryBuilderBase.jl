@@ -333,7 +333,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
 
         # Simulate some of the `__OSX_AVAILABLE()` macro usage that is broken in GCC
         # Currently, we only target 10.10, but eventually, we'll want to tailor this to `os_version(p)`
-        if 14 < 16
+        if Sys.isapple(p) && 14 < 16
             # Disable usage of `clock_gettime()`
             push!(flags, "-D_DARWIN_FEATURE_CLOCK_GETTIME=0")
         end
