@@ -32,6 +32,7 @@ using CodecZlib
         @test bindir(prefix) == joinpath(prefix, "bin")
         @test includedir(prefix) == joinpath(prefix, "include")
         @test logdir(prefix) == joinpath(prefix, "logs")
+        @test logdir(prefix; subdir="test") == joinpath(prefix, "logs", "test")
     end
 end
 
