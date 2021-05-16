@@ -109,12 +109,13 @@ function includedir(prefix::Prefix)
 end
 
 """
-    logdir(prefix::Prefix)
+    logdir(prefix::Prefix; subdir::AbstractString="")
 
-Returns the logs directory for the given `prefix`.
+Returns the logs directory for the given `prefix`.  If `subdir` is a non-empty string, that
+directory it is appended to the logdir of the given `prefix`.
 """
-function logdir(prefix::Prefix)
-    return joinpath(prefix, "logs")
+function logdir(prefix::Prefix; subdir::AbstractString="")
+    return strip_backslash(joinpath(prefix, "logs", subdir))
 end
 
 """
