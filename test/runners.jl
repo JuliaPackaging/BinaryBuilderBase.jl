@@ -148,6 +148,34 @@ end
                     @test endswith(readchomp(iobuff), "Hello World!")
                 end
             end
+
+            @testset "Objective-C - $(platform)" for platform in filter(Sys.isapple, supported_platforms())
+                ur = preferred_runner()(dir; platform=platform)
+                iobuff = IOBuffer()
+                test_objc = """
+                #import <Foundation/Foundation.h>
+                void test() {
+                    @autoreleasepool {
+                        NSLog(@"Hello, World!");
+                    }
+                }
+                """
+                script = """
+                echo '$(test_objc)' > test.m
+                # Build the shared library in two steps: first compile object file...
+                objc -c -o test.o test.m
+                # ...and then link it to a shared library.
+                objc -shared -o test.dylib -framework Foundation test.o
+                file test.dylib
+                """
+                cmd = `/bin/bash -ec "$(script)"`
+                @test run(ur, cmd, iobuff; tee_stream=devnull)
+                seekstart(iobuff)
+                # Test that we get the output we expect
+                _arch = arch(platform) == "aarch64" ? "arm64" : arch(platform)
+                @test occursin("test.dylib: Mach-O 64-bit $(_arch) dynamically linked shared library", readchomp(iobuff))
+            end
+
         end
     end
 

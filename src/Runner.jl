@@ -126,10 +126,11 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             println(io)
         end
 
-        # If we're given compile-only flags, include them only if `-x assembler` is not provided
+        # If we're given compile-only flags, include them only if `-x assembler` is not provided,
+        # or no object files (*.o) are passed in input
         if !isempty(compile_only_flags)
             println(io)
-            println(io, "if [[ \" \${ARGS[@]} \" != *' -x assembler '* ]]; then")
+            println(io, "if [[ \" \${ARGS[@]} \" != *' -x assembler '* ]] && [[ \" \${ARGS[@]} \" != *'.o '* ]]; then")
             for cf in compile_only_flags
                 println(io, "    PRE_FLAGS+=( $cf )")
             end
@@ -389,13 +390,12 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         )
     end
 
-    function clang_wrapper(io::IO, tool::String, p::AbstractPlatform, extra_flags::Vector{String} = String[])
+    function clang_wrapper(io::IO, tool::String, p::AbstractPlatform, compile_flags::Vector{String} = String[])
         flags = clang_flags!(p)
-        append!(flags, extra_flags)
         return wrapper(io,
             "/opt/$(host_target)/bin/$(tool)";
             flags=flags,
-            compile_only_flags=clang_compile_flags!(p),
+            compile_only_flags=clang_compile_flags!(p, compile_flags),
             link_only_flags=clang_link_flags!(p),
             no_soft_float=arch(p) in ("armv6l", "armv7l"),
         )
