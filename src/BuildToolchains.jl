@@ -116,6 +116,7 @@ function meson_c_link_args(p::AbstractPlatform)
     end
 end
 meson_cxx_link_args(p::AbstractPlatform) = meson_c_link_args(p)
+meson_objc_link_args(p::AbstractPlatform) = meson_c_link_args(p)
 meson_fortran_link_args(p::AbstractPlatform) = meson_c_link_args(p)
 
 # We can run native programs only on
@@ -176,6 +177,7 @@ function toolchain_file(bt::Meson, p::AbstractPlatform)
     fortran_args = []
     c_link_args = [$(meson_c_link_args(p))]
     cpp_link_args = [$(meson_cxx_link_args(p))]
+    objc_link_args = [$(meson_objc_link_args(p))]
     fortran_link_args = [$(meson_fortran_link_args(p))]
     needs_exe_wrapper = $(meson_is_foreign(p))
 
