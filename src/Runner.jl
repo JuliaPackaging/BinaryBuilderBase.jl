@@ -389,9 +389,8 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         )
     end
 
-    function clang_wrapper(io::IO, tool::String, p::AbstractPlatform, extra_flags::Vector{String} = String[])
+    function clang_wrapper(io::IO, tool::String, p::AbstractPlatform)
         flags = clang_flags!(p)
-        append!(flags, extra_flags)
         return wrapper(io,
             "/opt/$(host_target)/bin/$(tool)";
             flags=flags,
@@ -408,7 +407,6 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
 
     clang(io::IO, p::AbstractPlatform)    = clang_wrapper(io, "clang", p)
     clangxx(io::IO, p::AbstractPlatform)  = clang_wrapper(io, "clang++", p)
-    objc(io::IO, p::AbstractPlatform)     = clang_wrapper(io, "clang", p, ["-x objective-c"])
 
     # Our general `cc`  points to `gcc` for most systems, but `clang` for MacOS and FreeBSD
     function cc(io::IO, p::AbstractPlatform)
@@ -499,7 +497,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             "FC"     => "$(host_target)-f77",
             "LD"     => "$(host_target)-ld",
             "NM"     => "$(host_target)-nm",
-            "OBJC"   => "$(host_target)-objc",
+            "OBJC"   => "$(host_target)-cc",
             "RANLIB" => "$(host_target)-ranlib",
         )
         wrapper(io, "/usr/bin/meson"; allow_ccache=false, env=meson_env)
@@ -628,7 +626,6 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             write_wrapper(gxx, p, "$(t)-g++")
             write_wrapper(clang, p, "$(t)-clang")
             write_wrapper(clangxx, p, "$(t)-clang++")
-            write_wrapper(objc, p, "$(t)-objc")
 
             # Someday, you will be split out
             write_wrapper(gfortran, p, "$(t)-f77")
@@ -728,7 +725,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     end
 
     if :c in compilers
-        append!(default_tools, ("cc", "c++", "cpp", "f77", "gfortran", "gcc", "clang", "g++", "clang++", "objc"))
+        append!(default_tools, ("cc", "c++", "cpp", "f77", "gfortran", "gcc", "clang", "g++", "clang++"))
     end
     if :rust in compilers
         append!(default_tools, ("rustc","rustup","cargo"))
@@ -939,7 +936,6 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
         # Default mappings for some tools
         "CC" => "cc",
         "CXX" => "c++",
-        "OBJC" => "objc",
         "FC" => "gfortran",
         "GO" => "go",
         "RUSTC" => "rustc",

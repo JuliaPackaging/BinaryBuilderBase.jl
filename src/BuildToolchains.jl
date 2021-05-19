@@ -108,11 +108,17 @@ function toolchain_file(bt::CMake, p::AbstractPlatform; is_host::Bool=false)
     end
 end
 
+meson_c_args(p::AbstractPlatform) = ["'-I/workspace/destdir/include'"]
+meson_cxx_args(p::AbstractPlatform) = meson_c_args(p)
+meson_objc_args(p::AbstractPlatform) = push!(meson_c_args(p), "'-x'", "'objective-c'")
+meson_fortran_args(p::AbstractPlatform) = meson_c_args(p)
+
 function meson_c_link_args(p::AbstractPlatform)
+    libdir = "/workspace/destdir/" * (Sys.iswindows(p) ? "bin" : "lib")
     if arch(p) == "powerpc64le" && Sys.islinux(p)
-        return "'-Wl,-rpath-link,/workspace/destdir/lib64'"
+        return ["'-L$(libdir)'", "'-Wl,-rpath-link,/workspace/destdir/lib64'"]
     else
-        return ""
+        return ["'-L$(libdir)'"]
     end
 end
 meson_cxx_link_args(p::AbstractPlatform) = meson_c_link_args(p)
@@ -164,7 +170,7 @@ function toolchain_file(bt::Meson, p::AbstractPlatform)
     c = '/opt/bin/$(target)/$(aatarget)-$(c_compiler(bt))'
     cpp = '/opt/bin/$(target)/$(aatarget)-$(cxx_compiler(bt))'
     fortran = '/opt/bin/$(target)/$(aatarget)-$(fortran_compiler(bt))'
-    objc = '/opt/bin/$(target)/$(aatarget)-objc'
+    objc = '/opt/bin/$(target)/$(aatarget)-cc'
     ar = '/opt/bin/$(target)/$(aatarget)-ar'
     ld = '/opt/bin/$(target)/$(aatarget)-ld'
     nm = '/opt/bin/$(target)/$(aatarget)-nm'
@@ -172,13 +178,14 @@ function toolchain_file(bt::Meson, p::AbstractPlatform)
     pkgconfig = '/usr/bin/pkg-config'
 
     [properties]
-    c_args = []
-    cpp_args = []
-    fortran_args = []
-    c_link_args = [$(meson_c_link_args(p))]
-    cpp_link_args = [$(meson_cxx_link_args(p))]
-    objc_link_args = [$(meson_objc_link_args(p))]
-    fortran_link_args = [$(meson_fortran_link_args(p))]
+    c_args = [$(join(meson_c_args(p), ", "))]
+    cpp_args = [$(join(meson_cxx_args(p), ", "))]
+    fortran_args = [$(join(meson_fortran_args(p), ", "))]
+    objc_args = [$(join(meson_objc_args(p), ", "))]
+    c_link_args = [$(join(meson_c_link_args(p), ", "))]
+    cpp_link_args = [$(join(meson_cxx_link_args(p), ", "))]
+    fortran_link_args = [$(join(meson_fortran_link_args(p), ", "))]
+    objc_link_args = [$(join(meson_objc_link_args(p), ", "))]
     needs_exe_wrapper = $(meson_is_foreign(p))
 
     [build_machine]
