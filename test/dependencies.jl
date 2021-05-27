@@ -42,6 +42,13 @@ end
     @test getpkg(dep_buildver) == PackageSpec(; name = name, version = build_version)
     @test getcompat(dep_buildver) == "~1.2"
 
+    # the same but only with compat specifier
+    dep_compat = Dependency(PackageSpec(; name); compat = "2, ~$(build_version)")
+    @test Dependency(name, build_version) == dep_compat
+    @test getname(dep_compat) == name
+    @test getpkg(dep_compat) == PackageSpec(; name, version = build_version)
+    @test getcompat(dep_compat) == "2, ~$(build_version)"
+
     # if build_version and compat don't match, an error should be thrown
     @test_throws ArgumentError Dependency(PackageSpec(; name = name), build_version, compat = "2.0")
 

@@ -6,6 +6,8 @@ export Dependency, BuildDependency, HostBuildDependency,
 
 # Pkg.PackageSpec return different types in different Julia versions so...
 const PkgSpec = typeof(Pkg.PackageSpec(name="dummy"))
+const PKG_VERSIONS = Base.VERSION >= v"1.7-" ? Pkg.Versions : Pkg.Types
+
 
 """
 An `AbstractDependency` is a binary dependency of the JLL package.  Dependencies
@@ -52,7 +54,7 @@ Return whether `dep` is a runtime dependency or not.
 is_runtime_dependency
 
 """
-    Dependency(dep::Union{PackageSpec,String})
+    Dependency(dep::Union{PackageSpec,String}, build_version; compat)
 
 Define a binary dependency that is necessary to build the package and load the
 generated JLL package.  The argument can be either a string with the name of the
@@ -61,8 +63,10 @@ JLL package or a `Pkg.PackageSpec`.
 The optional keyword argument `build_version` can be used to specify the version
 of the dependency to be installed when building it.
 
-The optional keyword argument `compat` can be used to specify a string for
-use in the `Project.toml` of the generated Julia package.
+The optional keyword argument `compat` can be used to specify a string for use
+in the `Project.toml` of the generated Julia package.  If `compat` is non-empty
+and `build_version` is not passed, the latter defaults to the minimum version
+compatible with the `compat` specifier.
 """
 struct Dependency <: AbstractDependency
     pkg::PkgSpec
@@ -70,11 +74,17 @@ struct Dependency <: AbstractDependency
     compat::String  # semver string for use in Project.toml of the JLL
     function Dependency(pkg::PkgSpec, build_version = nothing; compat::String = "")
         if length(compat) > 0
-            spec = Pkg.Types.semver_spec(compat) # verify compat is valid
-            if build_version !== nothing && !(build_version in spec)
+            spec = PKG_VERSIONS.semver_spec(compat) # verify compat is valid
+            if build_version === nothing
+                # Since we usually want to build against the oldest compatible
+                # version, if `build_version` isn't set but `compat` is, make it
+                # default to the minimum compatible version.
+                build_version = minimum(VersionNumber(rng.lower.t) for rng in spec.ranges)
+            end
+            if build_version ∉ spec
                 throw(ArgumentError("build_version and compat for $(pkg) are incompatible"))
             end
-            if pkg.version != Pkg.Types.VersionSpec("*") && !(pkg.version in spec)
+            if pkg.version != PKG_VERSIONS.VersionSpec("*") && !(pkg.version in spec)
                 throw(ArgumentError("PackageSpec version and compat for $(pkg) are incompatible"))
             end
         end
