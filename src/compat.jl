@@ -6,7 +6,7 @@ extract_fields(x) = Dict(String(name) => getfield(x, name) for name in fieldname
 
 # Trailing directory separator matters for `basename`, so let's strip it to
 # avoid confusion
-strip_backslash(path::AbstractString) = isdirpath(path) ? dirname(path) : path
+strip_path_separator(path::AbstractString) = isdirpath(path) ? dirname(path) : path
 
 function valid_dl_path(path, platform)
     try
