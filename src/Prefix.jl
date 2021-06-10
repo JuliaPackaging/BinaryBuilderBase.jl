@@ -115,7 +115,7 @@ Returns the logs directory for the given `prefix`.  If `subdir` is a non-empty s
 directory it is appended to the logdir of the given `prefix`.
 """
 function logdir(prefix::Prefix; subdir::AbstractString="")
-    return strip_backslash(joinpath(prefix, "logs", subdir))
+    return strip_path_separator(joinpath(prefix, "logs", subdir))
 end
 
 """
@@ -262,7 +262,7 @@ function setup(source::SetupSource{GitSource}, targetdir, verbose)
     repo_dir = joinpath(targetdir, name)
     if verbose
         # Need to strip the trailing separator
-        path = strip_backslash(targetdir)
+        path = strip_path_separator(targetdir)
         @info "Cloning $(basename(source.path)) to $(basename(repo_dir))..."
     end
     LibGit2.with(LibGit2.clone(source.path, repo_dir)) do repo
@@ -302,7 +302,7 @@ end
 function setup(source::SetupSource{DirectorySource}, targetdir, verbose)
     mkpath(targetdir)
     # Need to strip the trailing separator also here
-    srcpath = strip_backslash(source.path)
+    srcpath = strip_path_separator(source.path)
     if verbose
         @info "Copying content of $(basename(srcpath)) in $(basename(targetdir))..."
     end
@@ -362,7 +362,7 @@ function setup_workspace(build_path::AbstractString, sources::Vector,
             target = joinpath(srcdir, source.target)
             # Trailing directory separator matters for `basename`, so let's strip it
             # to avoid confusion
-            target = strip_backslash(target)
+            target = strip_path_separator(target)
             setup(source, target, verbose)
         else
             setup(source, srcdir, verbose)
