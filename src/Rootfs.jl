@@ -382,6 +382,7 @@ const available_gcc_builds = [
     GCCBuild(v"8.1.0", (libgfortran_version = v"5", libstdcxx_version = v"3.4.25", cxxstring_abi = "cxx11")),
     GCCBuild(v"9.1.0", (libgfortran_version = v"5", libstdcxx_version = v"3.4.26", cxxstring_abi = "cxx11")),
     GCCBuild(v"10.2.0", (libgfortran_version = v"5", libstdcxx_version = v"3.4.28", cxxstring_abi = "cxx11")),
+    GCCBuild(v"11.1.0", (libgfortran_version = v"5", libstdcxx_version = v"3.4.29", cxxstring_abi = "cxx11")),
     GCCBuild(v"11.0.0-iains", (libgfortran_version = v"5", libstdcxx_version = v"3.4.28", cxxstring_abi = "cxx11")),
 ]
 const available_llvm_builds = [
@@ -510,9 +511,11 @@ function choose_shards(p::AbstractPlatform;
         )
 
     function find_shard(name, version, archive_type; target = nothing)
-        # Ugly hack alert!  Because GCC 11 has somehow broken C++, we pair GCC 10 with GCC 11 on MacOS
-        if name == "GCCBootstrap" && version.major == 11 && target !== nothing && Sys.islinux(target)
-            version = v"10.2.0"
+        # aarch64-apple-darwin is a special platform because it has a single GCCBootstrap
+        # with a version number different from any other platforms: match this shard with a
+        # regular GCCBootstrap v11 for the host.
+        if name == "GCCBootstrap" && version == v"11.0.0-iains" && target !== nothing && Sys.islinux(target)
+            version = v"11.1.0"
         end
 
         for cs in all_compiler_shards()

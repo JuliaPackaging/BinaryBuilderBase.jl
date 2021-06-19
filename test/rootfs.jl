@@ -139,7 +139,7 @@ end
         @test gcc_version(p, available_gcc_builds) == [v"7.1.0"]
 
         p = Platform("armv7l", "linux"; march="neonvfpv4")
-        @test gcc_version(p, available_gcc_builds) == [v"5.2.0", v"6.1.0", v"7.1.0", v"8.1.0", v"9.1.0", v"10.2.0", v"11.0.0-iains"]
+        @test gcc_version(p, available_gcc_builds) == [v"5.2.0", v"6.1.0", v"7.1.0", v"8.1.0", v"9.1.0", v"10.2.0", v"11.1.0", v"11.0.0-iains"]
     end
 
     @testset "Compiler wrappers" begin
