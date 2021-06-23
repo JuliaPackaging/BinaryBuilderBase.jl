@@ -159,6 +159,34 @@ end
         @test String(read(joinpath(dstdir, "sym_fileC"))) == "fileC\n"
         @test_throws Base.IOError realpath(joinpath(dstdir, "sym_fileB"))
     end
+
+    @testset "Warnings about clashing files" begin
+        mktempdir() do tmpdir
+            # Create fake source directory
+            srcdir = joinpath(tmpdir, "src")
+            mkdir(srcdir)
+            # Write two files inside the source directory
+            srcfile1 = joinpath(srcdir, "file1")
+            text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit.\n"
+            write(srcfile1, text)
+            srcfile2 = joinpath(srcdir, "file2")
+            write(srcfile2, text ^ 2)
+
+            # Create the destination directory
+            destdir = joinpath(tmpdir, "dest")
+            mkdir(destdir)
+            destfile1 = joinpath(destdir, "file1")
+            # Same text as file1 in the source directory
+            write(destfile1, text)
+            destfile2 = joinpath(destdir, "file2")
+            # Different text from file2 in the source directory
+            write(destfile2, text)
+
+            # Set up a symlink tree inside of destdir: make sure only the warning about file2 is issued
+            @test_logs (:warn, "Symlink file2 from artifact src already exists in artifact file2") BinaryBuilderBase.symlink_tree(srcdir, destdir)
+            BinaryBuilderBase.unsymlink_tree(srcdir, destdir)
+        end
+    end
 end
 
 @testset "Compression" begin
