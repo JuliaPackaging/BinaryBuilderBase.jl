@@ -213,6 +213,16 @@ function symlink_tree(src::AbstractString, dest::AbstractString)
             src_file = joinpath(root, f)
             dest_file = joinpath(dest, relpath(root, src), f)
             if isfile(dest_file)
+                # Ugh, destination file already exists.  If source and destination files
+                # have the same size and SHA256 hash, just move on, otherwise issue a
+                # warning.
+                if filesize(src_file) == filesize(dest_file)
+                    src_file_hash = open(io -> bytes2hex(sha256(io)), src_file, "r")
+                    dest_file_hash = open(io -> bytes2hex(sha256(io)), dest_file, "r")
+                    if src_file_hash == dest_file_hash
+                        continue
+                    end
+                end
                 # Find source artifact that this pre-existent destination file belongs to
                 dest_artifact_source = realpath(dest_file)
                 while occursin("artifacts", dest_artifact_source) && basename(dirname(dest_artifact_source)) != "artifacts"
