@@ -391,6 +391,7 @@ const available_llvm_builds = [
     LLVMBuild(v"8.0.1"),
     LLVMBuild(v"9.0.1"),
     LLVMBuild(v"11.0.1"),
+    LLVMBuild(v"12.0.0"),
 ]
 
 """
