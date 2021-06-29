@@ -979,7 +979,7 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
 
     # If we're on macOS, we give a hint to things like `configure` that they should use this as the linker
     if Sys.isapple(platform)
-        mapping["LD"] = "/opt/$(target)/bin/ld64.macos"
+        mapping["LD"] = "/opt/bin/$(triplet(platform))/ld"
         mapping["MACOSX_DEPLOYMENT_TARGET"] = "10.8"
     end
 
