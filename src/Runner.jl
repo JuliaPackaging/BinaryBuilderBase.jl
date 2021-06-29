@@ -927,12 +927,12 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
         ), ":"),
 
         "LD_LIBRARY_PATH" => join((
-           # Start with a default path
-           "/usr/local/lib64:/usr/local/lib:/usr/lib64:/usr/lib",
+            # Start with our CSL libraries for all architectures that can natively run within this environment
+            csl_paths(host_platform),
+            # Then add default system paths
+            "/usr/local/lib64:/usr/local/lib:/usr/lib64:/usr/lib",
             # Add our loader directories
             "/lib64:/lib",
-            # Add our CSL libraries for all architectures that can natively run within this environment
-            csl_paths(host_platform),
             # Libdir of the host platform, to run programs in `HostBuildDependency`
             "$(host_libdir)",
             # Add our target/host-specific library directories for compiler support libraries
