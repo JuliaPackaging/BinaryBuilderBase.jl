@@ -395,12 +395,14 @@ const available_llvm_builds = [
 ]
 
 """
-    gcc_version(p::AbstractPlatform, , GCC_builds::Vector{GCCBuild})
+    gcc_version(p::AbstractPlatform, , GCC_builds::Vector{GCCBuild};
+                llvm_version::Union{Nothing,VersionNumber}=nothing)
 
 Returns the closest matching GCC version number for the given particular
 platform, from the given set of options.  The compiler ABI and the
 microarchitecture of the platform will be taken into account.  If no match is
-found, returns an empty list.
+found, returns an empty list.  If the keyword argument `llvm_version` is passed,
+it is used to filter the version of GCC for FreeBSD platforms.
 
 This method assumes that the compiler ABI of the platform represents a platform
 that binaries will be run on, and thus versions are always rounded down; e.g. if
@@ -409,7 +411,8 @@ the only GCC versions available to be picked from are `4.8.5` and `5.2.0`, it
 will return `4.8.5`, as binaries compiled with that version will run on this
 platform, whereas binaries compiled with `5.2.0` may not.
 """
-function gcc_version(p::AbstractPlatform, GCC_builds::Vector{GCCBuild})
+function gcc_version(p::AbstractPlatform, GCC_builds::Vector{GCCBuild};
+                     llvm_version::Union{Nothing,VersionNumber}=nothing)
     # First, filter by libgfortran version.
     if libgfortran_version(p) !== nothing
         GCC_builds = filter(b -> getabi(b).libgfortran_version == libgfortran_version(p), GCC_builds)
@@ -430,6 +433,16 @@ function gcc_version(p::AbstractPlatform, GCC_builds::Vector{GCCBuild})
     # disallow running on < GCC 5.
     if cxxstring_abi(p) === "cxx11"
         GCC_builds = filter(b -> getversion(b) >= v"5", GCC_builds)
+    end
+
+    # LLVMBootstrap 12 needs to be built with GCCBootstrap ≥ 7, see
+    # <https://github.com/JuliaPackaging/BinaryBuilderBase.jl/pull/112#issuecomment-776940748>.
+    # However, when building for FreeBSD with LLVMBootstrap 12 we can't use `ld` from
+    # binutils < 2.26 (which corresponds to GCCBootstrap < 6) to link some object files, see
+    # <https://github.com/JuliaPackaging/BinaryBuilderBase.jl/issues/158>.  The solution is
+    # to not allow old GCCBootstrap with new versions of LLVMBootstrap for FreeBSD.
+    if llvm_version !== nothing && Sys.isfreebsd(p) && llvm_version ≥ v"12"
+        GCC_builds = filter(b -> getversion(b) ≥ v"6", GCC_builds)
     end
 
     # Filter the possible GCC versions depending on the microarchitecture
@@ -467,20 +480,20 @@ function select_compiler_versions(p::AbstractPlatform,
             preferred_gcc_version::VersionNumber = getversion(GCC_builds[1]),
             preferred_llvm_version::VersionNumber = getversion(LLVM_builds[end]),
         )
-    # Determine which GCC/LLVM build we're going to match with this Platform:
-    filtered_gcc_builds = gcc_version(p, GCC_builds)
-    if isempty(filtered_gcc_builds)
-        error("Impossible compiler constraints $(p) upon $(GCC_builds)!")
-    end
-
+    # Determine which GCC/LLVM build we're going to match with this Platform.  We need to
+    # pass the chosen version of LLVM to `gcc_version`, so we first select LLVM, then GCC.
     filtered_llvm_builds = llvm_version(p, LLVM_builds)
     if isempty(filtered_llvm_builds)
         error("Impossible compiler constraints $(p) upon $(LLVM_builds)!")
     end
-
-    # Otherwise, choose the version that is closest to our preferred version
-    gccv = select_closest_version(preferred_gcc_version, filtered_gcc_builds)
     llvmv = select_closest_version(preferred_llvm_version, filtered_llvm_builds)
+
+    filtered_gcc_builds = gcc_version(p, GCC_builds; llvm_version=llvmv)
+    if isempty(filtered_gcc_builds)
+        error("Impossible compiler constraints $(p) upon $(GCC_builds)!")
+    end
+    gccv = select_closest_version(preferred_gcc_version, filtered_gcc_builds)
+
     return gccv, llvmv
 end
 

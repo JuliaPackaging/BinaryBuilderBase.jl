@@ -114,6 +114,15 @@ end
         # With no constraints, we should get them all back
         @test gcc_version(Platform("x86_64", "linux"), available_gcc_builds) == getversion.(available_gcc_builds)
 
+        # Filter for FreeBSD.  No version of LLVM is specified, all versions
+        # should be available
+        @test gcc_version(Platform("x86_64", "freebsd"), available_gcc_builds) == getversion.(available_gcc_builds)
+        # With LLVM 11 all versions of GCC are still allowed
+        @test gcc_version(Platform("x86_64", "freebsd"), available_gcc_builds; llvm_version=v"11") == getversion.(available_gcc_builds)
+        # With LLVM 12 we can only use GCC 6+
+        @test gcc_version(Platform("x86_64", "freebsd"), available_gcc_builds; llvm_version=v"12") ==
+            filter(≥(v"6"), getversion.(available_gcc_builds))
+
         # libgfortran v3 and libstdcxx 22 restrict us to only v4.8, v5.2 and v6.1
         p = Platform("x86_64", "linux"; libgfortran_version=v"3", libstdcxx_version=v"3.4.22")
         @test gcc_version(p, available_gcc_builds) == [v"4.8.5", v"5.2.0", v"6.1.0"]
