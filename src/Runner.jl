@@ -348,6 +348,15 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     end
 
     function gcc_compile_flags!(p::AbstractPlatform, flags::Vector{String} = String[])
+        if Sys.islinux(p) || Sys.isfreebsd(p)
+            # Help GCCBootstrap find its own libraries under
+            # `/opt/${target}/${target}/lib{,64}`.  Note: we need to push them directly in
+            # the wrappers before any additional arguments because we want this path to have
+            # precedence over anything else.  In this way for example we avoid libraries
+            # from `CompilerSupportLibraries_jll` in `${libdir}` are picked up by mistake.
+            dir = "/opt/$(aatriplet(p))/$(aatriplet(p))/lib" * (nbits(p) == 32 ? "" : "64")
+            append!(flags, ("-L$(dir)", "-Wl,-rpath-link,$(dir)"))
+        end
         if lock_microarchitecture
             append!(flags, get_march_flags(arch(p), march(p), "gcc"))
         end
