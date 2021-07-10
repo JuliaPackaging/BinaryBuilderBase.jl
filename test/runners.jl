@@ -1,6 +1,7 @@
 using Test
 using BinaryBuilderBase
 using BinaryBuilderBase: platform_dlext, platform_exeext
+using Pkg
 
 @testset "Wrappers utilities" begin
     @test nbits(Platform("i686", "linux")) == 32
@@ -105,13 +106,13 @@ end
         end
     end
 
-    # This tests that compilers for all Intel Linux platforms can build a simple
-    # C program that we can also run
+    # This tests that compilers for all Intel Linux platforms can build simple
+    # C, C++, Fortran programs that we can also run
     @testset "Compilation and running" begin
-        mktempdir() do dir
-            platforms = filter(p -> Sys.islinux(p) && proc_family(p) == "intel", supported_platforms())
+        platforms = filter(p -> Sys.islinux(p) && proc_family(p) == "intel", supported_platforms())
 
-            @testset "C - $(platform)" for platform in platforms
+        @testset "C - $(platform)" for platform in platforms
+            mktempdir() do dir
                 ur = preferred_runner()(dir; platform=platform)
                 iobuff = IOBuffer()
                 test_c = """
@@ -127,10 +128,66 @@ end
                 # Test that we get the output we expect
                 @test endswith(readchomp(iobuff), "Hello World!")
             end
+        end
 
-            # This tests that compilers for all Intel Linux platforms can build a simple
-            # Fortran program that we can also run
-            @testset "Fortran - $(platform)" for platform in filter(p -> Sys.islinux(p) && proc_family(p) == "intel", supported_platforms())
+        @testset "C++ - $(platform)" for platform in platforms
+            mktempdir() do dir
+                # Use an old GCC with libgfortran3
+                options = (preferred_gcc_version=v"4", compilers=[:c])
+                shards = choose_shards(platform; options...)
+                concrete_platform = get_concrete_platform(platform, shards)
+                prefix = setup_workspace(
+                    dir,
+                    [],
+                    concrete_platform,
+                    default_host_platform;
+                )
+                # Install `CompilerSupportLibraries_jll` v0.5.0 in the `${prefix}` to make
+                # sure it doesn't break compilation of the program for i686-linux-gnu, see
+                # https://github.com/JuliaPackaging/BinaryBuilderBase.jl/issues/163
+                artifact_paths =
+                    setup_dependencies(prefix,
+                                       [PackageSpec(; name="CompilerSupportLibraries_jll", version="0.5.0")],
+                                       concrete_platform, verbose=false)
+                ur = preferred_runner()(prefix.path;
+                                        platform=concrete_platform,
+                                        shards = shards,
+                                        options...)
+                iobuff = IOBuffer()
+                test_cpp = """
+                #include <iostream>
+                class breakCCompiler; // Courtesy of Meson
+                int main() {
+                    std::cout << "Hello World!" << std::endl;
+                    return 0;
+                }
+                """
+                test_script = """
+                set -e
+                echo '$(test_cpp)' > test.cpp
+                # Make sure we can compile successfully also when `\${libdir}` is in the
+                # linker search path
+                g++ -o test test.cpp -L\${libdir}
+                ./test
+                """
+                cmd = `/bin/bash -c "$(test_script)"`
+                if arch(platform) == "i686" && libc(platform) == "musl"
+                    # We can't run C++ programs for this platform
+                    @test_broken run(ur, cmd, iobuff; tee_stream=devnull)
+                else
+                    @test run(ur, cmd, iobuff; tee_stream=devnull)
+                    seekstart(iobuff)
+                    # Test that we get the output we expect
+                    @test endswith(readchomp(iobuff), "Hello World!")
+                end
+                cleanup_dependencies(prefix, artifact_paths, concrete_platform)
+            end
+        end
+
+        # This tests that compilers for all Intel Linux platforms can build a simple
+        # Fortran program that we can also run
+        @testset "Fortran - $(platform)" for platform in platforms
+            mktempdir() do dir
                 ur = preferred_runner()(dir; platform=platform)
                 iobuff = IOBuffer()
                 test_f = """
@@ -140,6 +197,7 @@ end
                 """
                 cmd = `/bin/bash -c "echo '$(test_f)' > test.f && gfortran -o test test.f && ./test"`
                 if arch(platform) == "i686" && libc(platform) == "musl"
+                    # We can't run Fortran programs for this platform
                     @test_broken run(ur, cmd, iobuff; tee_stream=devnull)
                 else
                     @test run(ur, cmd, iobuff; tee_stream=devnull)
