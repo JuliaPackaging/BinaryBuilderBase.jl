@@ -903,7 +903,7 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
             # We need to push i686 directories before x86_64 ones
             ("i686", "x86_64")
         else
-            ("x86", "i686_64")
+            ("x86_64", "i686")
         end
 
         return join(["/usr/lib/csl-$(libc)-$(arch)" for libc in libcs, arch in archs], ":")
