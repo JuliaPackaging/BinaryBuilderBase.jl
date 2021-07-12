@@ -454,7 +454,7 @@ function setup_dependencies(prefix::Prefix, dependencies::Vector{PkgSpec}, platf
         # Update registry first, in case the jll packages we're looking for have just been registered/updated
         ctx = Pkg.Types.Context(;julia_version = julia_version)
         outs = verbose ? stdout : devnull
-        update_registry(ctx, outs)
+        update_registry(outs)
 
         # Add all dependencies
         Pkg.add(ctx, dependencies; platform=platform, io=outs)
