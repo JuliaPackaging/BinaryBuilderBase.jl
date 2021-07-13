@@ -130,6 +130,58 @@ end
             end
         end
 
+        @testset "C and link to quadmath - $(platform)" for platform in platforms
+            mktempdir() do dir
+                # Use a recent GCC with libgfortran5
+                options = (preferred_gcc_version=v"9", compilers=[:c])
+                shards = choose_shards(platform; options...)
+                concrete_platform = get_concrete_platform(platform, shards)
+                prefix = setup_workspace(
+                    dir,
+                    [],
+                    concrete_platform,
+                    default_host_platform;
+                )
+                # Install `MPICH_jll` in the `${prefix}` to make sure we can link to
+                # libquadmath without problems, see
+                # https://github.com/JuliaPackaging/BinaryBuilderBase.jl/pull/157#issuecomment-879263820
+                artifact_paths =
+                    setup_dependencies(prefix,
+                                       [PackageSpec(; name="MPICH_jll", version="3.4.2")],
+                                       concrete_platform, verbose=false)
+                ur = preferred_runner()(prefix.path;
+                                        platform=concrete_platform,
+                                        shards = shards,
+                                        options...)
+                iobuff = IOBuffer()
+                test_c = """
+                #include <stdio.h>
+                int main() {
+                    printf("Hello World!\\n");
+                    return 0;
+                }
+                """
+                test_script = """
+                set -e
+                echo '$(test_c)' > test.c
+                # Make sure we can compile successfully also when linking to libmpifort
+                cc -o test test.c -L\${libdir} -lmpifort -lquadmath
+                ./test
+                """
+                cmd = `/bin/bash -c "$(test_script)"`
+                if arch(platform) == "i686" && libc(platform) == "musl"
+                    # We can't run this program for this platform
+                    @test_broken run(ur, cmd, iobuff; tee_stream=devnull)
+                else
+                    @test run(ur, cmd, iobuff; tee_stream=devnull)
+                    seekstart(iobuff)
+                    # Test that we get the output we expect
+                    @test endswith(readchomp(iobuff), "Hello World!")
+                end
+                cleanup_dependencies(prefix, artifact_paths, concrete_platform)
+            end
+        end
+
         @testset "C++ - $(platform)" for platform in platforms
             mktempdir() do dir
                 # Use an old GCC with libgfortran3
@@ -167,7 +219,7 @@ end
                 echo '$(test_cpp)' > test.cpp
                 # Make sure we can compile successfully also when `\${libdir}` is in the
                 # linker search path
-                g++ -o test test.cpp -L\${libdir}
+                c++ -o test test.cpp -L\${libdir}
                 ./test
                 """
                 cmd = `/bin/bash -c "$(test_script)"`

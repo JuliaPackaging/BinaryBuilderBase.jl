@@ -395,6 +395,8 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             hash_args = true,
             allow_ccache,
             no_soft_float=arch(p) in ("armv6l", "armv7l"),
+            # Override `LD_LIBRARY_PATH` to avoid external settings mess it up.
+            env=Dict("LD_LIBRARY_PATH"=>""),
         )
     end
 
@@ -406,6 +408,8 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             compile_only_flags=clang_compile_flags!(p),
             link_only_flags=clang_link_flags!(p),
             no_soft_float=arch(p) in ("armv6l", "armv7l"),
+            # Override `LD_LIBRARY_PATH` to avoid external settings mess it up.
+            env=Dict("LD_LIBRARY_PATH"=>""),
         )
     end
 
