@@ -65,7 +65,7 @@ end
             @test run(ur, `/bin/bash -c "echo test"`, iobuff)
             seek(iobuff, 0)
             # Test that we get the output we expect (e.g. the second line is `test`)
-            @test split(String(read(iobuff)), "\n")[2] == "test"
+            @test readlines(iobuff)[2] == "test"
         end
     end
 
@@ -259,7 +259,7 @@ end
             iobuff = IOBuffer()
             @test !run(ur, cmd, iobuff; tee_stream=devnull)
             seekstart(iobuff)
-            @test split(String(read(iobuff)), "\n")[2] == "Cannot force an architecture"
+            @test readlines(iobuff)[2] == "Cannot force an architecture"
 
             ur = preferred_runner()(dir; platform=platform, lock_microarchitecture=false)
             iobuff = IOBuffer()
@@ -277,7 +277,7 @@ end
             iobuff = IOBuffer()
             @test !run(ur, cmd, iobuff; tee_stream=devnull)
             seekstart(iobuff)
-            lines = split(String(read(iobuff)), "\n")
+            lines = readlines(iobuff)
             @test lines[2] == "You used one or more of the unsafe flags: -Ofast, -ffast-math, -funsafe-math-optimizations"
             @test lines[3] == "Please repent."
 
