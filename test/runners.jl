@@ -169,15 +169,10 @@ end
                 ./test
                 """
                 cmd = `/bin/bash -c "$(test_script)"`
-                if arch(platform) == "i686" && libc(platform) == "musl"
-                    # We can't run this program for this platform
-                    @test_broken run(ur, cmd, iobuff; tee_stream=devnull)
-                else
-                    @test run(ur, cmd, iobuff; tee_stream=devnull)
-                    seekstart(iobuff)
-                    # Test that we get the output we expect
-                    @test endswith(readchomp(iobuff), "Hello World!")
-                end
+                @test run(ur, cmd, iobuff; tee_stream=devnull)
+                seekstart(iobuff)
+                # Test that we get the output we expect
+                @test endswith(readchomp(iobuff), "Hello World!")
                 cleanup_dependencies(prefix, artifact_paths, concrete_platform)
             end
         end
@@ -223,15 +218,10 @@ end
                 ./test
                 """
                 cmd = `/bin/bash -c "$(test_script)"`
-                if arch(platform) == "i686" && libc(platform) == "musl"
-                    # We can't run C++ programs for this platform
-                    @test_broken run(ur, cmd, iobuff; tee_stream=devnull)
-                else
-                    @test run(ur, cmd, iobuff; tee_stream=devnull)
-                    seekstart(iobuff)
-                    # Test that we get the output we expect
-                    @test endswith(readchomp(iobuff), "Hello World!")
-                end
+                @test run(ur, cmd, iobuff; tee_stream=devnull)
+                seekstart(iobuff)
+                # Test that we get the output we expect
+                @test endswith(readchomp(iobuff), "Hello World!")
                 cleanup_dependencies(prefix, artifact_paths, concrete_platform)
             end
         end

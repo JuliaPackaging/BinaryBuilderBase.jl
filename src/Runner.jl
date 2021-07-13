@@ -895,22 +895,14 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
         end
     end
 
-    function csl_paths(p::AbstractPlatform)
-        libcs = if Sys.islinux(p) && proc_family(p) == "intel" && libc(p) == "musl"
-            # We need to push musl directories before glibc ones
-            ("musl", "glibc")
-        else
-            ("glibc", "musl")
-        end
-
-        archs = if Sys.islinux(p) && proc_family(p) == "intel" && arch(p) == "i686"
-            # We need to push i686 directories before x86_64 ones
-            ("i686", "x86_64")
-        else
-            ("x86_64", "i686")
-        end
-
-        return join(["/usr/lib/csl-$(libc)-$(arch)" for libc in libcs, arch in archs], ":")
+    # Generate CSL paths for target and host platforms, but only if these are platforms for
+    # which we can run executables, i.e. Intel penguins.
+    function csl_paths(target::AbstractPlatform, host::AbstractPlatform)
+        # Ok, this is incredibly finicky: if the target has the same architecture as the
+        # host, we should have the host first then the target, otherwise we need to have
+        # target first.
+        platforms = arch(target) == arch(host) ? (host, target) : (target, host)
+        return join(unique("/usr/lib/csl-$(libc(p))-$(arch(p))" for p in platforms if Sys.islinux(p) && proc_family(p) == "intel"), ":")
     end
 
     merge!(mapping, Dict(
@@ -931,8 +923,8 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
         ), ":"),
 
         "LD_LIBRARY_PATH" => join((
-            # Start with our CSL libraries for all architectures that can natively run within this environment
-            csl_paths(host_platform),
+            # Start with our CSL libraries for target/host, but only for architectures that can natively run within this environment
+            csl_paths(platform, host_platform),
             # Then add default system paths
             "/usr/local/lib64:/usr/local/lib:/usr/lib64:/usr/lib",
             # Add our loader directories
