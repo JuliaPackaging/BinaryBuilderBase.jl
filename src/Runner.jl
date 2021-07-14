@@ -47,6 +47,63 @@ end
 # XXX: we want AnyPlatform to look like `x86_64-linux-musl` in the build environment.
 aatriplet(p::AnyPlatform) = aatriplet(default_host_platform)
 
+function ld_library_path(target::AbstractPlatform,
+                         host::AbstractPlatform,
+                         prefix::String="",
+                         host_libdir::String="";
+                         csl_paths::Bool=true)
+    # Helper for generating the library include path for a target.  MacOS, as usual,
+    # puts things in slightly different place.
+    function target_lib_dir(p::AbstractPlatform)
+        t = aatriplet(p)
+        if Sys.isapple(p)
+            return "/opt/$(t)/$(t)/lib:/opt/$(t)/lib"
+        else
+            return "/opt/$(t)/$(t)/lib64:/opt/$(t)/$(t)/lib"
+        end
+    end
+
+    # Let's start
+    paths = String[]
+
+    # If requested, start with our CSL libraries for target/host, but only for architectures
+    # that can natively run within this environment
+    if csl_paths
+        append!(paths,
+                unique("/usr/lib/csl-$(libc(p))-$(arch(p))" for p in (host, target) if Sys.islinux(p) && proc_family(p) == "intel"),
+                )
+    end
+
+    push!(paths,
+          # Then add default system paths
+          "/usr/local/lib64:/usr/local/lib:/usr/lib64:/usr/lib",
+          # Add our loader directories
+          "/lib64:/lib",
+          )
+
+    if !isempty(host_libdir)
+        push!(paths,
+              # Libdir of the host platform, to run programs in `HostBuildDependency`
+              host_libdir,
+              )
+    end
+
+    push!(paths,
+          # Add our target/host-specific library directories for compiler support libraries
+          target_lib_dir(host),
+          target_lib_dir(target),
+          )
+
+    # Finally, add dependencies in the prefix
+    if !isempty(prefix)
+        push!(paths,
+              "$(prefix)/lib64:$(prefix)/lib",
+              )
+    end
+
+    return join(paths, ":")
+end
+
 """
     generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::AbstractString,
                                 host_platform::AbstractPlatform = $(repr(default_host_platform)),
@@ -395,6 +452,8 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             hash_args = true,
             allow_ccache,
             no_soft_float=arch(p) in ("armv6l", "armv7l"),
+            # Override `LD_LIBRARY_PATH` to avoid external settings mess it up.
+            env=Dict("LD_LIBRARY_PATH"=>ld_library_path(platform, host_platform; csl_paths=false)),
         )
     end
 
@@ -406,6 +465,8 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             compile_only_flags=clang_compile_flags!(p),
             link_only_flags=clang_link_flags!(p),
             no_soft_float=arch(p) in ("armv6l", "armv7l"),
+            # Override `LD_LIBRARY_PATH` to avoid external settings mess it up.
+            env=Dict("LD_LIBRARY_PATH"=>ld_library_path(platform, host_platform; csl_paths=false)),
         )
     end
 
@@ -869,17 +930,6 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
         return mapping
     end
 
-    # Helper for generating the library include path for a target.  MacOS, as usual,
-    # puts things in slightly different place.
-    function target_lib_dir(p::AbstractPlatform)
-        t = aatriplet(p)
-        if Sys.isapple(p)
-            return "/opt/$(t)/$(t)/lib:/opt/$(t)/lib"
-        else
-            return "/opt/$(t)/$(t)/lib64:/opt/$(t)/$(t)/lib"
-        end
-    end
-
     function GOARM(p::AbstractPlatform)
         # See https://github.com/golang/go/wiki/GoArm#supported-architectures
         if arch(p) == "armv6l"
@@ -889,24 +939,6 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
         else
             return ""
         end
-    end
-
-    function csl_paths(p::AbstractPlatform)
-        libcs = if Sys.islinux(p) && proc_family(p) == "intel" && libc(p) == "musl"
-            # We need to push musl directories before glibc ones
-            ("musl", "glibc")
-        else
-            ("glibc", "musl")
-        end
-
-        archs = if Sys.islinux(p) && proc_family(p) == "intel" && arch(p) == "i686"
-            # We need to push i686 directories before x86_64 ones
-            ("i686", "x86_64")
-        else
-            ("x86", "i686_64")
-        end
-
-        return join(["/usr/lib/csl-$(libc)-$(arch)" for libc in libcs, arch in archs], ":")
     end
 
     merge!(mapping, Dict(
@@ -926,21 +958,7 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
             mapping["bindir"],
         ), ":"),
 
-        "LD_LIBRARY_PATH" => join((
-           # Start with a default path
-           "/usr/local/lib64:/usr/local/lib:/usr/lib64:/usr/lib",
-            # Add our loader directories
-            "/lib64:/lib",
-            # Add our CSL libraries for all architectures that can natively run within this environment
-            csl_paths(host_platform),
-            # Libdir of the host platform, to run programs in `HostBuildDependency`
-            "$(host_libdir)",
-            # Add our target/host-specific library directories for compiler support libraries
-            target_lib_dir(host_platform),
-            target_lib_dir(platform),
-            # Finally, dependencies
-            "$(prefix)/lib64:$(prefix)/lib",
-        ), ":"),
+        "LD_LIBRARY_PATH" => ld_library_path(platform, host_platform, prefix, host_libdir),
 
         # Default mappings for some tools
         "CC" => "cc",
