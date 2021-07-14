@@ -69,12 +69,8 @@ function ld_library_path(target::AbstractPlatform,
     # If requested, start with our CSL libraries for target/host, but only for architectures
     # that can natively run within this environment
     if csl_paths
-        # Ok, this is incredibly finicky.  If the target has the same architecture as the
-        # host, we should have the host first then the target, otherwise we need to have
-        # target first.
-        platforms = arch(target) == arch(host) ? (host, target) : (target, host)
         append!(paths,
-                unique("/usr/lib/csl-$(libc(p))-$(arch(p))" for p in platforms if Sys.islinux(p) && proc_family(p) == "intel"),
+                unique("/usr/lib/csl-$(libc(p))-$(arch(p))" for p in (host, target) if Sys.islinux(p) && proc_family(p) == "intel"),
                 )
     end
 
