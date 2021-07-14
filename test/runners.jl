@@ -96,11 +96,12 @@ end
     end
 
     # This tests only that compilers for all platforms can build a simple C program
-    @testset "Compilation - $(platform)" for platform in platforms
+    # TODO: for the time being we only test `cc`, eventually we want to run `gcc` and `clang` separately
+    @testset "Compilation - $(platform) - $(compiler)" for platform in platforms, compiler in ("cc",)
         mktempdir() do dir
             ur = preferred_runner()(dir; platform=platform)
             iobuff = IOBuffer()
-            @test run(ur, `/bin/bash -c "echo 'int main() {return 0;}' | cc -x c -"`, iobuff; tee_stream=devnull)
+            @test run(ur, `/bin/bash -c "echo 'int main() {return 0;}' | $(compiler) -x c -"`, iobuff; tee_stream=devnull)
             seekstart(iobuff)
             @test split(String(read(iobuff)), "\n")[2] == ""
         end
