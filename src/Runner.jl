@@ -939,7 +939,7 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
 
     # Prefix, libdir, etc...
     prefix = "/workspace/destdir"
-    host_prefix = "/workspace/$(triplet(host_platform))/destdir"
+    host_prefix = "/workspace/host/destdir"
     if Sys.iswindows(platform)
         libdir = "$(prefix)/bin"
     else

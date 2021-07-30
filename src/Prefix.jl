@@ -334,25 +334,23 @@ destdir(prefix, platform::AbstractPlatform) =
                     verbose::Bool = false)
 
 Sets up a workspace within `build_path`, creating the directory structure
-needed by further steps, unpacking the source within `build_path`, and defining
-the environment variables that will be defined within the sandbox environment.
+needed by further steps, unpacking the source within `build_path`.
 
 This method returns the `Prefix` to install things into, and the runner
 that can be used to launch commands within this workspace.
 """
 function setup_workspace(build_path::AbstractString, sources::Vector,
-                         target_platform::AbstractPlatform,
-                         host_platform::AbstractPlatform=default_host_platform;
+                         target_platform::AbstractPlatform;
                          verbose::Bool = false)
     # Use a random nonce to make detection of paths in embedded binary easier
     nonce = randstring()
     workspace = joinpath(build_path, nonce)
-    mkdir(workspace)
+    mkpath(workspace)
 
     # We now set up two directories, one as a source dir, one as a dest dir
     srcdir = joinpath(workspace, "srcdir")
     target_destdir = destdir(workspace, target_platform)
-    host_destdir = destdir(workspace, host_platform)
+    host_destdir = joinpath(workspace, "destdir", "host")
     metadir = joinpath(workspace, "metadir")
     mkpath.((srcdir, target_destdir, host_destdir, metadir))
     # Create the symlink /workspace/destdir -> /workspace/TARGET_TRIPLET/destdir
@@ -701,11 +699,9 @@ end
 function cleanup_dependencies(prefix::Prefix, artifact_paths, platform)
     for art_path in artifact_paths
         # Unsymlink all destdirs within the prefix
-        for dir in readdir(prefix.path; join=true)
-            ddir = destdir(prefix, platform)
-            if isdir(ddir)
-                unsymlink_tree(art_path, ddir)
-            end
+        ddir = destdir(prefix, platform)
+        if isdir(ddir)
+            unsymlink_tree(art_path, ddir)
         end
     end
 end
