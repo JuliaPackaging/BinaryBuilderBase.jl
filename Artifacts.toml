@@ -2792,6 +2792,28 @@ os = "linux"
     sha256 = "f54c9cc798e7fba61cd1fac1091f6b47a73481ee2e58acc39406b7a323a944d1"
     url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2021.1.28/PlatformSupport-x86_64-unknown-freebsd11.1.v2021.1.28.x86_64-linux-musl.unpacked.tar.gz"
 
+[["PlatformSupport-x86_64-unknown-freebsd12.2.v2021.8.9.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "2d52c49342a299b6aead99c595b503806e2ef687"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["PlatformSupport-x86_64-unknown-freebsd12.2.v2021.8.9.x86_64-linux-musl.squashfs".download]]
+    sha256 = "4e9115bca74ae4ad68572d95e5722242b146e27a26c93eb812fc4561c3245e2b"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2021.8.9/PlatformSupport-x86_64-unknown-freebsd12.2.v2021.8.9.x86_64-linux-musl.squashfs.tar.gz"
+
+[["PlatformSupport-x86_64-unknown-freebsd12.2.v2021.8.9.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "426dac153dd5c856a8533011d7576f84a686b102"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["PlatformSupport-x86_64-unknown-freebsd12.2.v2021.8.9.x86_64-linux-musl.unpacked".download]]
+    sha256 = "9bb8c3db26b5131ec2f240bee117760b8fa0aded38e2ffaade2d6d32ff69d01c"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2021.8.9/PlatformSupport-x86_64-unknown-freebsd12.2.v2021.8.9.x86_64-linux-musl.unpacked.tar.gz"
+
 [["PlatformSupport-x86_64-w64-mingw32.v2021.1.28.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
 git-tree-sha1 = "1781b2bbe9af4b8f1441d9a20b2bb3812e62daad"
