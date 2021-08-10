@@ -2559,7 +2559,7 @@ os = "linux"
 
     [["PlatformSupport-armv7l-linux-gnueabihf.v2021.8.10.x86_64-linux-musl.squashfs".download]]
     sha256 = "95d1e88aa9304b231971a9fee30353a1d08284410cc59be2e6a67ffabe385a1c"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2021.8.10+0/PlatformSupport-armv7l-linux-gnueabihf.v2021.8.10.x86_64-linux-musl.squashfs.tar.gz"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2021.8.10/PlatformSupport-armv7l-linux-gnueabihf.v2021.8.10.x86_64-linux-musl.squashfs.tar.gz"
 
 [["PlatformSupport-armv7l-linux-gnueabihf.v2021.8.10.x86_64-linux-musl.unpacked"]]
 arch = "x86_64"
@@ -2570,7 +2570,7 @@ os = "linux"
 
     [["PlatformSupport-armv7l-linux-gnueabihf.v2021.8.10.x86_64-linux-musl.unpacked".download]]
     sha256 = "793cc914bca981fc8ece1bb29944efbdd08c18a4b37292d16a13acd5255935e9"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2021.8.10+0/PlatformSupport-armv7l-linux-gnueabihf.v2021.8.10.x86_64-linux-musl.unpacked.tar.gz"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2021.8.10/PlatformSupport-armv7l-linux-gnueabihf.v2021.8.10.x86_64-linux-musl.unpacked.tar.gz"
 
 [["PlatformSupport-armv7l-linux-musleabihf.v2021.8.10.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
@@ -2581,7 +2581,7 @@ os = "linux"
 
     [["PlatformSupport-armv7l-linux-musleabihf.v2021.8.10.x86_64-linux-musl.squashfs".download]]
     sha256 = "e8cfe4fd3b455fbf5e9860492b28902c0c6c44310cdf524c23739b04a9c9525e"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2021.8.10+0/PlatformSupport-armv7l-linux-musleabihf.v2021.8.10.x86_64-linux-musl.squashfs.tar.gz"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2021.8.10/PlatformSupport-armv7l-linux-musleabihf.v2021.8.10.x86_64-linux-musl.squashfs.tar.gz"
 
 [["PlatformSupport-armv7l-linux-musleabihf.v2021.8.10.x86_64-linux-musl.unpacked"]]
 arch = "x86_64"
@@ -2592,7 +2592,7 @@ os = "linux"
 
     [["PlatformSupport-armv7l-linux-musleabihf.v2021.8.10.x86_64-linux-musl.unpacked".download]]
     sha256 = "09a35f26f91648ecc3519eebe3f15b1017f97873c7a74999862bf691c6a9ebba"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2021.8.10+0/PlatformSupport-armv7l-linux-musleabihf.v2021.8.10.x86_64-linux-musl.unpacked.tar.gz"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2021.8.10/PlatformSupport-armv7l-linux-musleabihf.v2021.8.10.x86_64-linux-musl.unpacked.tar.gz"
 
 [["PlatformSupport-i686-linux-gnu.v2021.8.10.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
