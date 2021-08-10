@@ -2552,7 +2552,7 @@ os = "linux"
 
 [["PlatformSupport-armv7l-linux-gnueabihf.v2021.8.10.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
-git-tree-sha1 = "b15c854b9a7c1bd0a807d361f074665abf1682b8"
+git-tree-sha1 = "ef471967ce50914dbf06d51d580eb3961afc93ce"
 lazy = true
 libc = "musl"
 os = "linux"
@@ -2563,7 +2563,7 @@ os = "linux"
 
 [["PlatformSupport-armv7l-linux-gnueabihf.v2021.8.10.x86_64-linux-musl.unpacked"]]
 arch = "x86_64"
-git-tree-sha1 = "ab6c73d8a8fe3e9952730cce4c2559550f95edfc"
+git-tree-sha1 = "347b47a165098e5e8cbbe03f518757629137c006"
 lazy = true
 libc = "musl"
 os = "linux"
@@ -2574,7 +2574,7 @@ os = "linux"
 
 [["PlatformSupport-armv7l-linux-musleabihf.v2021.8.10.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
-git-tree-sha1 = "f5aee56edd2af545c83653882c2f0d53a64e65b5"
+git-tree-sha1 = "3d6bc9b775c18c958cccbdd8b704575dd8a2ecdc"
 lazy = true
 libc = "musl"
 os = "linux"
@@ -2585,7 +2585,7 @@ os = "linux"
 
 [["PlatformSupport-armv7l-linux-musleabihf.v2021.8.10.x86_64-linux-musl.unpacked"]]
 arch = "x86_64"
-git-tree-sha1 = "9ded6c70724d0eb83f1e6057198e39042b7db25e"
+git-tree-sha1 = "07ffe0b3f35e76b469720a4aadd2416dbe2d31fe"
 lazy = true
 libc = "musl"
 os = "linux"
