@@ -700,42 +700,41 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             # Someday, you will be split out
             write_wrapper(gfortran, p, "$(t)-f77")
             write_wrapper(gfortran, p, "$(t)-gfortran")
-        end
 
+            # Binutils
+            write_wrapper(ar, p, "$(t)-ar")
+            write_wrapper(as, p, "$(t)-as")
+            write_wrapper(cpp, p, "$(t)-cpp")
+            write_wrapper(cxxfilt, p, "$(t)-c++filt")
+            write_wrapper(ld, p, "$(t)-ld")
+            # ld wrappers for clang's `-fuse-ld=$(target)`
+            if Sys.isapple(p)
+                write_wrapper(ld, p, "ld64.$(t)")
+            else
+                write_wrapper(ld, p, "ld.$(t)")
+            end
+            write_wrapper(nm, p, "$(t)-nm")
+            write_wrapper(libtool, p, "$(t)-libtool")
+            write_wrapper(objcopy, p, "$(t)-objcopy")
+            write_wrapper(objdump, p, "$(t)-objdump")
+            write_wrapper(ranlib, p, "$(t)-ranlib")
+            write_wrapper(readelf, p, "$(t)-readelf")
+            write_wrapper(strip, p, "$(t)-strip")
 
-        # Binutils (we always do these)
-        write_wrapper(ar, p, "$(t)-ar")
-        write_wrapper(as, p, "$(t)-as")
-        write_wrapper(cpp, p, "$(t)-cpp")
-        write_wrapper(cxxfilt, p, "$(t)-c++filt")
-        write_wrapper(ld, p, "$(t)-ld")
-        # ld wrappers for clang's `-fuse-ld=$(target)`
-        if Sys.isapple(p)
-            write_wrapper(ld, p, "ld64.$(t)")
-        else
-            write_wrapper(ld, p, "ld.$(t)")
-        end
-        write_wrapper(nm, p, "$(t)-nm")
-        write_wrapper(libtool, p, "$(t)-libtool")
-        write_wrapper(objcopy, p, "$(t)-objcopy")
-        write_wrapper(objdump, p, "$(t)-objdump")
-        write_wrapper(ranlib, p, "$(t)-ranlib")
-        write_wrapper(readelf, p, "$(t)-readelf")
-        write_wrapper(strip, p, "$(t)-strip")
+            # Special mac stuff
+            if Sys.isapple(p)
+                write_wrapper(install_name_tool, p, "$(t)-install_name_tool")
+                write_wrapper(lipo, p, "$(t)-lipo")
+                write_wrapper(dsymutil, p, "$(t)-dsymutil")
+                write_wrapper(otool, p, "$(t)-otool")
+            end
 
-        # Special mac stuff
-        if Sys.isapple(p)
-            write_wrapper(install_name_tool, p, "$(t)-install_name_tool")
-            write_wrapper(lipo, p, "$(t)-lipo")
-            write_wrapper(dsymutil, p, "$(t)-dsymutil")
-            write_wrapper(otool, p, "$(t)-otool")
-        end
-
-        # Special Windows stuff
-        if Sys.iswindows(p)
-            write_wrapper(dlltool, p, "$(t)-dlltool")
-            write_wrapper(windres, p, "$(t)-windres")
-            write_wrapper(winmc, p, "$(t)-winmc")
+            # Special Windows stuff
+            if Sys.iswindows(p)
+                write_wrapper(dlltool, p, "$(t)-dlltool")
+                write_wrapper(windres, p, "$(t)-windres")
+                write_wrapper(winmc, p, "$(t)-winmc")
+            end
         end
 
         # Generate go stuff
@@ -781,20 +780,21 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     write_wrapper(meson, host_platform, "meson")
 
     default_tools = [
-        # Binutils
-        "ar", "as", "c++filt", "ld", "nm", "libtool", "objcopy", "ranlib", "readelf", "strip",
-
-        # Misc. utilities
+        # Misc. utilities from RootFS
         "patchelf",
     ]
 
-    if Sys.isapple(platform)
-        append!(default_tools, ("dsymutil", "lipo", "otool", "install_name_tool"))
-    elseif Sys.iswindows(platform)
-        append!(default_tools, ("dlltool", "windres", "winmc"))
-    end
-
     if :c in compilers
+        # Binutils
+        append!(default_tools,
+                ("ar", "as", "c++filt", "ld", "nm", "libtool", "objcopy", "ranlib", "readelf", "strip"))
+
+        if Sys.isapple(platform)
+            append!(default_tools, ("dsymutil", "lipo", "otool", "install_name_tool"))
+        elseif Sys.iswindows(platform)
+            append!(default_tools, ("dlltool", "windres", "winmc"))
+        end
+
         append!(default_tools, ("cc", "c++", "cpp", "f77", "gfortran", "gcc", "clang", "g++", "clang++"))
     end
     if :rust in compilers
