@@ -65,6 +65,7 @@ function toolchain_file(bt::CMake, p::AbstractPlatform; is_host::Bool=false)
             \${CMAKE_SYSROOT}/System/Library/PrivateFrameworks
         )
         set(CMAKE_INSTALL_PREFIX \$ENV{prefix})
+        set(CMAKE_INSTALL_LIBDIR lib)
 
         set(CMAKE_C_COMPILER   /opt/bin/$(target)/$(aatarget)-$(c_compiler(bt)))
         set(CMAKE_CXX_COMPILER /opt/bin/$(target)/$(aatarget)-$(cxx_compiler(bt)))
@@ -89,6 +90,7 @@ function toolchain_file(bt::CMake, p::AbstractPlatform; is_host::Bool=false)
 
         set(CMAKE_SYSROOT /opt/$(aatarget)/$(aatarget)/sys-root/)
         set(CMAKE_INSTALL_PREFIX \$ENV{prefix})
+        set(CMAKE_INSTALL_LIBDIR $(Sys.iswindows(p) ? "bin" : "lib"))
 
         set(CMAKE_C_COMPILER   /opt/bin/$(target)/$(aatarget)-$(c_compiler(bt)))
         set(CMAKE_CXX_COMPILER /opt/bin/$(target)/$(aatarget)-$(cxx_compiler(bt)))
