@@ -270,7 +270,7 @@ end
             iobuff = IOBuffer()
             @test !run(ur, cmd, iobuff; tee_stream=devnull)
             seekstart(iobuff)
-            @test readlines(iobuff)[2] == "Cannot force an architecture"
+            @test readlines(iobuff)[2] == "BinaryBuilder: Cannot force an architecture"
 
             ur = preferred_runner()(dir; platform=platform, lock_microarchitecture=false)
             iobuff = IOBuffer()
@@ -289,7 +289,7 @@ end
             @test !run(ur, cmd, iobuff; tee_stream=devnull)
             seekstart(iobuff)
             lines = readlines(iobuff)
-            @test lines[2] == "You used one or more of the unsafe flags: -Ofast, -ffast-math, -funsafe-math-optimizations"
+            @test lines[2] == "BinaryBuilder: You used one or more of the unsafe flags: -Ofast, -ffast-math, -funsafe-math-optimizations"
             @test lines[3] == "Please repent."
 
             ur = preferred_runner()(dir; platform=platform, allow_unsafe_flags=true)

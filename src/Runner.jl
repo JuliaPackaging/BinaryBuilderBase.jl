@@ -219,7 +219,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         if lock_microarchitecture
             write(io, raw"""
                       if [[ " ${ARGS[@]} " == *"-march="* ]]; then
-                          echo "Cannot force an architecture" >&2
+                          echo "BinaryBuilder: Cannot force an architecture" >&2
                           exit 1
                       fi
                       """)
@@ -229,7 +229,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         if no_soft_float
             write(io, raw"""
                       if [[ " ${ARGS[@]} " == *"-mfloat-abi=soft"* ]]; then
-                          echo "${target} platform does not support soft-float ABI" >&2
+                          echo "BinaryBuilder: ${target} platform does not support soft-float ABI" >&2
                           exit 1
                       fi
                       """)
@@ -239,7 +239,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         if length(unsafe_flags) >= 1
             write(io, """
             if [[ "\${ARGS[@]}" =~ \"$(join(unsafe_flags, "\"|\""))\" ]]; then
-                echo -e \"You used one or more of the unsafe flags: $(join(unsafe_flags, ", "))\\nPlease repent.\" >&2
+                echo -e \"BinaryBuilder: You used one or more of the unsafe flags: $(join(unsafe_flags, ", "))\\nPlease repent.\" >&2
                 exit 1
             fi
             """)
