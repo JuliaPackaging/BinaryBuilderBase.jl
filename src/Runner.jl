@@ -219,7 +219,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         if lock_microarchitecture
             write(io, raw"""
                       if [[ " ${ARGS[@]} " == *"-march="* ]]; then
-                          echo "BinaryBuilder: Cannot force an architecture" >&2
+                          echo "BinaryBuilder: Cannot force an architecture via -march" >&2
                           exit 1
                       fi
                       """)
@@ -229,7 +229,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         if no_soft_float
             write(io, raw"""
                       if [[ " ${ARGS[@]} " == *"-mfloat-abi=soft"* ]]; then
-                          echo "BinaryBuilder: ${target} platform does not support soft-float ABI" >&2
+                          echo "BinaryBuilder: ${target} platform does not support soft-float ABI (-mfloat-abi=soft)" >&2
                           exit 1
                       fi
                       """)

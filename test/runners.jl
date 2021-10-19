@@ -270,7 +270,7 @@ end
             iobuff = IOBuffer()
             @test !run(ur, cmd, iobuff; tee_stream=devnull)
             seekstart(iobuff)
-            @test readlines(iobuff)[2] == "BinaryBuilder: Cannot force an architecture"
+            @test readlines(iobuff)[2] == "BinaryBuilder: Cannot force an architecture via -march"
 
             ur = preferred_runner()(dir; platform=platform, lock_microarchitecture=false)
             iobuff = IOBuffer()
