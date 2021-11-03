@@ -1,7 +1,8 @@
 using UUIDs
 
 export Dependency, BuildDependency, HostBuildDependency,
-    is_host_dependency, is_target_dependency, is_build_dependency, is_runtime_dependency
+    is_host_dependency, is_target_dependency, is_build_dependency, is_runtime_dependency,
+    filter_platforms
 
 
 # Pkg.PackageSpec return different types in different Julia versions so...
@@ -54,7 +55,7 @@ Return whether `dep` is a runtime dependency or not.
 is_runtime_dependency
 
 """
-    Dependency(dep::Union{PackageSpec,String}, build_version; compat)
+    Dependency(dep::Union{PackageSpec,String}, build_version; compat, filter_platforms)
 
 Define a binary dependency that is necessary to build the package and load the
 generated JLL package.  The argument can be either a string with the name of the
@@ -67,12 +68,19 @@ The optional keyword argument `compat` can be used to specify a string for use
 in the `Project.toml` of the generated Julia package.  If `compat` is non-empty
 and `build_version` is not passed, the latter defaults to the minimum version
 compatible with the `compat` specifier.
+
+The optional keyword argument `filter_platforms` is a one-argument function
+which takes in input an `AbstractPlatform` and returns whether the dependency is
+to be used on that platform, as a `Bool`.  By default the dependency is supposed
+to be used for all platforms.
 """
 struct Dependency <: AbstractDependency
     pkg::PkgSpec
     build_version::Union{VersionNumber,Nothing}
     compat::String  # semver string for use in Project.toml of the JLL
-    function Dependency(pkg::PkgSpec, build_version = nothing; compat::String = "")
+    filter_platforms::Function
+    function Dependency(pkg::PkgSpec, build_version = nothing; compat::String = "",
+                        filter_platforms::Function=_->true)
         if length(compat) > 0
             spec = PKG_VERSIONS.semver_spec(compat) # verify compat is valid
             if build_version === nothing
@@ -88,11 +96,12 @@ struct Dependency <: AbstractDependency
                 throw(ArgumentError("PackageSpec version and compat for $(pkg) are incompatible"))
             end
         end
-        new(pkg, build_version, compat)
+        new(pkg, build_version, compat, filter_platforms)
     end
 end
-function Dependency(dep::AbstractString, build_version = nothing; compat::String = "")
-    return Dependency(PackageSpec(; name = dep), build_version, compat = compat)
+function Dependency(dep::AbstractString, build_version = nothing;
+                    compat::String = "", filter_platforms::Function=_->true)
+    return Dependency(PackageSpec(; name = dep), build_version; compat, filter_platforms)
 end
 is_host_dependency(::Dependency) = false
 is_build_dependency(::Dependency) = true
@@ -107,8 +116,12 @@ argument can be either a string with the name of the JLL package or a
 """
 struct BuildDependency <: AbstractDependency
     pkg::PkgSpec
+    filter_platforms::Function
+    BuildDependency(pkg::PkgSpec; filter_platforms::Function=_->true) =
+        new(pkg, filter_platforms)
 end
-BuildDependency(dep::AbstractString) = BuildDependency(PackageSpec(; name = dep))
+BuildDependency(dep::AbstractString; filter_platforms::Function=_->true) =
+    BuildDependency(PackageSpec(; name = dep); filter_platforms)
 is_host_dependency(::BuildDependency) = false
 is_build_dependency(::BuildDependency) = true
 is_runtime_dependency(::BuildDependency) = false
@@ -125,8 +138,12 @@ The argument can be either a string with the name of the JLL package or a
 """
 struct HostBuildDependency <: AbstractDependency
     pkg::PkgSpec
+    filter_platforms::Function
+    HostBuildDependency(pkg::PkgSpec; filter_platforms::Function=_->true) =
+        new(pkg, filter_platforms)
 end
-HostBuildDependency(dep::AbstractString) = HostBuildDependency(PackageSpec(; name = dep))
+HostBuildDependency(dep::AbstractString; filter_platforms::Function=_->true) =
+    HostBuildDependency(PackageSpec(; name = dep); filter_platforms)
 is_host_dependency(::HostBuildDependency) = true
 is_build_dependency(::HostBuildDependency) = true
 is_runtime_dependency(::HostBuildDependency) = false
@@ -144,6 +161,11 @@ end
 
 getname(x::PkgSpec) = x.name
 getname(x::AbstractDependency) = getname(getpkg(x))
+
+filter_platforms(dep::AbstractDependency, p::AbstractPlatform)::Bool = dep.filter_platforms(p)
+# Filter dependencies in a vectory by platform
+filter_platforms(deps::AbstractVector{<:AbstractDependency}, p::AbstractPlatform) =
+    [dep for dep in deps if filter_platforms(dep, p)]
 
 # Wrapper around `Pkg.Types.registry_resolve!` which keeps the type of the
 # dependencies.  TODO: improve this
