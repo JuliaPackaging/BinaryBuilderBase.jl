@@ -172,7 +172,7 @@ filter_platforms(deps::AbstractVector{<:AbstractDependency}, p::AbstractPlatform
 function registry_resolve!(ctx, dependencies::Vector{<:AbstractDependency})
     resolved_dependencies = Pkg.Types.registry_resolve!(ctx, getpkg.(dependencies))
     for idx in eachindex(dependencies)
-        dependencies[idx] = typeof(dependencies[idx])(resolved_dependencies[idx])
+        dependencies[idx] = typeof(dependencies[idx])(resolved_dependencies[idx]; filter_platforms=dependencies[idx].filter_platforms)
     end
     return dependencies
 end
