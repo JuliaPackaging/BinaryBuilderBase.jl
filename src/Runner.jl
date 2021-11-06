@@ -11,7 +11,7 @@ export default_host_platform
 
 The default host platform in the build environment.
 """
-const default_host_platform = Platform("x86_64", "linux"; libc="musl", cxxstring_abi="cxx11")
+const default_host_platform = Platform(arch(HostPlatform()), "linux"; libc="musl", cxxstring_abi="cxx11")
 
 function nbits(p::AbstractPlatform)
     if arch(p) in ("i686", "armv6l", "armv7l")
@@ -44,7 +44,7 @@ function aatriplet(p::AbstractPlatform)
     t = replace(t, "armv6l" => "arm")
     return t
 end
-# XXX: we want AnyPlatform to look like `x86_64-linux-musl` in the build environment.
+# We want AnyPlatform to look like `default_host_platform` in the build environment.
 aatriplet(p::AnyPlatform) = aatriplet(default_host_platform)
 
 function ld_library_path(target::AbstractPlatform,
@@ -896,7 +896,7 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
         "dlext" => platform_dlext(platform),
         "exeext" => platform_exeext(platform),
         "PATH" => "/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin",
-        "MACHTYPE" => "x86_64-linux-musl",
+        "MACHTYPE" => aatriplet(default_host_platform),
 
         # Set location parameters
         "WORKSPACE" => "/workspace",

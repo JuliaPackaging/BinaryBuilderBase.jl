@@ -631,7 +631,7 @@ function choose_shards(p::AbstractPlatform;
     return shards
 end
 
-# XXX: we want AnyPlatform to look like `x86_64-linux-musl` in the build environment.
+# We want AnyPlatform to look like `default_host_platform` in the build environment.
 choose_shards(::AnyPlatform; kwargs...) = choose_shards(default_host_platform; kwargs...)
 
 """

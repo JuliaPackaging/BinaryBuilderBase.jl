@@ -125,12 +125,16 @@ meson_cxx_link_args(p::AbstractPlatform) = meson_c_link_args(p)
 meson_objc_link_args(p::AbstractPlatform) = meson_c_link_args(p)
 meson_fortran_link_args(p::AbstractPlatform) = meson_c_link_args(p)
 
-# We can run native programs only on
+# We can run native programs only if the platform matches the default host
+# platform, but when this is `x86_64-linux-musl` we can run executables for
 # * i686-linux-gnu
 # * x86_64-linux-gnu
 # * x86_64-linux-musl
 function meson_is_foreign(p::AbstractPlatform)
-    if Sys.islinux(p) && proc_family(p) == "intel" && (libc(p) == "glibc" || (libc(p) == "musl" && arch(p) == "x86_64"))
+    if platforms_match(p, default_host_platform) ||
+        (platforms_match(default_host_platform, Platform("x86_64", "linux"; libc="musl"))
+         && Sys.islinux(p) && proc_family(p) == "intel" &&
+             (libc(p) == "glibc" || (libc(p) == "musl" && arch(p) == "x86_64")))
         # Better to explicitly return the string we expect rather than
         # relying on the representation of the boolean values (even though
         # the result is the same)

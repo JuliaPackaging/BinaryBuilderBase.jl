@@ -14,7 +14,7 @@ Base.BinaryPlatforms.tags(p::AnyPlatform) = Dict{String,String}()
 Base.BinaryPlatforms.triplet(::AnyPlatform) = "any"
 Base.BinaryPlatforms.arch(::AnyPlatform) = "any"
 Base.BinaryPlatforms.os(::AnyPlatform) = "any"
-nbits(::AnyPlatform) = 64
+nbits(::AnyPlatform) = nbits(default_host_platform)
 proc_family(::AnyPlatform) = "any"
 Base.show(io::IO, ::AnyPlatform) = print(io, "AnyPlatform")
 
