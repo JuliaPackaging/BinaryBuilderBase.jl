@@ -57,6 +57,6 @@ function get_concrete_platform(platform::AbstractPlatform; kwargs...)
     return get_concrete_platform(platform, shards)
 end
 
-# XXX: we want the AnyPlatform to look like `x86_64-linux-musl`,
+# We want the AnyPlatform to look like `default_host_platform`,
 get_concrete_platform(::AnyPlatform, shards::Vector{CompilerShard}) =
     get_concrete_platform(default_host_platform, shards)

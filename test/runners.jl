@@ -73,14 +73,14 @@ end
         @info("Beginning full shard test... (this can take a while)")
         platforms = supported_platforms()
     else
-        platforms = (Platform("x86_64", "linux"; libc="musl"),)
+        platforms = (default_host_platform,)
     end
 
     # Checks that the wrappers provide the correct C++ string ABI
     @testset "Compilation - C++ string ABI" begin
         mktempdir() do dir
             # Host is x86_64-linux-musl-cxx11 and target is x86_64-linux-musl-cxx03
-            ur = preferred_runner()(dir; platform=Platform("x86_64", "linux"; libc="musl", cxxstring_abi="cxx03"), preferred_gcc_version=v"5")
+            ur = preferred_runner()(dir; platform=Platform(arch(HostPlatform()), "linux"; libc="musl", cxxstring_abi="cxx03"), preferred_gcc_version=v"5")
             iobuff = IOBuffer()
             test_script = raw"""
             set -e

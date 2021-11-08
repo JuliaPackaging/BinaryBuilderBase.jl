@@ -39,7 +39,7 @@ end
     @test arch(AnyPlatform()) == "any"
     @test repr(AnyPlatform()) == "AnyPlatform"
 
-    # In the build environment we want AnyPlatform to look like x86_64-linux-musl
+    # In the build environment we want AnyPlatform to look like `default_host_platform`
     @test get_concrete_platform(
             AnyPlatform();
             compilers = [:c],
