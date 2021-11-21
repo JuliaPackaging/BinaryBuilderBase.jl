@@ -8,7 +8,6 @@ on:
   release:
 
 env:
-  JULIA_PKG_SERVER: ""
   BINARYBUILDER_FULL_SHARD_TEST: true
   BINARYBUILDER_AUTOMATIC_APPLE: true
 
@@ -49,7 +48,9 @@ jobs:
       - uses: julia-actions/julia-buildpkg@latest
       - name: System info
         run: julia --project=. --color=yes -e "using BinaryBuilderBase; BinaryBuilderBase.versioninfo()"
-      - uses: julia-actions/julia-runtest@latest
+      - name: Run tests
+        run: |
+          julia --check-bounds=yes --color=yes --depwarn=yes --inline=yes --project=@. -e 'using Pkg; Pkg.instantiate(); Pkg.test(coverage=true)'
       - uses: julia-actions/julia-uploadcodecov@v0.1
         continue-on-error: true
       - uses: julia-actions/julia-uploadcoveralls@v0.1
@@ -58,6 +59,8 @@ jobs:
   Documentation:
     timeout-minutes: 30
     runs-on: ubuntu-latest
+    env:
+      JULIA_PKG_SERVER: ""
     steps:
       - uses: actions/checkout@v2
       - uses: julia-actions/setup-julia@latest
