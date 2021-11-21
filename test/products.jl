@@ -25,12 +25,12 @@ const platform = HostPlatform()
 
     # Test sorting of products....
     @test sort([LibraryProduct("libbar", :libbar), ExecutableProduct("foo", :foo), FrameworkProduct("buzz", :buzz)]) ==
-        [FrameworkProduct("buzz", :buzz), ExecutableProduct("foo", :foo), LibraryProduct("libbar", :libbar)]
+        [FrameworkProduct("buzz", :buzz), LibraryProduct("libbar", :libbar), ExecutableProduct("foo", :foo)]
     # ...and products info
     p1 = LibraryProduct(["libchafa"], :libchafa, ) => Dict("soname" => "libchafa.so.0","path" => "lib/libchafa.so")
     p2 = ExecutableProduct(["chafa"], :chafa, ) => Dict("path" => "bin/chafa")
     products_info = Dict{Product,Any}(p1, p2)
-    @test sort(products_info) == [p2, p1]
+    @test sort(products_info) == [p1, p2]
 
     temp_prefix() do prefix
         # Test that basic satisfication is not guaranteed
