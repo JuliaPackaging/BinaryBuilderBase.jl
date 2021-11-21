@@ -93,7 +93,7 @@ function DockerRunner(workspace_root::String;
     push!(workspaces, compiler_wrapper_path => "/opt/bin")
 
     # Generate CMake and Meson files
-    generate_toolchain_files!(platform; toolchains_path=toolchains_path)
+    generate_toolchain_files!(platform, envs; toolchains_path=toolchains_path)
     push!(workspaces, toolchains_path => "/opt/toolchains")
 
     # the workspace_root is always a workspace, and we always mount it first

@@ -560,7 +560,13 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
 
     # Meson REQUIRES that `CC`, `CXX`, etc.. are set to the host utils.  womp womp.
     function meson(io::IO, p::AbstractPlatform)
+        # Ugh, we need the path to `host_prefix`, let's quickly generate our
+        # environment variables.
+        host_prefix = platform_envs(p, ""; host_platform=default_host_platform)["host_prefix"]
+
         meson_env = Dict(
+            # TODO: still needed?  See
+            # https://mesonbuild.com/Release-notes-for-0-54-0.html#environment-variables-with-cross-builds
             "AR"     => "$(host_target)-ar",
             "CC"     => "$(host_target)-cc",
             "CXX"    => "$(host_target)-c++",
@@ -569,6 +575,8 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             "NM"     => "$(host_target)-nm",
             "OBJC"   => "$(host_target)-cc",
             "RANLIB" => "$(host_target)-ranlib",
+            # Needed to find pkg-config files for the host: https://mesonbuild.com/Reference-tables.html#environment-variables-per-machine 
+            "PKG_CONFIG_PATH_FOR_BUILD" => "$(host_prefix)/lib/pkgconfig:$(host_prefix)/lib64/pkgconfig:$(host_prefix)/share/pkgconfig",
         )
         wrapper(io, "/usr/bin/meson"; allow_ccache=false, env=meson_env)
     end
