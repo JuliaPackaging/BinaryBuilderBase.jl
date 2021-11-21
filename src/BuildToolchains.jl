@@ -108,29 +108,31 @@ function toolchain_file(bt::CMake, p::AbstractPlatform; is_host::Bool=false)
     end
 end
 
-meson_c_args(p::AbstractPlatform) = ["'-I/workspace/destdir/include'"]
-meson_cxx_args(p::AbstractPlatform) = meson_c_args(p)
-meson_objc_args(p::AbstractPlatform) = push!(meson_c_args(p), "'-x'", "'objective-c'")
-meson_fortran_args(p::AbstractPlatform) = meson_c_args(p)
+meson_c_args(p::AbstractPlatform, envs::Dict{String,String}; is_host::Bool=false) =
+    ["'-I$(envs[is_host ? "host_includedir" : "includedir"])'"]
+meson_cxx_args(p::AbstractPlatform, envs::Dict{String,String}; is_host::Bool=false) = meson_c_args(p, envs; is_host)
+meson_objc_args(p::AbstractPlatform, envs::Dict{String,String}; is_host::Bool=false) = push!(meson_c_args(p, envs; is_host), "'-x'", "'objective-c'")
+meson_fortran_args(p::AbstractPlatform, envs::Dict{String,String}; is_host::Bool=false) = meson_c_args(p, envs; is_host)
 
-function meson_c_link_args(p::AbstractPlatform)
-    libdir = "/workspace/destdir/" * (Sys.iswindows(p) ? "bin" : "lib")
+function meson_c_link_args(p::AbstractPlatform, envs::Dict{String,String}; is_host::Bool=false)
+    prefix, libdir = envs[is_host ? "host_prefix" : "prefix"], envs[is_host ? "host_libdir" : "libdir"]
     if arch(p) == "powerpc64le" && Sys.islinux(p)
-        return ["'-L$(libdir)'", "'-Wl,-rpath-link,/workspace/destdir/lib64'"]
+        return ["'-L$(libdir)'", "'-Wl,-rpath-link,$(prefix)/lib64'"]
     else
         return ["'-L$(libdir)'"]
     end
 end
-meson_cxx_link_args(p::AbstractPlatform) = meson_c_link_args(p)
-meson_objc_link_args(p::AbstractPlatform) = meson_c_link_args(p)
-meson_fortran_link_args(p::AbstractPlatform) = meson_c_link_args(p)
+meson_cxx_link_args(p::AbstractPlatform, envs::Dict{String,String}; is_host::Bool=false) = meson_c_link_args(p, envs; is_host)
+meson_objc_link_args(p::AbstractPlatform, envs::Dict{String,String}; is_host::Bool=false) = meson_c_link_args(p, envs; is_host)
+meson_fortran_link_args(p::AbstractPlatform, envs::Dict{String,String}; is_host::Bool=false) = meson_c_link_args(p, envs; is_host)
 
 # We can run native programs only if the platform matches the default host
 # platform, but when this is `x86_64-linux-musl` we can run executables for
 # * i686-linux-gnu
 # * x86_64-linux-gnu
 # * x86_64-linux-musl
-function meson_is_foreign(p::AbstractPlatform)
+function meson_is_foreign(p::AbstractPlatform; is_host::Bool=false)
+    is_host && return "false"
     if platforms_match(p, default_host_platform) ||
         (platforms_match(default_host_platform, Platform("x86_64", "linux"; libc="musl"))
          && Sys.islinux(p) && proc_family(p) == "intel" &&
@@ -165,7 +167,8 @@ function meson_cpu_family(p::AbstractPlatform)
     end
 end
 
-function toolchain_file(bt::Meson, p::AbstractPlatform)
+function toolchain_file(bt::Meson, p::AbstractPlatform, envs::Dict{String,String};
+                        is_host::Bool=false)
     target = triplet(p)
     aatarget = aatriplet(p)
 
@@ -181,16 +184,21 @@ function toolchain_file(bt::Meson, p::AbstractPlatform)
     strip = '/opt/bin/$(target)/$(aatarget)-strip'
     pkgconfig = '/usr/bin/pkg-config'
 
+    [built-in options]
+    c_args = [$(join(meson_c_args(p, envs; is_host), ", "))]
+    cpp_args = [$(join(meson_cxx_args(p, envs; is_host), ", "))]
+    fortran_args = [$(join(meson_fortran_args(p, envs; is_host), ", "))]
+    objc_args = [$(join(meson_objc_args(p, envs; is_host), ", "))]
+    c_link_args = [$(join(meson_c_link_args(p, envs; is_host), ", "))]
+    cpp_link_args = [$(join(meson_cxx_link_args(p, envs; is_host), ", "))]
+    fortran_link_args = [$(join(meson_fortran_link_args(p, envs; is_host), ", "))]
+    objc_link_args = [$(join(meson_objc_link_args(p, envs; is_host), ", "))]
+    prefix = '$(envs[is_host ? "host_prefix" : "prefix"])'
+
     [properties]
-    c_args = [$(join(meson_c_args(p), ", "))]
-    cpp_args = [$(join(meson_cxx_args(p), ", "))]
-    fortran_args = [$(join(meson_fortran_args(p), ", "))]
-    objc_args = [$(join(meson_objc_args(p), ", "))]
-    c_link_args = [$(join(meson_c_link_args(p), ", "))]
-    cpp_link_args = [$(join(meson_cxx_link_args(p), ", "))]
-    fortran_link_args = [$(join(meson_fortran_link_args(p), ", "))]
-    objc_link_args = [$(join(meson_objc_link_args(p), ", "))]
-    needs_exe_wrapper = $(meson_is_foreign(p))
+    needs_exe_wrapper = $(meson_is_foreign(p; is_host))
+    cmake_toolchain_file = '$(envs[is_host ? "CMAKE_HOST_TOOLCHAIN" : "CMAKE_TARGET_TOOLCHAIN"])'
+    cmake_defaults = false
 
     [build_machine]
     system = 'linux'
@@ -203,13 +211,10 @@ function toolchain_file(bt::Meson, p::AbstractPlatform)
     cpu_family = '$(meson_cpu_family(p))'
     cpu = '$(meson_cpu(p))'
     endian = 'little'
-
-    [paths]
-    prefix = '/workspace/destdir'
     """
 end
 
-function generate_toolchain_files!(platform::AbstractPlatform;
+function generate_toolchain_files!(platform::AbstractPlatform, envs::Dict{String,String};
                                    toolchains_path::AbstractString,
                                    host_platform::AbstractPlatform = default_host_platform,
                                    )
@@ -229,8 +234,8 @@ function generate_toolchain_files!(platform::AbstractPlatform;
                 write(joinpath(dir, "host_$(aatriplet(p))_$(compiler).cmake"), toolchain_file(CMake{compiler}(), p; is_host=true))
             end
         end
-        write(joinpath(dir, "$(aatriplet(p))_clang.meson"), toolchain_file(Meson{:clang}(), p))
-        write(joinpath(dir, "$(aatriplet(p))_gcc.meson"), toolchain_file(Meson{:gcc}(), p))
+        write(joinpath(dir, "$(aatriplet(p))_clang.meson"), toolchain_file(Meson{:clang}(), p, envs; is_host=platforms_match(p, host_platform)))
+        write(joinpath(dir, "$(aatriplet(p))_gcc.meson"), toolchain_file(Meson{:gcc}(), p, envs; is_host=platforms_match(p, host_platform)))
 
         symlink_if_exists(target, link) = ispath(joinpath(dir, target)) && symlink(target, link)
 
