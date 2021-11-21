@@ -225,29 +225,31 @@ function generate_toolchain_files!(platform::AbstractPlatform, envs::Dict{String
         mkpath(dir)
 
         for compiler in (:clang, :gcc)
-            # Target CMake toolchain
+            # Target toolchains
             if platforms_match(p, platform)
                 write(joinpath(dir, "target_$(aatriplet(p))_$(compiler).cmake"), toolchain_file(CMake{compiler}(), p; is_host=false))
+                write(joinpath(dir, "target_$(aatriplet(p))_$(compiler).meson"), toolchain_file(Meson{compiler}(), p, envs; is_host=false))
             end
-            # Host CMake toolchain
+            # Host toolchains
             if platforms_match(p, host_platform)
                 write(joinpath(dir, "host_$(aatriplet(p))_$(compiler).cmake"), toolchain_file(CMake{compiler}(), p; is_host=true))
+                write(joinpath(dir, "host_$(aatriplet(p))_$(compiler).meson"), toolchain_file(Meson{compiler}(), p, envs; is_host=true))
             end
         end
-        write(joinpath(dir, "$(aatriplet(p))_clang.meson"), toolchain_file(Meson{:clang}(), p, envs; is_host=platforms_match(p, host_platform)))
-        write(joinpath(dir, "$(aatriplet(p))_gcc.meson"), toolchain_file(Meson{:gcc}(), p, envs; is_host=platforms_match(p, host_platform)))
 
         symlink_if_exists(target, link) = ispath(joinpath(dir, target)) && symlink(target, link)
 
         # On FreeBSD and MacOS we actually want to default to clang, otherwise gcc
         if Sys.isbsd(p)
             symlink_if_exists("host_$(aatriplet(p))_clang.cmake", joinpath(dir, "host_$(aatriplet(p)).cmake"))
+            symlink_if_exists("host_$(aatriplet(p))_clang.meson", joinpath(dir, "host_$(aatriplet(p)).meson"))
             symlink_if_exists("target_$(aatriplet(p))_clang.cmake", joinpath(dir, "target_$(aatriplet(p)).cmake"))
-            symlink("$(aatriplet(p))_clang.meson", joinpath(dir, "$(aatriplet(p)).meson"))
+            symlink_if_exists("target_$(aatriplet(p))_clang.meson", joinpath(dir, "target_$(aatriplet(p)).meson"))
         else
             symlink_if_exists("host_$(aatriplet(p))_gcc.cmake", joinpath(dir, "host_$(aatriplet(p)).cmake"))
+            symlink_if_exists("host_$(aatriplet(p))_gcc.meson", joinpath(dir, "host_$(aatriplet(p)).meson"))
             symlink_if_exists("target_$(aatriplet(p))_gcc.cmake", joinpath(dir, "target_$(aatriplet(p)).cmake"))
-            symlink("$(aatriplet(p))_gcc.meson", joinpath(dir, "$(aatriplet(p)).meson"))
+            symlink_if_exists("target_$(aatriplet(p))_gcc.meson", joinpath(dir, "target_$(aatriplet(p)).meson"))
         end
     end
 end
