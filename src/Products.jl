@@ -494,6 +494,8 @@ function locate(fp::FileProduct, prefix::Prefix; platform::AbstractPlatform = Ho
 end
 
 # Necessary to get the products in the wrappers always sorted consistently
+Base.isless(x::LibraryProduct, y::ExecutableProduct) = true
+Base.isless(x::ExecutableProduct, y::LibraryProduct) = false
 Base.isless(x::Product, y::Product) = isless(variable_name(x), variable_name(y))
 Base.sort(d::Dict{Product}) = sort(collect(d), by = first)
 
