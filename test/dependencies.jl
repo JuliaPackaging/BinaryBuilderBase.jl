@@ -36,7 +36,7 @@ end
     @test getcompat(dep_buildver) == ""
 
     # the same but with compat info
-    dep_buildver = Dependency(PackageSpec(; name = name), build_version; compat = "~1.2", platforms=expand_cxxstring_abis(Platform("x86_64", "linux")))
+    dep_buildver = Dependency(PackageSpec(; name = name), build_version; compat = "~1.2", platforms=[Platform("x86_64", "linux"; cxxstring_abi="cxx11")])
     @test Dependency(name, build_version) == dep_buildver
     @test getname(dep_buildver) == name
     @test getpkg(dep_buildver) == PackageSpec(; name = name, version = build_version)
@@ -74,13 +74,18 @@ end
     @test getname(PackageSpec(; name = host_name)) == host_name
     @test getpkg(host_dep) == PackageSpec(; name = host_name)
 
+    @testset "Filter dependencies by platform" begin
+        @test filter_platforms([dep, dep_buildver, dep_compat], Platform("x86_64", "linux"; cxxstring_abi="cxx03")) == [dep_compat]
+        @test filter_platforms([dep, dep_buildver, dep_compat], Platform("x86_64", "macos")) == [dep, dep_compat]
+    end
+
     @testset "JSON (de)serialization" begin
         jdep = JSON.lower(dep)
         @test jdep == Dict("type" => "dependency", "name" => name, "uuid" => nothing, "compat" => "", "version-major" => 0x0, "version-minor" => 0x0, "version-patch" => 0x0, "platforms" => ["x86_64-apple-darwin", "aarch64-apple-darwin"])
         @test dependencify(jdep) == dep
 
         jdep_buildver = JSON.lower(dep_buildver)
-        @test jdep_buildver == Dict("type" => "dependency", "name" => name, "uuid" => nothing, "compat" => "~1.2", "version-major" => 0x0, "version-minor" => 0x0, "version-patch" => 0x0, "platforms" => ["x86_64-linux-gnu-cxx03", "x86_64-linux-gnu-cxx11"])
+        @test jdep_buildver == Dict("type" => "dependency", "name" => name, "uuid" => nothing, "compat" => "~1.2", "version-major" => 0x0, "version-minor" => 0x0, "version-patch" => 0x0, "platforms" => ["x86_64-linux-gnu-cxx11"])
         # the build_version is currently not serialized, so the following test fails
         @test_broken dependencify(jdep_buildver) == dep_buildver
 

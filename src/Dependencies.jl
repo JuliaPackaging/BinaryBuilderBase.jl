@@ -1,7 +1,8 @@
 using UUIDs
 
 export Dependency, BuildDependency, HostBuildDependency,
-    is_host_dependency, is_target_dependency, is_build_dependency, is_runtime_dependency
+    is_host_dependency, is_target_dependency, is_build_dependency, is_runtime_dependency,
+    filter_platforms
 
 
 # Pkg.PackageSpec return different types in different Julia versions so...
@@ -170,6 +171,14 @@ end
 
 getname(x::PkgSpec) = x.name
 getname(x::AbstractDependency) = getname(getpkg(x))
+
+"""
+    filter_platforms(deps::AbstractVector{<:AbstractDependency}, p::AbstractPlatform)
+
+Filter the dependencies `deps` which are compatible with platform `p`.
+"""
+filter_platforms(deps::AbstractVector{<:AbstractDependency}, p::AbstractPlatform) =
+    [dep for dep in deps if any(x -> platforms_match(x, p), dep.platforms)]
 
 # Wrapper around `Pkg.Types.registry_resolve!` which keeps the type of the
 # dependencies.  TODO: improve this
