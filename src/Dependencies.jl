@@ -248,7 +248,9 @@ for (type, type_descr) in ((Dependency, "dependency"), (BuildDependency, "buildd
                                "compat" => getcompat(d),
                                "version-major" => major(version(d)),
                                "version-minor" => minor(version(d)),
-                               "version-patch" => patch(version(d)))
+                               "version-patch" => patch(version(d)),
+                               "platforms" => triplet.(d.platforms),
+                               )
 end
 
 # When deserialiasing the JSON file, the dependencies are in the form of
@@ -261,12 +263,13 @@ function dependencify(d::Dict)
         version = VersionNumber(d["version-major"], d["version-minor"], d["version-patch"])
         version = version == v"0" ? nothing : version
         spec = PackageSpec(; name = d["name"], uuid = uuid, version = version)
+        platforms = parse_platform.(d["platforms"])
         if d["type"] == "dependency"
-            return Dependency(spec; compat = compat)
+            return Dependency(spec; compat, platforms)
         elseif d["type"] == "builddependency"
-            return BuildDependency(spec)
+            return BuildDependency(spec; platforms)
         elseif d["type"] == "hostdependency"
-            return HostBuildDependency(spec)
+            return HostBuildDependency(spec; platforms)
         end
     end
     error("Cannot convert to dependency")
