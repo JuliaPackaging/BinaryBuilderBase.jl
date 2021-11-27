@@ -53,6 +53,10 @@ end
         )
     @test BinaryBuilderBase.choose_shards(AnyPlatform()) == BinaryBuilderBase.choose_shards(default_host_platform)
     @test BinaryBuilderBase.aatriplet(AnyPlatform()) == BinaryBuilderBase.aatriplet(default_host_platform)
+
+    # Make sure `AnyPlatform` matches all platforms we can possibly support.
+    @test all(p -> platforms_match(AnyPlatform(), p),
+              expand_microarchitectures(expand_gfortran_versions(expand_cxxstring_abis(supported_platforms(; experimental=true)))))
 end
 
 @testset "Target properties" begin
