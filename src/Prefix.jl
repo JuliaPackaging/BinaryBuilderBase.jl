@@ -512,9 +512,7 @@ function setup_dependencies(prefix::Prefix, dependencies::Vector{PkgSpec}, platf
             # Copy the artifact from the global installation location into this build-specific artifacts collection
             src_path = Pkg.Artifacts.artifact_path(Base.SHA1(meta["git-tree-sha1"]))
             dest_path = joinpath(prefix, triplet(platform), "artifacts", basename(src_path))
-            if isdir(dest_path)
-                rm(dest_path; recursive=true)
-            end
+            rm(dest_path; force=true, recursive=true)
             cp(src_path, dest_path)
 
             # Keep track of our dep paths for later symlinking
