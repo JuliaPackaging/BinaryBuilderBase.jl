@@ -817,8 +817,10 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     end
 end
 
-# Translation mappers for our target names to cargo-compatible ones
-map_rust_arch(p::AbstractPlatform) = replace(arch(p), "armv7l" => "armv7")
+# Translation mappers for our target names to cargo-compatible ones.  See
+# https://doc.rust-lang.org/rustc/platform-support.html
+map_rust_arch(p::AbstractPlatform) =
+    replace(replace(arch(p), "armv7l" => "armv7"), "armv6l" => "arm")
 function map_rust_target(p::AbstractPlatform)
     if Sys.isapple(p)
         return "$(map_rust_arch(p))-apple-darwin"
