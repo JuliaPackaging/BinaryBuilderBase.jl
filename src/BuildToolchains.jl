@@ -214,8 +214,8 @@ function toolchain_file(bt::Meson, p::AbstractPlatform, envs::Dict{String,String
     """
 end
 
-function generate_toolchain_files!(platform::AbstractPlatform, envs::Dict{String,String};
-                                   toolchains_path::AbstractString,
+function generate_toolchain_files!(platform::AbstractPlatform, envs::Dict{String,String},
+                                   toolchains_path::AbstractString;
                                    host_platform::AbstractPlatform = default_host_platform,
                                    )
 
@@ -250,6 +250,32 @@ function generate_toolchain_files!(platform::AbstractPlatform, envs::Dict{String
             symlink_if_exists("host_$(aatriplet(p))_gcc.meson", joinpath(dir, "host_$(aatriplet(p)).meson"))
             symlink_if_exists("target_$(aatriplet(p))_gcc.cmake", joinpath(dir, "target_$(aatriplet(p)).cmake"))
             symlink_if_exists("target_$(aatriplet(p))_gcc.meson", joinpath(dir, "target_$(aatriplet(p)).meson"))
+        end
+    end
+end
+
+function cargo_config_file!(dir::AbstractString)
+    # Generate "${CARGO_HOME}/config.toml" file for Cargo where we give it the
+    # linkers for all our targets
+    open(joinpath(dir, "config.toml"), "w") do io
+        write(io, """
+        # Configuration file for `cargo`
+        """)
+        for platform in supported_platforms()
+            # Use `aatriplet` for the linker to match how the wrappers are
+            # written in
+            # https://github.com/JuliaPackaging/BinaryBuilderBase.jl/blob/30d056ef68f81dca9cb91ededcce6b68c6466b37/src/Runner.jl#L599.
+            write(io, """
+            [target.$(map_rust_target(platform))]
+            linker = "$(aatriplet(platform))-gcc"
+            """)
+            if platforms_match(platform, Platform("aarch64", "linux"; libc="musl"))
+                # Work around bug for this platform:
+                # https://github.com/rust-lang/rust/issues/46651#issuecomment-433611633
+                write(io, """
+                rustflags = ["-C", "link-arg=-lgcc"]
+                """)
+            end
         end
     end
 end
