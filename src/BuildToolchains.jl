@@ -261,7 +261,7 @@ function cargo_config_file!(dir::AbstractString)
         write(io, """
         # Configuration file for `cargo`
         """)
-        for platform in supported_platforms()
+        for platform in supported_platforms(; experimental=true)
             # Use `aatriplet` for the linker to match how the wrappers are
             # written in
             # https://github.com/JuliaPackaging/BinaryBuilderBase.jl/blob/30d056ef68f81dca9cb91ededcce6b68c6466b37/src/Runner.jl#L599.
@@ -269,13 +269,6 @@ function cargo_config_file!(dir::AbstractString)
             [target.$(map_rust_target(platform))]
             linker = "$(aatriplet(platform))-gcc"
             """)
-            if platforms_match(platform, Platform("aarch64", "linux"; libc="musl"))
-                # Work around bug for this platform:
-                # https://github.com/rust-lang/rust/issues/46651#issuecomment-433611633
-                write(io, """
-                rustflags = ["-C", "link-arg=-lgcc"]
-                """)
-            end
         end
     end
 end
