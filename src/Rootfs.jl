@@ -67,8 +67,10 @@ function artifact_name(cs::CompilerShard)
     if cs.target != nothing
         target_str = "-$(triplet(cs.target))"
 
-        # armv6l uses the same shards as armv7l, so we just rename here.
-        target_str = replace(target_str, "-armv6l-linux" => "-armv7l-linux")
+        if cs.name == "GCCBootstrap"
+            # armv6l uses the same GCC shards as armv7l, so we just rename here.
+            target_str = replace(target_str, "-armv6l-linux" => "-armv7l-linux")
+        end
     end
     ext = Dict(:squashfs => "squashfs", :unpacked => "unpacked")[cs.archive_type]
     return "$(cs.name)$(target_str).v$(cs.version).$(triplet(cs.host)).$(ext)"
