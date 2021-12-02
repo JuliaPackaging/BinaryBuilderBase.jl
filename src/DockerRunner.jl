@@ -92,9 +92,11 @@ function DockerRunner(workspace_root::String;
     generate_compiler_wrappers!(platform; bin_path=compiler_wrapper_path, extract_kwargs(kwargs, (:compilers,:allow_unsafe_flags,:lock_microarchitecture))...)
     push!(workspaces, compiler_wrapper_path => "/opt/bin")
 
-    # Generate CMake and Meson files
-    generate_toolchain_files!(platform, envs; toolchains_path=toolchains_path)
-    push!(workspaces, toolchains_path => "/opt/toolchains")
+    if isempty(bootstrap_list)
+        # Generate CMake and Meson files, only if we are not bootstrapping
+        generate_toolchain_files!(platform, envs; toolchains_path=toolchains_path)
+        push!(workspaces, toolchains_path => "/opt/toolchains")
+    end
 
     # the workspace_root is always a workspace, and we always mount it first
     insert!(workspaces, 1, workspace_root => "/workspace")
