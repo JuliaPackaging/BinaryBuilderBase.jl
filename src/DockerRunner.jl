@@ -99,15 +99,15 @@ function DockerRunner(workspace_root::String;
         # Generate CMake and Meson files, only if we are not bootstrapping
         generate_toolchain_files!(platform, envs, toolchains_path)
         push!(workspaces, toolchains_path => "/opt/toolchains")
-    end
 
-    # Generate directory where to write Cargo config files
-    if isone(length(collect(compilers))) && :rust in collect(compilers)[1].second
-        cargo_dir = mktempdir()
-        cargo_config_file!(cargo_dir)
-        # Add to the list of mappings a subdirectory of ${CARGO_HOME}, whose content
-        # will be put in ${CARGO_HOME}.
-        push!(workspaces, cargo_dir => envs["CARGO_HOME"] * "/" * randstring())
+        # Generate directory where to write Cargo config files
+        if isone(length(collect(compilers))) && :rust in collect(compilers)[1].second
+            cargo_dir = mktempdir()
+            cargo_config_file!(cargo_dir)
+            # Add to the list of mappings a subdirectory of ${CARGO_HOME}, whose content
+            # will be put in ${CARGO_HOME}.
+            push!(workspaces, cargo_dir => envs["CARGO_HOME"] * "/" * randstring())
+        end
     end
 
     # the workspace_root is always a workspace, and we always mount it first
