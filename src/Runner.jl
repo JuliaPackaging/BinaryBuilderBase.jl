@@ -372,7 +372,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     function macos_gcc_flags!(p::AbstractPlatform, flags::Vector{String} = String[])
         # On macOS, if we're on an old GCC, the default -syslibroot that gets
         # passed to the linker isn't calculated correctly, so we have to manually set it.
-        gcc_version, llvm_version = select_compiler_versions(p)
+        gcc_version, llvm_version = select_compiler_versions(p, compilers)
         if gcc_version.major in (4, 5)
             push!(flags, "-Wl,-syslibroot,/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root")
         end
@@ -423,7 +423,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     function gcc_link_flags!(p::AbstractPlatform, flags::Vector{String} = String[])
         # Yes, it does seem that the inclusion of `/lib64` on `powerpc64le` was fixed
         # in GCC 6, broken again in GCC 7, and then fixed again for GCC 8 and 9
-        gcc_version, llvm_version = select_compiler_versions(p)
+        gcc_version, llvm_version = select_compiler_versions(p, compilers)
         if arch(p) == "powerpc64le" && Sys.islinux(p) && gcc_version.major in (4, 5, 7)
             append!(flags, String[
                 "-L/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root/lib64",
