@@ -67,7 +67,7 @@ function artifact_name(cs::CompilerShard)
     if cs.target != nothing
         target_str = "-$(triplet(cs.target))"
 
-        if cs.name == "GCCBootstrap"
+        if cs.name in ("GCCBootstrap", "PlatformSupport")
             # armv6l uses the same GCC shards as armv7l, so we just rename here.
             target_str = replace(target_str, "-armv6l-linux" => "-armv7l-linux")
         end
