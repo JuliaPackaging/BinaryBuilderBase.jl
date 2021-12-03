@@ -765,22 +765,6 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             write_wrapper(rustc, p, "$(t)-rustc")
             write_wrapper(rustup, p, "$(t)-rustup")
             write_wrapper(cargo, p, "$(t)-cargo")
-
-            # For FreeBSD and macOS we need to create an unversioned link for
-            # gcc because that's the linker our Rust toolchain expects:
-            # https://github.com/JuliaPackaging/Yggdrasil/blob/fff0583bc2d8f32e450c427684f295524f38535d/0_RootFS/Rust/build_tarballs.jl#L115-L126.
-            if Sys.isbsd(p) && os_version(p) !== nothing
-                tmp_p = deepcopy(p)
-                delete!(tags(tmp_p), "os_version")
-                symlink("$(t)-gcc", joinpath(bin_path, triplet(p), "$(aatriplet(tmp_p))-gcc"))
-            end
-            # Currently our Rust toolchain expects the linker for armv7l and
-            # armv6l with the platform "*l" suffix in the platform.  Until
-            # https://github.com/JuliaPackaging/Yggdrasil/pull/2168 makes it to
-            # the Rust toolchain, we create a symlink to work around this issue.
-            if proc_family(p) == "arm" && nbits(p) == 32
-                symlink("$(t)-gcc", joinpath(bin_path, triplet(p), "$(triplet(abi_agnostic(p)))-gcc"))
-            end
         end
     end
 
