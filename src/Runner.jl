@@ -372,7 +372,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     function macos_gcc_flags!(p::AbstractPlatform, flags::Vector{String} = String[])
         # On macOS, if we're on an old GCC, the default -syslibroot that gets
         # passed to the linker isn't calculated correctly, so we have to manually set it.
-        gcc_version, llvm_version = select_compiler_versions(p)
+        gcc_version, llvm_version = select_compiler_versions(p, compilers)
         if gcc_version.major in (4, 5)
             push!(flags, "-Wl,-syslibroot,/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root")
         end
@@ -423,7 +423,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     function gcc_link_flags!(p::AbstractPlatform, flags::Vector{String} = String[])
         # Yes, it does seem that the inclusion of `/lib64` on `powerpc64le` was fixed
         # in GCC 6, broken again in GCC 7, and then fixed again for GCC 8 and 9
-        gcc_version, llvm_version = select_compiler_versions(p)
+        gcc_version, llvm_version = select_compiler_versions(p, compilers)
         if arch(p) == "powerpc64le" && Sys.islinux(p) && gcc_version.major in (4, 5, 7)
             append!(flags, String[
                 "-L/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root/lib64",
@@ -817,8 +817,10 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     end
 end
 
-# Translation mappers for our target names to cargo-compatible ones
-map_rust_arch(p::AbstractPlatform) = replace(arch(p), "armv7l" => "armv7")
+# Translation mappers for our target names to cargo-compatible ones.  See
+# https://doc.rust-lang.org/rustc/platform-support.html
+map_rust_arch(p::AbstractPlatform) =
+    replace(replace(arch(p), "armv7l" => "armv7"), "armv6l" => "arm")
 function map_rust_target(p::AbstractPlatform)
     if Sys.isapple(p)
         return "$(map_rust_arch(p))-apple-darwin"
@@ -834,17 +836,32 @@ function map_rust_target(p::AbstractPlatform)
 end
 
 """
-    platform_envs(platform::AbstractPlatform)
+    platform_envs(platform::AbstractPlatform, src_name::AbstractString;
+                  host_platform = default_host_platform,
+                  bootstrap::Bool=!isempty(bootstrap_list),
+                  compilers::Vector{Symbol}=[:c],
+                  verbose::Bool = false,
+                  )
 
-Given a `platform`, generate a `Dict` mapping representing all the environment
-variables to be set within the build environment to force compiles toward the
-defined target architecture.  Examples of things set are `PATH`, `CC`,
-`RANLIB`, as well as nonstandard things like `target`.
+Given a `platform` and a `src_name`, generate a `Dict` mapping representing all
+the environment variables to be set within the build environment to force
+compiles toward the defined target architecture.  Examples of things set are
+`PATH`, `CC`, `RANLIB`, as well as nonstandard things like `target`.
+
+Accepted keyword arguments are:
+
+* `host_platform`: the platform of the host system,
+* `bootstraop`: if `true`, only basic environment variables will be generated,
+* `compilers`: list of compilers, some environment variables will be generated
+  only if the relevant compilers are used (e.g., for Go and Rust)
+* `verbose`: holds the value of the `V` and `VERBOSE` environment variables.
 """
 function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
                        host_platform = default_host_platform,
                        bootstrap::Bool=!isempty(bootstrap_list),
-                       verbose::Bool = false)
+                       compilers::Vector{Symbol}=[:c],
+                       verbose::Bool = false,
+                       )
     global use_ccache
 
     # Convert platform to a triplet, but strip out the ABI parts
@@ -949,6 +966,30 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
         end
     end
 
+
+    # Go stuff
+    if :go in compilers
+        merge!(mapping, Dict(
+            "GO" => "go",
+            "GOCACHE" => "/workspace/.gocache",
+            "GOPATH" => "/workspace/.gopath",
+            "GOARM" => GOARM(platform),
+        ))
+    end
+
+    # Rust stuff
+    if :rust in compilers
+        merge!(mapping, Dict(
+            "RUSTC" => "rustc",
+            "CARGO" => "cargo",
+            "CARGO_BUILD_TARGET" => map_rust_target(platform),
+            "CARGO_HOME" => "/opt/$(host_target)",
+            "RUSTUP_HOME" => "/opt/$(host_target)",
+            # TODO: we'll need a way to parameterize this toolchain number
+            "RUSTUP_TOOLCHAIN" => "1.57.0-$(map_rust_target(host_platform))",
+        ))
+    end
+
     merge!(mapping, Dict(
         "PATH" => join((
             # First things first, our compiler wrappers trump all
@@ -972,21 +1013,6 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
         "CC" => "cc",
         "CXX" => "c++",
         "FC" => "gfortran",
-        "GO" => "go",
-        "RUSTC" => "rustc",
-        "CARGO" => "cargo",
-
-        # Go stuff
-        "GOCACHE" => "/workspace/.gocache",
-        "GOPATH" => "/workspace/.gopath",
-        "GOARM" => GOARM(platform),
-
-        # Rust stuff
-        "CARGO_BUILD_TARGET" => map_rust_target(platform),
-        "CARGO_HOME" => "/opt/$(host_target)",
-        "RUSTUP_HOME" => "/opt/$(host_target)",
-        # TODO: we'll need a way to parameterize this toolchain number
-        "RUSTUP_TOOLCHAIN" => "1.43.0-$(map_rust_target(host_platform))",
 
         # We conditionally add on some compiler flags; we'll cull empty ones at the end
         "USE_CCACHE" => "$(use_ccache)",

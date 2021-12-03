@@ -84,18 +84,30 @@ function DockerRunner(workspace_root::String;
     # encrypted directory, as that can trigger kernel bugs
     check_encryption(workspace_root; verbose=verbose)
 
+    # Extract compilers argument
+    compilers = collect(extract_kwargs(kwargs, (:compilers,)))
+
     # Construct environment variables we'll use from here on out
-    platform = get_concrete_platform(platform; extract_kwargs(kwargs, (:preferred_gcc_version,:preferred_llvm_version,:compilers))...)
-    envs = merge(platform_envs(platform, src_name; verbose=verbose), extra_env)
+    platform = get_concrete_platform(platform; compilers..., extract_kwargs(kwargs, (:preferred_gcc_version,:preferred_llvm_version))...)
+    envs = merge(platform_envs(platform, src_name; verbose, compilers...), extra_env)
 
     # JIT out some compiler wrappers, add it to our mounts
-    generate_compiler_wrappers!(platform; bin_path=compiler_wrapper_path, extract_kwargs(kwargs, (:compilers,:allow_unsafe_flags,:lock_microarchitecture))...)
+    generate_compiler_wrappers!(platform; bin_path=compiler_wrapper_path, compilers..., extract_kwargs(kwargs, (:allow_unsafe_flags,:lock_microarchitecture))...)
     push!(workspaces, compiler_wrapper_path => "/opt/bin")
 
     if isempty(bootstrap_list)
         # Generate CMake and Meson files, only if we are not bootstrapping
-        generate_toolchain_files!(platform, envs; toolchains_path=toolchains_path)
+        generate_toolchain_files!(platform, envs, toolchains_path)
         push!(workspaces, toolchains_path => "/opt/toolchains")
+
+        # Generate directory where to write Cargo config files
+        if isone(length(collect(compilers))) && :rust in collect(compilers)[1].second
+            cargo_dir = mktempdir()
+            cargo_config_file!(cargo_dir)
+            # Add to the list of mappings a subdirectory of ${CARGO_HOME}, whose content
+            # will be put in ${CARGO_HOME}.
+            push!(workspaces, cargo_dir => envs["CARGO_HOME"] * "/" * randstring())
+        end
     end
 
     # the workspace_root is always a workspace, and we always mount it first
@@ -111,7 +123,7 @@ function DockerRunner(workspace_root::String;
 
     if isnothing(shards)
         # Choose the shards we're going to mount
-        shards = choose_shards(platform; extract_kwargs(kwargs, (:preferred_gcc_version,:preferred_llvm_version,:bootstrap_list,:compilers))...)
+        shards = choose_shards(platform; compilers..., extract_kwargs(kwargs, (:preferred_gcc_version,:preferred_llvm_version,:bootstrap_list))...)
     end
 
     # Import docker image
