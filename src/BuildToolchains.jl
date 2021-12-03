@@ -254,20 +254,21 @@ function generate_toolchain_files!(platform::AbstractPlatform, envs::Dict{String
     end
 end
 
-function cargo_config_file!(dir::AbstractString)
-    # Generate "${CARGO_HOME}/config.toml" file for Cargo where we give it the
-    # linkers for all our targets
+function cargo_config_file!(dir::AbstractString, platform::AbstractPlatform;
+                            host_platform::AbstractPlatform=default_host_platform,
+                            )
+    # Generate "${CARGO_HOME}/config.toml" file for Cargo where we give it the linkers for
+    # the host and target platforms.
     open(joinpath(dir, "config.toml"), "w") do io
         write(io, """
         # Configuration file for `cargo`
         """)
-        for platform in supported_platforms(; experimental=true)
-            # Use `aatriplet` for the linker to match how the wrappers are
-            # written in
+        for p in unique(abi_agnostic.((platform, host_platform)))
+            # Use `aatriplet` for the linker to match how the wrappers are written in
             # https://github.com/JuliaPackaging/BinaryBuilderBase.jl/blob/30d056ef68f81dca9cb91ededcce6b68c6466b37/src/Runner.jl#L599.
             write(io, """
-            [target.$(map_rust_target(platform))]
-            linker = "$(aatriplet(platform))-gcc"
+            [target.$(map_rust_target(p))]
+            linker = "$(aatriplet(p))-cc"
             """)
         end
     end

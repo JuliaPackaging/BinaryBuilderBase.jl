@@ -58,7 +58,7 @@ function UserNSRunner(workspace_root::String;
         # Generate directory where to write Cargo config files
         if isone(length(collect(compilers))) && :rust in collect(compilers)[1].second
             cargo_dir = mktempdir()
-            cargo_config_file!(cargo_dir)
+            cargo_config_file!(cargo_dir, platform)
             # Add to the list of mappings a subdirectory of ${CARGO_HOME}, whose content
             # will be put in ${CARGO_HOME}.
             push!(mappings, cargo_dir => envs["CARGO_HOME"] * "/" * randstring())
