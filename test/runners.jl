@@ -310,6 +310,9 @@ end
     @testset "testsuite" begin
         mktempdir() do dir
             ur = preferred_runner()(dir; platform=Platform("x86_64", "linux"; libc="glibc"), preferred_gcc_version=v"5", compilers=[:c, :rust, :go])
+            # Make sure the runner platform is concrete even if the requested platform isn't
+            @test !isnothing(libgfortran_version(ur.platform))
+            @test !isnothing(cxxstring_abi(ur.platform))
             iobuff = IOBuffer()
             test_script = raw"""
             set -e
