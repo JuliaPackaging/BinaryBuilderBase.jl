@@ -575,7 +575,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             "NM"     => "$(host_target)-nm",
             "OBJC"   => "$(host_target)-cc",
             "RANLIB" => "$(host_target)-ranlib",
-            # Needed to find pkg-config files for the host: https://mesonbuild.com/Reference-tables.html#environment-variables-per-machine 
+            # Needed to find pkg-config files for the host: https://mesonbuild.com/Reference-tables.html#environment-variables-per-machine
             "PKG_CONFIG_PATH_FOR_BUILD" => "$(host_prefix)/lib/pkgconfig:$(host_prefix)/lib64/pkgconfig:$(host_prefix)/share/pkgconfig",
         )
         wrapper(io, "/usr/bin/meson"; allow_ccache=false, env=meson_env)
@@ -889,6 +889,9 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
         PS1 = raw"sandbox:${PWD//$WORKSPACE/$\{WORKSPACE\}} $ "
     end
 
+    # Number of parallel jobs to use for builds
+    nproc = "$(get(ENV, "BINARYBUILDER_NPROC", Sys.CPU_THREADS))"
+
     # Base mappings
     mapping = Dict(
         # Platform information (we save a `bb_target` because sometimes `target` gets
@@ -899,7 +902,7 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
         "bb_full_target" => triplet(platform),
         "rust_target" => map_rust_target(platform),
         "rust_host" => map_rust_target(host_platform),
-        "nproc" => "$(get(ENV, "BINARYBUILDER_NPROC", Sys.CPU_THREADS))",
+        "nproc" => nproc,
         "nbits" => string(nbits(platform)),
         "proc_family" => string(proc_family(platform)),
         "dlext" => platform_dlext(platform),
@@ -950,7 +953,6 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
         end
     end
 
-
     # Go stuff
     if :go in compilers
         merge!(mapping, Dict(
@@ -966,6 +968,7 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
         merge!(mapping, Dict(
             "RUSTC" => "rustc",
             "CARGO" => "cargo",
+            "CARGO_BUILD_JOBS" => nproc,
             "CARGO_BUILD_TARGET" => map_rust_target(platform),
             "CARGO_HOME" => "/opt/$(host_target)",
             "RUSTUP_HOME" => "/opt/$(host_target)",
