@@ -1144,6 +1144,18 @@ function runner_setup!(workspaces, mappings, workspace_root, verbose, kwargs, pl
         end
     end
 
+    if libc(platform) == "musl"
+        # Libraries that link to Musl C library need `libc.musl-<ARCH>.so.1`.  However in
+        # our Musl toolchains we have only `libc.so` in `${sys_root}/usr/lib`, so here we
+        # create a symlink `libc.musl-<ARCH>.so.1` -> `libc.so` until we fix this directly in
+        # the compiler shards.
+        dir = mktempdir()
+        sysroot_libdir = joinpath(dir, "$(aatriplet(platform))/sys-root/usr/lib")
+        mkpath(sysroot_libdir)
+        symlink("libc.so", joinpath(sysroot_libdir, "libc.musl-$(map_rust_arch(platform)).so.1"))
+        push!(mappings, dir => "/opt/$(aatriplet(platform))/nonce")
+    end
+
     # the workspace_root is always a workspace, and we always mount it first
     insert!(workspaces, 1, workspace_root => "/workspace")
 
