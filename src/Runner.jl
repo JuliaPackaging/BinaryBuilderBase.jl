@@ -1109,3 +1109,56 @@ end
 function runshell(::Type{R}, platform::AbstractPlatform = HostPlatform(); verbose::Bool=false,kwargs...) where {R <: Runner}
     return runshell(R(pwd(); cwd="/workspace/", platform=platform, verbose=verbose, kwargs...); verbose=verbose)
 end
+
+# The runners constructors share a large part of their setup.  This function reduces
+# duplication by having bringing the common parts in one place.
+function runner_setup!(workspaces, mappings, workspace_root, verbose, kwargs, platform,
+                       src_name, extra_env, compiler_wrapper_path, toolchains_path, shards)
+    # Check to make sure we're not going to try and bindmount within an
+    # encrypted directory, as that triggers kernel bugs
+    check_encryption(workspace_root; verbose=verbose)
+
+    # Extract compilers argument
+    compilers = extract_kwargs(kwargs, (:compilers,))
+
+    # Construct environment variables we'll use from here on out
+    platform = get_concrete_platform(platform; compilers..., extract_kwargs(kwargs, (:preferred_gcc_version,:preferred_llvm_version))...)
+    envs = merge(platform_envs(platform, src_name; verbose, compilers...), extra_env)
+
+    # JIT out some compiler wrappers, add it to our mounts
+    generate_compiler_wrappers!(platform; bin_path=compiler_wrapper_path, compilers..., extract_kwargs(kwargs, (:allow_unsafe_flags,:lock_microarchitecture))...)
+    push!(workspaces, compiler_wrapper_path => "/opt/bin")
+
+    if isempty(bootstrap_list)
+        # Generate CMake and Meson files, only if we are not bootstrapping
+        generate_toolchain_files!(platform, envs, toolchains_path)
+        push!(workspaces, toolchains_path => "/opt/toolchains")
+
+        # Generate directory where to write Cargo config files
+        if isone(length(collect(compilers))) && :rust in collect(compilers)[1].second
+            cargo_dir = mktempdir()
+            cargo_config_file!(cargo_dir, platform)
+            # Add to the list of mappings a subdirectory of ${CARGO_HOME}, whose content
+            # will be put in ${CARGO_HOME}.
+            push!(mappings, cargo_dir => "$(envs["CARGO_HOME"])/nonce")
+        end
+    end
+
+    # the workspace_root is always a workspace, and we always mount it first
+    insert!(workspaces, 1, workspace_root => "/workspace")
+
+    # If we're enabling ccache, then mount in a read-writeable volume at /root/.ccache
+    if use_ccache
+        if !isdir(ccache_dir())
+            mkpath(ccache_dir())
+        end
+        push!(workspaces, ccache_dir() => "/root/.ccache")
+    end
+
+    if isnothing(shards)
+        # Choose the shards we're going to mount
+        shards = choose_shards(platform; compilers..., extract_kwargs(kwargs, (:preferred_gcc_version,:preferred_llvm_version,:bootstrap_list))...)
+    end
+
+    return platform, envs, shards
+end
