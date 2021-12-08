@@ -39,8 +39,8 @@ struct CompilerShard
         # by higher-level things to choose e.g. which version of GCC
         # to use, but once we're at this level we only care about the
         # larger-scale things, not the ABI).
-        host = abi_agnostic(host)
-        if target != nothing
+        host = abi_agnostic(host::AbstractPlatform)
+        if target !== nothing
             target = abi_agnostic(target)
         end
 
@@ -64,8 +64,8 @@ Return the bound artifact name for a particular shard.
 """
 function artifact_name(cs::CompilerShard)
     target_str = ""
-    if cs.target != nothing
-        target_str = "-$(triplet(cs.target))"
+    if cs.target !== nothing
+        target_str = "-$(triplet(cs.target::Platform))"
 
         if cs.name in ("GCCBootstrap", "PlatformSupport")
             # armv6l uses the same GCC shards as armv7l, so we just rename here.
@@ -84,7 +84,7 @@ function CompilerShard(art_name::String)
     end
     return CompilerShard(
         m.captures[1],
-        VersionNumber(m.captures[3]),
+        VersionNumber(m.captures[3]::AbstractString),
         m.captures[4],
         Symbol(m.captures[5]);
         target=m.captures[2]
@@ -92,7 +92,7 @@ function CompilerShard(art_name::String)
 end
 
 const ALL_SHARDS = Ref{Union{Vector{CompilerShard},Nothing}}(nothing)
-function all_compiler_shards()
+function all_compiler_shards()::Vector{CompilerShard}
     if ALL_SHARDS[] === nothing
         artifacts_toml = joinpath(dirname(@__DIR__), "Artifacts.toml")
         artifact_dict = load_artifacts_toml(artifacts_toml)
@@ -114,13 +114,13 @@ function all_compiler_shards()
             end
 
             # If this compiler shard has an os_version, that should be interpreted as the bound it is.
-            if cs.target !== nothing && os_version(cs.target) !== nothing
-                set_compare_strategy!(cs.target, "os_version", compare_version_cap)
+            if cs.target !== nothing && os_version(cs.target::Platform) !== nothing
+                set_compare_strategy!(cs.target::Platform, "os_version", compare_version_cap)
             end
-            push!(ALL_SHARDS[], cs)
+            push!(ALL_SHARDS[]::Vector{CompilerShard}, cs)
         end
     end
-    return ALL_SHARDS[]
+    return ALL_SHARDS[]::Vector{CompilerShard}
 end
 
 function shard_source_artifact_hash(cs::CompilerShard)
@@ -168,7 +168,7 @@ function map_target(cs::CompilerShard)
         return "/"
     elseif lowercase(cs.name) == "rusttoolchain"
         # We override RustToolchain because they all have to sit in the same location
-        return "/opt/$(aatriplet(cs.host))/$(cs.name)-$(cs.version)-$(aatriplet(cs.target)))"
+        return "/opt/$(aatriplet(cs.host))/$(cs.name)-$(cs.version)-$(aatriplet(cs.target::Platform)))"
     else
         return joinpath("/opt", aatriplet(something(cs.target, cs.host)), "$(cs.name)-$(cs.version)")
     end
@@ -231,7 +231,7 @@ function mount(cs::CompilerShard, build_prefix::AbstractString; verbose::Bool = 
     # they must accept the Xcode EULA.  This will be skipped if either the
     # environment variable BINARYBUILDER_AUTOMATIC_APPLE has been set to `true`
     # or if the SDK has been downloaded in the past.
-    if cs.target !== nothing && Sys.isapple(cs.target) && !isfile(enable_apple_file()) && !macos_sdk_already_installed()
+    if cs.target !== nothing && Sys.isapple(cs.target::Platform) && !isfile(enable_apple_file()) && !macos_sdk_already_installed()
         if !isinteractive()
             msg = strip("""
             This is not an interactive Julia session, so we will not prompt you
@@ -343,7 +343,7 @@ Returns `true` if any piece of the MacOS SDK is already installed.
 function macos_sdk_already_installed()
     # Get all compiler shards we know about
     css = all_compiler_shards()
-    macos_artifact_names = artifact_name.(filter(cs -> cs.target !== nothing && Sys.isapple(cs.target), css))
+    macos_artifact_names = artifact_name.(filter(cs -> cs.target !== nothing && Sys.isapple(cs.target::Platform), css))
 
     artifacts_toml = joinpath(dirname(@__DIR__), "Artifacts.toml")
     macos_artifact_hashes = artifact_hash.(macos_artifact_names, artifacts_toml; platform=default_host_platform)
@@ -481,7 +481,7 @@ end
 
 function llvm_version(p::AbstractPlatform, LLVM_builds::Vector{LLVMBuild})
     if march(p) in ("armv8_2_crypto", "armv8_4_crypto_sve")
-        LLVM_builds = filter(b -> getversion(b) >= v"9.0")
+        LLVM_builds = filter(b -> getversion(b) >= v"9.0", LLVM_builds)
     end
     return getversion.(LLVM_builds)
 end
@@ -527,7 +527,7 @@ function choose_shards(p::AbstractPlatform;
             LLVM_builds::Vector{LLVMBuild}=available_llvm_builds,
             Rust_build::VersionNumber=v"1.57.0",
             Go_build::VersionNumber=v"1.16.3",
-            archive_type::Symbol = (use_squashfs ? :squashfs : :unpacked),
+            archive_type::Symbol = (use_squashfs[] ? :squashfs : :unpacked),
             bootstrap_list::Vector{Symbol} = bootstrap_list,
             # Because GCC has lots of compatibility issues, we always default to
             # the earliest version possible.
@@ -714,7 +714,7 @@ matching.  If the given `Platform` already specifies a `libgfortran_version`
 """
 function expand_gfortran_versions(platform::AbstractPlatform)
     # If this platform is already explicitly libgfortran-versioned, exit out fast here.
-    if libgfortran_version(platform) != nothing
+    if libgfortran_version(platform) !== nothing
         return [platform]
     end
 
@@ -857,11 +857,11 @@ function preferred_libgfortran_version(platform::AbstractPlatform, shard::Compil
     if shard.name != "GCCBootstrap"
         error("Shard must be `GCCBootstrap`")
     end
-    if arch(shard.target) != arch(platform) || libc(shard.target) != libc(platform)
+    if arch(shard.target::Platform) != arch(platform) || libc(shard.target::Platform) != libc(platform)
         error("Incompatible platform and shard target")
     end
 
-    if libgfortran_version(platform) != nothing
+    if libgfortran_version(platform) !== nothing
         # Here we can't use `shard.target` because the shard always has the
         # target as ABI-agnostic, thus we have also to ask for the platform.
         return libgfortran_version(platform)
@@ -887,11 +887,11 @@ function preferred_cxxstring_abi(platform::AbstractPlatform, shard::CompilerShar
     if shard.name != "GCCBootstrap"
         error("Shard must be `GCCBootstrap`")
     end
-    if arch(shard.target) != arch(platform) || libc(shard.target) != libc(platform)
+    if arch(shard.target::Platform) != arch(platform) || libc(shard.target::Platform) != libc(platform)
         error("Incompatible platform and shard target")
     end
 
-    if cxxstring_abi(platform) != nothing
+    if cxxstring_abi(platform) !== nothing
         # Here we can't use `shard.target` because the shard always has the
         # target as ABI-agnostic, thus we have also to ask for the platform.
         return cxxstring_abi(platform)
@@ -922,26 +922,26 @@ function download_all_artifacts(; verbose::Bool = false)
     )
 end
 
-_sudo_cmd = nothing
-function sudo_cmd()
+const _sudo_cmd = Ref{Union{Cmd,Nothing}}(nothing)
+function sudo_cmd()::Cmd
     global _sudo_cmd
 
     # Use cached value if we've already run this
-    if _sudo_cmd != nothing
-        return _sudo_cmd
+    if _sudo_cmd[] !== nothing
+        return _sudo_cmd[]::Cmd
     end
 
-    if getuid() == 0
+    _sudo_cmd[] = if getuid() == 0
         # If we're already root, don't use any kind of sudo program
-        _sudo_cmd = ``
+        ``
     elseif success(`sudo -V`)
         # If `sudo` is available, use that
-        _sudo_cmd = `sudo`
+        `sudo`
     else
         # Fall back to `su` if all else fails
-        _sudo_cmd = `su root -c`
+        `su root -c`
     end
-    return _sudo_cmd
+    return _sudo_cmd[]::Cmd
 end
 
 """

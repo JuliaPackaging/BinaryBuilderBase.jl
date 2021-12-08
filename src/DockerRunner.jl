@@ -91,7 +91,7 @@ function DockerRunner(workspace_root::String;
     # Construct docker command
     docker_cmd = `docker run --rm --privileged `#--cap-add SYS_ADMIN`
 
-    if cwd != nothing
+    if cwd !== nothing
         docker_cmd = `$docker_cmd -w /$(abspath(cwd))`
     end
 

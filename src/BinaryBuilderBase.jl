@@ -45,7 +45,7 @@ include("utils.jl")
 # downloads, unpacked .tar.gz shards, mounted shards, ccache cache, etc....
 function storage_dir(args::AbstractString...)
     global storage_cache
-    dir = joinpath(storage_cache, args...)
+    dir = joinpath(storage_cache[], args...)
     mkpath(dirname(dir))
     return dir
 end
@@ -64,11 +64,11 @@ enable_apple_file() = storage_dir("enable_apple")
 # These globals store important information such as where we're downloading
 # the rootfs to, and where we're unpacking it.  These constants are initialized
 # by `__init__()` to allow for environment variable overrides from the user.
-storage_cache = ""
-use_squashfs = false
-allow_ecryptfs = false
-use_ccache = false
-bootstrap_list = Symbol[]
+const storage_cache = Ref("")
+const use_squashfs = Ref(false)
+const allow_ecryptfs = Ref(false)
+const use_ccache = Ref(false)
+const bootstrap_list = Symbol[]
 
 function get_bbb_version(dir=@__DIR__, uuid="7f725544-6523-48cd-82d1-3fa08ff4056e")
     # Get BinaryBuilder.jl's version and git sha
@@ -154,7 +154,7 @@ function versioninfo(; name=@__MODULE__, version=get_bbb_version())
     run_interactive(runner, `/bin/bash -c "echo hello julia"`)
 
     # If we use ccache, dump the ccache stats
-    if use_ccache
+    if use_ccache[]
         @info("ccache stats:")
         runner = preferred_runner()(
             pwd();
@@ -171,8 +171,8 @@ function __init__()
     global use_ccache, storage_cache
 
     # Allow the user to override the default value for `storage_dir`
-    storage_cache = get(ENV, "BINARYBUILDER_STORAGE_DIR",
-                        abspath(joinpath(@__DIR__, "..", "deps")))
+    storage_cache[] = get(ENV, "BINARYBUILDER_STORAGE_DIR",
+                          abspath(joinpath(@__DIR__, "..", "deps")))
 
     # If the user has signalled that they really want us to automatically
     # accept apple EULAs, do that.
@@ -181,13 +181,13 @@ function __init__()
     end
 
     # If the user has overridden our runner selection algorithms, honor that
-    runner_override = lowercase(get(ENV, "BINARYBUILDER_RUNNER", ""))
-    if runner_override == "unprivileged"
-        runner_override = "userns"
+    runner_override[] = lowercase(get(ENV, "BINARYBUILDER_RUNNER", ""))
+    if runner_override[] == "unprivileged"
+        runner_override[] = "userns"
     end
-    if !(runner_override in ["", "userns", "privileged", "docker"])
-        @warn("Invalid runner value $runner_override, ignoring...")
-        runner_override = ""
+    if !(runner_override[] in ("", "userns", "privileged", "docker"))
+        @warn("Invalid runner value $(runner_override[]), ignoring...")
+        runner_override[] = ""
     end
 
     # If the user has asked for squashfs mounting instead of tarball mounting,
@@ -196,35 +196,30 @@ function __init__()
     # default. If we are not on Travis, we default to using tarballs and not
     # squashfs images as using them requires `sudo` access.
     if get(ENV, "BINARYBUILDER_USE_SQUASHFS", "") == "false"
-        use_squashfs = false
+        use_squashfs[] = false
     elseif get(ENV, "BINARYBUILDER_USE_SQUASHFS", "") == "true"
-        use_squashfs = true
+        use_squashfs[] = true
     else
-        # If it hasn't been specified, but we're on Travis, default to "on"
-        if get(ENV, "TRAVIS", "") == "true"
-            use_squashfs = true
-        end
-
         # If it hasn't been specified but we're going to use the docker runner,
         # then set `use_squashfs` to `true` here.
         if preferred_runner() == DockerRunner
             # Conversely, if we're dock'ing it up, don't use it.
-            use_squashfs = false
+            use_squashfs[] = false
         elseif runner_override == "privileged"
             # If we're forcing a privileged runner, go ahead and default to squashfs
-            use_squashfs = true
+            use_squashfs[] = true
         end
     end
 
     # If the user has signified that they want to allow mounting of ecryptfs
     # paths, then let them do so at their own peril.
     if get(ENV, "BINARYBUILDER_ALLOW_ECRYPTFS", "") == "true"
-        allow_ecryptfs = true
+        allow_ecryptfs[] = true
     end
 
     # If the user has enabled `ccache` support, use it!
     if get(ENV, "BINARYBUILDER_USE_CCACHE", "false") == "true"
-        use_ccache = true
+        use_ccache[] = true
     end
 end
 

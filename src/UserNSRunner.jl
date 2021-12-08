@@ -62,7 +62,7 @@ function UserNSRunner(workspace_root::String;
         sandbox_cmd = `$sandbox_cmd --verbose`
     end
     sandbox_cmd = `$sandbox_cmd --rootfs $(mpath)`
-    if cwd != nothing
+    if cwd !== nothing
         sandbox_cmd = `$sandbox_cmd --cd $cwd`
     end
 
@@ -84,7 +84,7 @@ function UserNSRunner(workspace_root::String;
 
     # If runner_override is not yet set, let's probe to see if we can use
     # unprivileged containers, and if we can't, switch over to privileged.
-    if runner_override == ""
+    if isempty(runner_override[])
         if !probe_unprivileged_containers()
             msg = strip("""
             Unable to run unprivileged containers on this system!
@@ -95,14 +95,14 @@ function UserNSRunner(workspace_root::String;
             environment variable to "privileged" before starting Julia.
             """)
             @warn(replace(msg, "\n" => " "))
-            runner_override = "privileged"
+            runner_override[] = "privileged"
         else
-            runner_override = "userns"
+            runner_override[] = "userns"
         end
     end
 
     # Check to see if we need to run privileged containers.
-    if runner_override == "privileged"
+    if runner_override[] == "privileged"
         # Next, prefer `sudo`, but allow fallback to `su`. Also, force-set
         # our environmental mappings with sudo, because it is typically
         # lost and forgotten.  :(
@@ -129,7 +129,7 @@ end
 prompted_userns_run_privileged = false
 function warn_priviledged()
     global prompted_userns_run_privileged
-    if runner_override == "privileged" && !prompted_userns_run_privileged
+    if runner_override[] == "privileged" && !prompted_userns_run_privileged
         @info("Running privileged container via `sudo`, may ask for your password:")
         prompted_userns_run_privileged = true
     end
@@ -236,7 +236,7 @@ function uname()
         error("Could not find libc, unable to call uname()")
     end
     libc = dlopen(first(libcs))
-    uname_hdl = dlsym(libc, :uname)
+    uname_hdl = dlsym(libc::Ptr{Cvoid}, :uname)
 
     # The uname struct can have wildly differing layouts; we take advantage
     # of the fact that it is just a bunch of NULL-terminated strings laid out
@@ -407,7 +407,7 @@ to make that decision.
 function is_ecryptfs(path::AbstractString; verbose::Bool=false)
     # Canonicalize `path` immediately, and if it's a directory, add a "/" so
     # as to be consistent with the rest of this function
-    path = abspath(path)
+    path::AbstractString = abspath(path)
     if isdir(path)
         path = abspath(path * "/")
     end
@@ -432,7 +432,7 @@ function is_ecryptfs(path::AbstractString; verbose::Bool=false)
     mounts = [(abspath(m[1]*"/"), m[2]) for m in mounts]
 
     # Fast-path asking for a mountpoint directly (e.g. not a subdirectory)
-    direct_path = [m[1] == path for m in mounts]
+    direct_path = Bool[m[1] == path for m in mounts]
     local parent
     if any(direct_path)
         parent = mounts[findfirst(direct_path)]
@@ -455,10 +455,10 @@ function check_encryption(workspace_root::AbstractString;
                           verbose::Bool = false)
     # If we've explicitly allowed ecryptfs, just quit out immediately
     global allow_ecryptfs
-    if allow_ecryptfs
+    if allow_ecryptfs[]
         return
     end
-    msg = []
+    msg = String[]
 
     is_encrypted, mountpoint = is_ecryptfs(workspace_root; verbose=verbose)
     if is_encrypted

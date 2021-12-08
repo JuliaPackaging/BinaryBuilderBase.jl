@@ -1002,7 +1002,7 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
         "FC" => "gfortran",
 
         # We conditionally add on some compiler flags; we'll cull empty ones at the end
-        "USE_CCACHE" => "$(use_ccache)",
+        "USE_CCACHE" => "$(use_ccache[])",
         "LLVM_TARGET" => target,
         "LLVM_HOST_TARGET" => host_target,
 
@@ -1074,13 +1074,13 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
     return mapping
 end
 
-runner_override = ""
+const runner_override = Ref("")
 function preferred_runner()
     global runner_override
-    if runner_override != ""
-        if runner_override in ["userns", "privileged"]
+    if !isempty(runner_override[])
+        if runner_override[] in ("userns", "privileged")
             return UserNSRunner
-        elseif runner_override in ["docker"]
+        elseif runner_override[] in ("docker",)
             return DockerRunner
         end
     end
@@ -1122,8 +1122,8 @@ function runner_setup!(workspaces, mappings, workspace_root, verbose, kwargs, pl
     compilers = extract_kwargs(kwargs, (:compilers,))
 
     # Construct environment variables we'll use from here on out
-    platform = get_concrete_platform(platform; compilers..., extract_kwargs(kwargs, (:preferred_gcc_version,:preferred_llvm_version))...)
-    envs = merge(platform_envs(platform, src_name; verbose, compilers...), extra_env)
+    platform::Platform = get_concrete_platform(platform; compilers..., extract_kwargs(kwargs, (:preferred_gcc_version,:preferred_llvm_version))...)
+    envs::Dict{String,String} = merge(platform_envs(platform, src_name; verbose, compilers...), extra_env)
 
     # JIT out some compiler wrappers, add it to our mounts
     generate_compiler_wrappers!(platform; bin_path=compiler_wrapper_path, compilers..., extract_kwargs(kwargs, (:allow_unsafe_flags,:lock_microarchitecture))...)
@@ -1160,7 +1160,7 @@ function runner_setup!(workspaces, mappings, workspace_root, verbose, kwargs, pl
     insert!(workspaces, 1, workspace_root => "/workspace")
 
     # If we're enabling ccache, then mount in a read-writeable volume at /root/.ccache
-    if use_ccache
+    if use_ccache[]
         if !isdir(ccache_dir())
             mkpath(ccache_dir())
         end
@@ -1169,7 +1169,7 @@ function runner_setup!(workspaces, mappings, workspace_root, verbose, kwargs, pl
 
     if isnothing(shards)
         # Choose the shards we're going to mount
-        shards = choose_shards(platform; compilers..., extract_kwargs(kwargs, (:preferred_gcc_version,:preferred_llvm_version,:bootstrap_list))...)
+        shards::Vector{CompilerShard} = choose_shards(platform; compilers..., extract_kwargs(kwargs, (:preferred_gcc_version,:preferred_llvm_version,:bootstrap_list))...)
     end
 
     return platform, envs, shards
