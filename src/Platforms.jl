@@ -39,6 +39,11 @@ Get the executable extension for the given Platform.  Includes the leading `.`.
 platform_exeext(p::AbstractPlatform) = Sys.iswindows(p) ? ".exe" : ""
 
 
+# Helper parsing function: it extends `parse(Platform, p)` by supporting
+# `AnyPlatform` as well.
+parse_platform(p::String) = p == "any" ? AnyPlatform() : parse(Platform, p; validate_strict=true)
+
+
 # Recursively test for key presence in nested dicts
 function haskeys(d, keys...)
     for key in keys

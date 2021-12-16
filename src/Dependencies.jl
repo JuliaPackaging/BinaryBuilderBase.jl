@@ -1,7 +1,8 @@
 using UUIDs
 
 export Dependency, BuildDependency, HostBuildDependency,
-    is_host_dependency, is_target_dependency, is_build_dependency, is_runtime_dependency
+    is_host_dependency, is_target_dependency, is_build_dependency, is_runtime_dependency,
+    filter_platforms
 
 
 # Pkg.PackageSpec return different types in different Julia versions so...
@@ -54,7 +55,7 @@ Return whether `dep` is a runtime dependency or not.
 is_runtime_dependency
 
 """
-    Dependency(dep::Union{PackageSpec,String}, build_version; compat)
+    Dependency(dep::Union{PackageSpec,String}, build_version; compat, platforms)
 
 Define a binary dependency that is necessary to build the package and load the
 generated JLL package.  The argument can be either a string with the name of the
@@ -67,12 +68,19 @@ The optional keyword argument `compat` can be used to specify a string for use
 in the `Project.toml` of the generated Julia package.  If `compat` is non-empty
 and `build_version` is not passed, the latter defaults to the minimum version
 compatible with the `compat` specifier.
+
+The optional keyword argument `platforms` is a vector of `AbstractPlatform`s
+which indicates for which platforms the dependency should be used.  By default
+`platforms=[AnyPlatform()]`, to mean that the dependency is compatible with all
+platforms.
 """
 struct Dependency <: AbstractDependency
     pkg::PkgSpec
     build_version::Union{VersionNumber,Nothing}
     compat::String  # semver string for use in Project.toml of the JLL
-    function Dependency(pkg::PkgSpec, build_version = nothing; compat::String = "")
+    platforms::Vector{<:AbstractPlatform}
+    function Dependency(pkg::PkgSpec, build_version = nothing; compat::String = "",
+                        platforms::Vector{<:AbstractPlatform}=[AnyPlatform()])
         if length(compat) > 0
             spec = PKG_VERSIONS.semver_spec(compat) # verify compat is valid
             if build_version === nothing
@@ -88,45 +96,64 @@ struct Dependency <: AbstractDependency
                 throw(ArgumentError("PackageSpec version and compat for $(pkg) are incompatible"))
             end
         end
-        new(pkg, build_version, compat)
+        new(pkg, build_version, compat, platforms)
     end
 end
-function Dependency(dep::AbstractString, build_version = nothing; compat::String = "")
-    return Dependency(PackageSpec(; name = dep), build_version, compat = compat)
+function Dependency(dep::AbstractString, build_version = nothing;
+                    compat::String = "", platforms::Vector{<:AbstractPlatform}=[AnyPlatform()])
+    return Dependency(PackageSpec(; name = dep), build_version; compat, platforms)
 end
 is_host_dependency(::Dependency) = false
 is_build_dependency(::Dependency) = true
 is_runtime_dependency(::Dependency) = true
 
 """
-    BuildDependency(dep::Union{PackageSpec,String})
+    BuildDependency(dep::Union{PackageSpec,String}; platforms)
 
 Define a binary dependency that is necessary only to build the package.  The
-argument can be either a string with the name of the JLL package or a
+`dep` argument can be either a string with the name of the JLL package or a
 `Pkg.PackageSpec`.
+
+The optional keyword argument `platforms` is a vector of `AbstractPlatform`s
+which indicates for which platforms the dependency should be used.  By default
+`platforms=[AnyPlatform()]`, to mean that the dependency is compatible with all
+platforms.
 """
 struct BuildDependency <: AbstractDependency
     pkg::PkgSpec
+    platforms::Vector{<:AbstractPlatform}
+    BuildDependency(pkg::PkgSpec; platforms::Vector{<:AbstractPlatform}=[AnyPlatform()]) =
+        new(pkg, platforms)
 end
-BuildDependency(dep::AbstractString) = BuildDependency(PackageSpec(; name = dep))
+BuildDependency(dep::AbstractString; platforms::Vector{<:AbstractPlatform}=[AnyPlatform()]) =
+    BuildDependency(PackageSpec(; name = dep); platforms)
 is_host_dependency(::BuildDependency) = false
 is_build_dependency(::BuildDependency) = true
 is_runtime_dependency(::BuildDependency) = false
 
 """
-    HostBuildDependency(dep::Union{PackageSpec,String})
+    HostBuildDependency(dep::Union{PackageSpec,String}; platforms)
 
 Define a binary dependency that is necessary only to build the package.
 Different from the [`BuildDependency`](@ref), the artifact for the host
 platform will be installed, instead of that for the target platform.
 
-The argument can be either a string with the name of the JLL package or a
+The `dep` argument can be either a string with the name of the JLL package or a
 `Pkg.PackageSpec`.
+
+The optional keyword argument `platforms` is a vector of `AbstractPlatform`s
+which indicates for which platforms the dependency should be used.  By default
+`platforms=[AnyPlatform()]`, to mean that the dependency is compatible with all
+platforms.
 """
 struct HostBuildDependency <: AbstractDependency
     pkg::PkgSpec
+    platforms::Vector{<:AbstractPlatform}
+    HostBuildDependency(pkg::PkgSpec; platforms::Vector{<:AbstractPlatform}=[AnyPlatform()]) =
+        new(pkg, platforms)
 end
-HostBuildDependency(dep::AbstractString) = HostBuildDependency(PackageSpec(; name = dep))
+HostBuildDependency(dep::AbstractString; platforms::Vector{<:AbstractPlatform}=[AnyPlatform()]) =
+    HostBuildDependency(PackageSpec(; name = dep); platforms)
 is_host_dependency(::HostBuildDependency) = true
 is_build_dependency(::HostBuildDependency) = true
 is_runtime_dependency(::HostBuildDependency) = false
@@ -145,12 +172,20 @@ end
 getname(x::PkgSpec) = x.name
 getname(x::AbstractDependency) = getname(getpkg(x))
 
+"""
+    filter_platforms(deps::AbstractVector{<:AbstractDependency}, p::AbstractPlatform)
+
+Filter the dependencies `deps` which are compatible with platform `p`.
+"""
+filter_platforms(deps::AbstractVector{<:AbstractDependency}, p::AbstractPlatform) =
+    [dep for dep in deps if any(x -> platforms_match(x, p), dep.platforms)]
+
 # Wrapper around `Pkg.Types.registry_resolve!` which keeps the type of the
 # dependencies.  TODO: improve this
 function registry_resolve!(ctx, dependencies::Vector{<:AbstractDependency})
     resolved_dependencies = Pkg.Types.registry_resolve!(ctx, getpkg.(dependencies))
     for idx in eachindex(dependencies)
-        dependencies[idx] = typeof(dependencies[idx])(resolved_dependencies[idx])
+        dependencies[idx] = typeof(dependencies[idx])(resolved_dependencies[idx]; platforms=dependencies[idx].platforms)
     end
     return dependencies
 end
@@ -222,7 +257,9 @@ for (type, type_descr) in ((Dependency, "dependency"), (BuildDependency, "buildd
                                "compat" => getcompat(d),
                                "version-major" => major(version(d)),
                                "version-minor" => minor(version(d)),
-                               "version-patch" => patch(version(d)))
+                               "version-patch" => patch(version(d)),
+                               "platforms" => triplet.(d.platforms),
+                               )
 end
 
 # When deserialiasing the JSON file, the dependencies are in the form of
@@ -235,12 +272,13 @@ function dependencify(d::Dict)
         version = VersionNumber(d["version-major"], d["version-minor"], d["version-patch"])
         version = version == v"0" ? nothing : version
         spec = PackageSpec(; name = d["name"], uuid = uuid, version = version)
+        platforms = parse_platform.(d["platforms"])
         if d["type"] == "dependency"
-            return Dependency(spec; compat = compat)
+            return Dependency(spec; compat, platforms)
         elseif d["type"] == "builddependency"
-            return BuildDependency(spec)
+            return BuildDependency(spec; platforms)
         elseif d["type"] == "hostdependency"
-            return HostBuildDependency(spec)
+            return HostBuildDependency(spec; platforms)
         end
     end
     error("Cannot convert to dependency")
