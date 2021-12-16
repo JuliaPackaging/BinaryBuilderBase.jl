@@ -67,8 +67,10 @@ function artifact_name(cs::CompilerShard)
     if cs.target != nothing
         target_str = "-$(triplet(cs.target))"
 
-        # armv6l uses the same shards as armv7l, so we just rename here.
-        target_str = replace(target_str, "-armv6l-linux" => "-armv7l-linux")
+        if cs.name in ("GCCBootstrap", "PlatformSupport")
+            # armv6l uses the same GCC shards as armv7l, so we just rename here.
+            target_str = replace(target_str, "-armv6l-linux" => "-armv7l-linux")
+        end
     end
     ext = Dict(:squashfs => "squashfs", :unpacked => "unpacked")[cs.archive_type]
     return "$(cs.name)$(target_str).v$(cs.version).$(triplet(cs.host)).$(ext)"
@@ -395,14 +397,17 @@ const available_llvm_builds = [
 ]
 
 """
-    gcc_version(p::AbstractPlatform, , GCC_builds::Vector{GCCBuild};
+    gcc_version(p::AbstractPlatform, GCC_builds::Vector{GCCBuild},
+                compilers::Vector{Symbol}=[:c];
                 llvm_version::Union{Nothing,VersionNumber}=nothing)
 
 Returns the closest matching GCC version number for the given particular
 platform, from the given set of options.  The compiler ABI and the
 microarchitecture of the platform will be taken into account.  If no match is
-found, returns an empty list.  If the keyword argument `llvm_version` is passed,
-it is used to filter the version of GCC for FreeBSD platforms.
+found, returns an empty list.  `compilers` is the list of compilers used in the
+build, to choose the right version of GCC to couple with them if necessary.  If
+the keyword argument `llvm_version` is passed, it is used to filter the version
+of GCC for FreeBSD platforms.
 
 This method assumes that the compiler ABI of the platform represents a platform
 that binaries will be run on, and thus versions are always rounded down; e.g. if
@@ -411,7 +416,8 @@ the only GCC versions available to be picked from are `4.8.5` and `5.2.0`, it
 will return `4.8.5`, as binaries compiled with that version will run on this
 platform, whereas binaries compiled with `5.2.0` may not.
 """
-function gcc_version(p::AbstractPlatform, GCC_builds::Vector{GCCBuild};
+function gcc_version(p::AbstractPlatform,GCC_builds::Vector{GCCBuild},
+                     compilers::Vector{Symbol}=[:c];
                      llvm_version::Union{Nothing,VersionNumber}=nothing)
     # First, filter by libgfortran version.
     if libgfortran_version(p) !== nothing
@@ -445,6 +451,12 @@ function gcc_version(p::AbstractPlatform, GCC_builds::Vector{GCCBuild};
         GCC_builds = filter(b -> getversion(b) ≥ v"6", GCC_builds)
     end
 
+    # Rust on Windows requires binutils 2.25 (it invokes `ld` with `--high-entropy-va`),
+    # which we bundle with GCC 5.
+    if :rust in compilers && Sys.iswindows(p)
+        GCC_builds = filter(b -> getversion(b) ≥ v"5", GCC_builds)
+    end
+
     # Filter the possible GCC versions depending on the microarchitecture
     if march(p) in ("avx", "avx2", "neonvfpv4")
         # "sandybridge", "haswell", "cortex-a53" introduced in GCC v4.9.0:
@@ -475,6 +487,7 @@ function llvm_version(p::AbstractPlatform, LLVM_builds::Vector{LLVMBuild})
 end
 
 function select_compiler_versions(p::AbstractPlatform,
+            compilers::Vector{Symbol},
             GCC_builds::Vector{GCCBuild} = available_gcc_builds,
             LLVM_builds::Vector{LLVMBuild} = available_llvm_builds,
             preferred_gcc_version::VersionNumber = getversion(GCC_builds[1]),
@@ -488,7 +501,7 @@ function select_compiler_versions(p::AbstractPlatform,
     end
     llvmv = select_closest_version(preferred_llvm_version, filtered_llvm_builds)
 
-    filtered_gcc_builds = gcc_version(p, GCC_builds; llvm_version=llvmv)
+    filtered_gcc_builds = gcc_version(p, GCC_builds, compilers; llvm_version=llvmv)
     if isempty(filtered_gcc_builds)
         error("Impossible compiler constraints $(p) upon $(GCC_builds)!")
     end
@@ -512,7 +525,7 @@ function choose_shards(p::AbstractPlatform;
             ps_build::VersionNumber=v"2021.08.10",
             GCC_builds::Vector{GCCBuild}=available_gcc_builds,
             LLVM_builds::Vector{LLVMBuild}=available_llvm_builds,
-            Rust_build::VersionNumber=v"1.43.0",
+            Rust_build::VersionNumber=v"1.57.0",
             Go_build::VersionNumber=v"1.16.3",
             archive_type::Symbol = (use_squashfs ? :squashfs : :unpacked),
             bootstrap_list::Vector{Symbol} = bootstrap_list,
@@ -567,6 +580,7 @@ function choose_shards(p::AbstractPlatform;
     if isempty(bootstrap_list)
         # Select GCC and LLVM versions given the compiler ABI and target requirements given in `p`
         GCC_build, LLVM_build = select_compiler_versions(p,
+            compilers,
             this_platform_GCC_builds,
             LLVM_builds,
             preferred_gcc_version,

@@ -80,37 +80,10 @@ function DockerRunner(workspace_root::String;
                       kwargs...)
     global use_ccache
 
-    # Check to make sure we're not going to try and bindmount within an
-    # encrypted directory, as that can trigger kernel bugs
-    check_encryption(workspace_root; verbose=verbose)
-
-    # Construct environment variables we'll use from here on out
-    platform = get_concrete_platform(platform; extract_kwargs(kwargs, (:preferred_gcc_version,:preferred_llvm_version,:compilers))...)
-    envs = merge(platform_envs(platform, src_name; verbose=verbose), extra_env)
-
-    # JIT out some compiler wrappers, add it to our mounts
-    generate_compiler_wrappers!(platform; bin_path=compiler_wrapper_path, extract_kwargs(kwargs, (:compilers,:allow_unsafe_flags,:lock_microarchitecture))...)
-    push!(workspaces, compiler_wrapper_path => "/opt/bin")
-
-    # Generate CMake and Meson files
-    generate_toolchain_files!(platform, envs; toolchains_path=toolchains_path)
-    push!(workspaces, toolchains_path => "/opt/toolchains")
-
-    # the workspace_root is always a workspace, and we always mount it first
-    insert!(workspaces, 1, workspace_root => "/workspace")
-
-    # If we're enabling ccache, then map in a named docker volume for it
-    if use_ccache
-        if !isdir(ccache_dir())
-            mkpath(ccache_dir())
-        end
-        push!(workspaces, "binarybuilder_ccache" => "/root/.ccache")
-    end
-
-    if isnothing(shards)
-        # Choose the shards we're going to mount
-        shards = choose_shards(platform; extract_kwargs(kwargs, (:preferred_gcc_version,:preferred_llvm_version,:bootstrap_list,:compilers))...)
-    end
+    platform, envs, shards =
+        runner_setup!(workspaces, workspaces, workspace_root, verbose, kwargs,
+                      platform, src_name, extra_env, compiler_wrapper_path,
+                      toolchains_path, shards)
 
     # Import docker image
     import_docker_image(shards[1], workspace_root; verbose=verbose)

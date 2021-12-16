@@ -214,8 +214,8 @@ function toolchain_file(bt::Meson, p::AbstractPlatform, envs::Dict{String,String
     """
 end
 
-function generate_toolchain_files!(platform::AbstractPlatform, envs::Dict{String,String};
-                                   toolchains_path::AbstractString,
+function generate_toolchain_files!(platform::AbstractPlatform, envs::Dict{String,String},
+                                   toolchains_path::AbstractString;
                                    host_platform::AbstractPlatform = default_host_platform,
                                    )
 
@@ -250,6 +250,26 @@ function generate_toolchain_files!(platform::AbstractPlatform, envs::Dict{String
             symlink_if_exists("host_$(aatriplet(p))_gcc.meson", joinpath(dir, "host_$(aatriplet(p)).meson"))
             symlink_if_exists("target_$(aatriplet(p))_gcc.cmake", joinpath(dir, "target_$(aatriplet(p)).cmake"))
             symlink_if_exists("target_$(aatriplet(p))_gcc.meson", joinpath(dir, "target_$(aatriplet(p)).meson"))
+        end
+    end
+end
+
+function cargo_config_file!(dir::AbstractString, platform::AbstractPlatform;
+                            host_platform::AbstractPlatform=default_host_platform,
+                            )
+    # Generate "${CARGO_HOME}/config.toml" file for Cargo where we give it the linkers for
+    # the host and target platforms.
+    open(joinpath(dir, "config.toml"), "w") do io
+        write(io, """
+        # Configuration file for `cargo`
+        """)
+        for p in unique(abi_agnostic.((platform, host_platform)))
+            # Use `aatriplet` for the linker to match how the wrappers are written in
+            # https://github.com/JuliaPackaging/BinaryBuilderBase.jl/blob/30d056ef68f81dca9cb91ededcce6b68c6466b37/src/Runner.jl#L599.
+            write(io, """
+            [target.$(map_rust_target(p))]
+            linker = "$(aatriplet(p))-cc"
+            """)
         end
     end
 end

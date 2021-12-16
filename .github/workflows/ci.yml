@@ -14,7 +14,7 @@ env:
 jobs:
   test:
     name: Julia ${{ matrix.julia-version }} - x64 - runner ${{ matrix.runner }} - SquashFS ${{ matrix.squashfs }}
-    timeout-minutes: 30
+    timeout-minutes: 60
     runs-on: ubuntu-latest
     env:
       BINARYBUILDER_RUNNER: ${{ matrix.runner }}

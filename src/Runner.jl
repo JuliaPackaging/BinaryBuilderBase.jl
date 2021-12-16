@@ -372,7 +372,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     function macos_gcc_flags!(p::AbstractPlatform, flags::Vector{String} = String[])
         # On macOS, if we're on an old GCC, the default -syslibroot that gets
         # passed to the linker isn't calculated correctly, so we have to manually set it.
-        gcc_version, llvm_version = select_compiler_versions(p)
+        gcc_version, llvm_version = select_compiler_versions(p, compilers)
         if gcc_version.major in (4, 5)
             push!(flags, "-Wl,-syslibroot,/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root")
         end
@@ -423,7 +423,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     function gcc_link_flags!(p::AbstractPlatform, flags::Vector{String} = String[])
         # Yes, it does seem that the inclusion of `/lib64` on `powerpc64le` was fixed
         # in GCC 6, broken again in GCC 7, and then fixed again for GCC 8 and 9
-        gcc_version, llvm_version = select_compiler_versions(p)
+        gcc_version, llvm_version = select_compiler_versions(p, compilers)
         if arch(p) == "powerpc64le" && Sys.islinux(p) && gcc_version.major in (4, 5, 7)
             append!(flags, String[
                 "-L/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root/lib64",
@@ -575,7 +575,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             "NM"     => "$(host_target)-nm",
             "OBJC"   => "$(host_target)-cc",
             "RANLIB" => "$(host_target)-ranlib",
-            # Needed to find pkg-config files for the host: https://mesonbuild.com/Reference-tables.html#environment-variables-per-machine 
+            # Needed to find pkg-config files for the host: https://mesonbuild.com/Reference-tables.html#environment-variables-per-machine
             "PKG_CONFIG_PATH_FOR_BUILD" => "$(host_prefix)/lib/pkgconfig:$(host_prefix)/lib64/pkgconfig:$(host_prefix)/share/pkgconfig",
         )
         wrapper(io, "/usr/bin/meson"; allow_ccache=false, env=meson_env)
@@ -765,22 +765,6 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             write_wrapper(rustc, p, "$(t)-rustc")
             write_wrapper(rustup, p, "$(t)-rustup")
             write_wrapper(cargo, p, "$(t)-cargo")
-
-            # For FreeBSD and macOS we need to create an unversioned link for
-            # gcc because that's the linker our Rust toolchain expects:
-            # https://github.com/JuliaPackaging/Yggdrasil/blob/fff0583bc2d8f32e450c427684f295524f38535d/0_RootFS/Rust/build_tarballs.jl#L115-L126.
-            if Sys.isbsd(p) && os_version(p) !== nothing
-                tmp_p = deepcopy(p)
-                delete!(tags(tmp_p), "os_version")
-                symlink("$(t)-gcc", joinpath(bin_path, triplet(p), "$(aatriplet(tmp_p))-gcc"))
-            end
-            # Currently our Rust toolchain expects the linker for armv7l and
-            # armv6l with the platform "*l" suffix in the platform.  Until
-            # https://github.com/JuliaPackaging/Yggdrasil/pull/2168 makes it to
-            # the Rust toolchain, we create a symlink to work around this issue.
-            if proc_family(p) == "arm" && nbits(p) == 32
-                symlink("$(t)-gcc", joinpath(bin_path, triplet(p), "$(triplet(abi_agnostic(p)))-gcc"))
-            end
         end
     end
 
@@ -817,8 +801,10 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     end
 end
 
-# Translation mappers for our target names to cargo-compatible ones
-map_rust_arch(p::AbstractPlatform) = replace(arch(p), "armv7l" => "armv7")
+# Translation mappers for our target names to cargo-compatible ones.  See
+# https://doc.rust-lang.org/rustc/platform-support.html
+map_rust_arch(p::AbstractPlatform) =
+    replace(replace(arch(p), "armv7l" => "armv7"), "armv6l" => "arm")
 function map_rust_target(p::AbstractPlatform)
     if Sys.isapple(p)
         return "$(map_rust_arch(p))-apple-darwin"
@@ -834,17 +820,32 @@ function map_rust_target(p::AbstractPlatform)
 end
 
 """
-    platform_envs(platform::AbstractPlatform)
+    platform_envs(platform::AbstractPlatform, src_name::AbstractString;
+                  host_platform = default_host_platform,
+                  bootstrap::Bool=!isempty(bootstrap_list),
+                  compilers::Vector{Symbol}=[:c],
+                  verbose::Bool = false,
+                  )
 
-Given a `platform`, generate a `Dict` mapping representing all the environment
-variables to be set within the build environment to force compiles toward the
-defined target architecture.  Examples of things set are `PATH`, `CC`,
-`RANLIB`, as well as nonstandard things like `target`.
+Given a `platform` and a `src_name`, generate a `Dict` mapping representing all
+the environment variables to be set within the build environment to force
+compiles toward the defined target architecture.  Examples of things set are
+`PATH`, `CC`, `RANLIB`, as well as nonstandard things like `target`.
+
+Accepted keyword arguments are:
+
+* `host_platform`: the platform of the host system,
+* `bootstraop`: if `true`, only basic environment variables will be generated,
+* `compilers`: list of compilers, some environment variables will be generated
+  only if the relevant compilers are used (e.g., for Go and Rust)
+* `verbose`: holds the value of the `V` and `VERBOSE` environment variables.
 """
 function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
                        host_platform = default_host_platform,
                        bootstrap::Bool=!isempty(bootstrap_list),
-                       verbose::Bool = false)
+                       compilers::Vector{Symbol}=[:c],
+                       verbose::Bool = false,
+                       )
     global use_ccache
 
     # Convert platform to a triplet, but strip out the ABI parts
@@ -888,6 +889,9 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
         PS1 = raw"sandbox:${PWD//$WORKSPACE/$\{WORKSPACE\}} $ "
     end
 
+    # Number of parallel jobs to use for builds
+    nproc = "$(get(ENV, "BINARYBUILDER_NPROC", Sys.CPU_THREADS))"
+
     # Base mappings
     mapping = Dict(
         # Platform information (we save a `bb_target` because sometimes `target` gets
@@ -898,7 +902,7 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
         "bb_full_target" => triplet(platform),
         "rust_target" => map_rust_target(platform),
         "rust_host" => map_rust_target(host_platform),
-        "nproc" => "$(get(ENV, "BINARYBUILDER_NPROC", Sys.CPU_THREADS))",
+        "nproc" => nproc,
         "nbits" => string(nbits(platform)),
         "proc_family" => string(proc_family(platform)),
         "dlext" => platform_dlext(platform),
@@ -949,6 +953,30 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
         end
     end
 
+    # Go stuff
+    if :go in compilers
+        merge!(mapping, Dict(
+            "GO" => "go",
+            "GOCACHE" => "/workspace/.gocache",
+            "GOPATH" => "/workspace/.gopath",
+            "GOARM" => GOARM(platform),
+        ))
+    end
+
+    # Rust stuff
+    if :rust in compilers
+        merge!(mapping, Dict(
+            "RUSTC" => "rustc",
+            "CARGO" => "cargo",
+            "CARGO_BUILD_JOBS" => nproc,
+            "CARGO_BUILD_TARGET" => map_rust_target(platform),
+            "CARGO_HOME" => "/opt/$(host_target)",
+            "RUSTUP_HOME" => "/opt/$(host_target)",
+            # TODO: we'll need a way to parameterize this toolchain number
+            "RUSTUP_TOOLCHAIN" => "1.57.0-$(map_rust_target(host_platform))",
+        ))
+    end
+
     merge!(mapping, Dict(
         "PATH" => join((
             # First things first, our compiler wrappers trump all
@@ -972,21 +1000,6 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
         "CC" => "cc",
         "CXX" => "c++",
         "FC" => "gfortran",
-        "GO" => "go",
-        "RUSTC" => "rustc",
-        "CARGO" => "cargo",
-
-        # Go stuff
-        "GOCACHE" => "/workspace/.gocache",
-        "GOPATH" => "/workspace/.gopath",
-        "GOARM" => GOARM(platform),
-
-        # Rust stuff
-        "CARGO_BUILD_TARGET" => map_rust_target(platform),
-        "CARGO_HOME" => "/opt/$(host_target)",
-        "RUSTUP_HOME" => "/opt/$(host_target)",
-        # TODO: we'll need a way to parameterize this toolchain number
-        "RUSTUP_TOOLCHAIN" => "1.43.0-$(map_rust_target(host_platform))",
 
         # We conditionally add on some compiler flags; we'll cull empty ones at the end
         "USE_CCACHE" => "$(use_ccache)",
@@ -1095,4 +1108,69 @@ end
 
 function runshell(::Type{R}, platform::AbstractPlatform = HostPlatform(); verbose::Bool=false,kwargs...) where {R <: Runner}
     return runshell(R(pwd(); cwd="/workspace/", platform=platform, verbose=verbose, kwargs...); verbose=verbose)
+end
+
+# The runners constructors share a large part of their setup.  This function reduces
+# duplication by having bringing the common parts in one place.
+function runner_setup!(workspaces, mappings, workspace_root, verbose, kwargs, platform,
+                       src_name, extra_env, compiler_wrapper_path, toolchains_path, shards)
+    # Check to make sure we're not going to try and bindmount within an
+    # encrypted directory, as that triggers kernel bugs
+    check_encryption(workspace_root; verbose=verbose)
+
+    # Extract compilers argument
+    compilers = extract_kwargs(kwargs, (:compilers,))
+
+    # Construct environment variables we'll use from here on out
+    platform = get_concrete_platform(platform; compilers..., extract_kwargs(kwargs, (:preferred_gcc_version,:preferred_llvm_version))...)
+    envs = merge(platform_envs(platform, src_name; verbose, compilers...), extra_env)
+
+    # JIT out some compiler wrappers, add it to our mounts
+    generate_compiler_wrappers!(platform; bin_path=compiler_wrapper_path, compilers..., extract_kwargs(kwargs, (:allow_unsafe_flags,:lock_microarchitecture))...)
+    push!(workspaces, compiler_wrapper_path => "/opt/bin")
+
+    if isempty(bootstrap_list)
+        # Generate CMake and Meson files, only if we are not bootstrapping
+        generate_toolchain_files!(platform, envs, toolchains_path)
+        push!(workspaces, toolchains_path => "/opt/toolchains")
+
+        # Generate directory where to write Cargo config files
+        if isone(length(collect(compilers))) && :rust in collect(compilers)[1].second
+            cargo_dir = mktempdir()
+            cargo_config_file!(cargo_dir, platform)
+            # Add to the list of mappings a subdirectory of ${CARGO_HOME}, whose content
+            # will be put in ${CARGO_HOME}.
+            push!(mappings, cargo_dir => "$(envs["CARGO_HOME"])/nonce")
+        end
+    end
+
+    if libc(platform) == "musl"
+        # Libraries that link to Musl C library need `libc.musl-<ARCH>.so.1`.  However in
+        # our Musl toolchains we have only `libc.so` in `${sys_root}/usr/lib`, so here we
+        # create a symlink `libc.musl-<ARCH>.so.1` -> `libc.so` until we fix this directly in
+        # the compiler shards.
+        dir = mktempdir()
+        sysroot_libdir = joinpath(dir, "$(aatriplet(platform))/sys-root/usr/lib")
+        mkpath(sysroot_libdir)
+        symlink("libc.so", joinpath(sysroot_libdir, "libc.musl-$(map_rust_arch(platform)).so.1"))
+        push!(mappings, dir => "/opt/$(aatriplet(platform))/nonce")
+    end
+
+    # the workspace_root is always a workspace, and we always mount it first
+    insert!(workspaces, 1, workspace_root => "/workspace")
+
+    # If we're enabling ccache, then mount in a read-writeable volume at /root/.ccache
+    if use_ccache
+        if !isdir(ccache_dir())
+            mkpath(ccache_dir())
+        end
+        push!(workspaces, ccache_dir() => "/root/.ccache")
+    end
+
+    if isnothing(shards)
+        # Choose the shards we're going to mount
+        shards = choose_shards(platform; compilers..., extract_kwargs(kwargs, (:preferred_gcc_version,:preferred_llvm_version,:bootstrap_list))...)
+    end
+
+    return platform, envs, shards
 end

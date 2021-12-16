@@ -149,6 +149,12 @@ end
 
         p = Platform("armv7l", "linux"; march="neonvfpv4")
         @test gcc_version(p, available_gcc_builds) == [v"5.2.0", v"6.1.0", v"7.1.0", v"8.1.0", v"9.1.0", v"10.2.0", v"11.1.0", v"11.0.0-iains"]
+
+        # When Rust is used on x86_64 Windows, we have to use at least binutils
+        # 2.25, which we bundle with at least GCC 5.
+        p = Platform("x86_64", "windows"; libgfortran_version=v"3")
+        @test gcc_version(p, available_gcc_builds, [:c, :go]) == [v"4.8.5", v"5.2.0", v"6.1.0"]
+        @test gcc_version(p, available_gcc_builds, [:c, :rust]) == [v"5.2.0", v"6.1.0"]
     end
 
     @testset "Compiler wrappers" begin

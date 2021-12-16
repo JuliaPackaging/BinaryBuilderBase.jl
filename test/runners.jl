@@ -60,12 +60,16 @@ end
 
     @testset "hello world" begin
         mktempdir() do dir
+            # Make sure we can start a shell in a runner when the bootstrap list is non-empty
+            @eval BinaryBuilderBase bootstrap_list = [:rootfs, :platform_support]
             ur = preferred_runner()(dir; platform=Platform("x86_64", "linux"; libc="musl"))
             iobuff = IOBuffer()
             @test run(ur, `/bin/bash -c "echo test"`, iobuff)
             seek(iobuff, 0)
             # Test that we get the output we expect (e.g. the second line is `test`)
             @test readlines(iobuff)[2] == "test"
+            # Restore empty bootstrap list
+            @eval BinaryBuilderBase bootstrap_list = Symbol[]
         end
     end
 
@@ -306,6 +310,9 @@ end
     @testset "testsuite" begin
         mktempdir() do dir
             ur = preferred_runner()(dir; platform=Platform("x86_64", "linux"; libc="glibc"), preferred_gcc_version=v"5", compilers=[:c, :rust, :go])
+            # Make sure the runner platform is concrete even if the requested platform isn't
+            @test !isnothing(libgfortran_version(ur.platform))
+            @test !isnothing(cxxstring_abi(ur.platform))
             iobuff = IOBuffer()
             test_script = raw"""
             set -e

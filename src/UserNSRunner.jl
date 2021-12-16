@@ -35,32 +35,10 @@ function UserNSRunner(workspace_root::String;
     # Check that our kernel is new enough to use this runner
     kernel_version_check()
 
-    # Check to make sure we're not going to try and bindmount within an
-    # encrypted directory, as that triggers kernel bugs
-    check_encryption(workspace_root; verbose=verbose)
-
-    # Construct environment variables we'll use from here on out
-    platform = get_concrete_platform(platform; extract_kwargs(kwargs, (:preferred_gcc_version,:preferred_llvm_version,:compilers))...)
-    envs = merge(platform_envs(platform, src_name; verbose=verbose), extra_env)
-
-    # JIT out some compiler wrappers, add it to our mounts
-    generate_compiler_wrappers!(platform; bin_path=compiler_wrapper_path, extract_kwargs(kwargs, (:compilers,:allow_unsafe_flags,:lock_microarchitecture))...)
-    push!(workspaces, compiler_wrapper_path => "/opt/bin")
-
-    # Generate CMake and Meson files
-    generate_toolchain_files!(platform, envs; toolchains_path=toolchains_path)
-    push!(workspaces, toolchains_path => "/opt/toolchains")
-
-    # the workspace_root is always a workspace, and we always mount it first
-    insert!(workspaces, 1, workspace_root => "/workspace")
-
-    # If we're enabling ccache, then mount in a read-writeable volume at /root/.ccache
-    if use_ccache
-        if !isdir(ccache_dir())
-            mkpath(ccache_dir())
-        end
-        push!(workspaces, ccache_dir() => "/root/.ccache")
-    end
+    platform, envs, shards =
+        runner_setup!(workspaces, mappings, workspace_root, verbose, kwargs,
+                      platform, src_name, extra_env, compiler_wrapper_path,
+                      toolchains_path, shards)
 
     # If we are on a system that uses `/etc/resolv.conf` as a resolver
     # configuration file (mainly *BSD and Linux), check if a nameserver is
@@ -75,11 +53,6 @@ function UserNSRunner(workspace_root::String;
             flush(tmpio) # required as otherwise `tmppath` remains empty
             push!(workspaces, tmppath => "/etc/resolv.conf")
         end
-    end
-
-    if isnothing(shards)
-        # Choose the shards we're going to mount
-        shards = choose_shards(platform; extract_kwargs(kwargs, (:preferred_gcc_version,:preferred_llvm_version,:bootstrap_list,:compilers))...)
     end
 
     # Construct sandbox command to look at the location it'll be mounted under
@@ -149,7 +122,7 @@ function show(io::IO, x::UserNSRunner)
     p = x.platform
     # Displays as, e.g., Linux x86_64 (glibc) UserNSRunner
     write(io, "$(typeof(p).name.name)", " ", arch(p), " ",
-          Sys.islinux(p) ? "($(p.libc)) " : "",
+          Sys.islinux(p) ? "($(libc(p))) " : "",
           "UserNSRunner")
 end
 
