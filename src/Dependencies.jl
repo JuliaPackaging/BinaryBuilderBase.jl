@@ -273,8 +273,8 @@ function dependencify(d::Dict)
     if d["type"] in ("dependency", "builddependency", "hostdependency")
         uuid = isnothing(d["uuid"]) ? d["uuid"] : UUID(d["uuid"])
         compat = d["compat"]
-        version = VersionNumber(d["version-major"], d["version-minor"], d["version-patch"])
-        version = version == v"0" ? nothing : version
+        version = PKG_VERSIONS.VersionSpec(VersionNumber(d["version-major"], d["version-minor"], d["version-patch"]))
+        version = version == PKG_VERSIONS.VersionSpec(v"0") ? PKG_VERSIONS.VersionSpec() : version
         spec = PackageSpec(; name = d["name"], uuid = uuid, version = version)
         platforms = parse_platform.(d["platforms"])
         if d["type"] == "dependency"
