@@ -819,6 +819,18 @@ function map_rust_target(p::AbstractPlatform)
     end
 end
 
+# Match
+# https://github.com/JuliaPackaging/Yggdrasil/blob/c58c5abe64e177bc6ed6aa775aff1fefbfe85517/0_RootFS/gcc_common.jl#L342-L352
+function map_musl_arch(p::AbstractPlatform)
+    if arch(p) == "i686"
+        return "i386"
+    elseif startswith(arch(p), "arm")
+        return "armhf"
+    else
+        return arch(p)
+    end
+end
+
 """
     platform_envs(platform::AbstractPlatform, src_name::AbstractString;
                   host_platform = default_host_platform,
@@ -1152,7 +1164,7 @@ function runner_setup!(workspaces, mappings, workspace_root, verbose, kwargs, pl
         dir = mktempdir()
         sysroot_libdir = joinpath(dir, "$(aatriplet(platform))/sys-root/usr/lib")
         mkpath(sysroot_libdir)
-        symlink("libc.so", joinpath(sysroot_libdir, "libc.musl-$(map_rust_arch(platform)).so.1"))
+        symlink("libc.so", joinpath(sysroot_libdir, "libc.musl-$(map_musl_arch(platform)).so.1"))
         push!(mappings, dir => "/opt/$(aatriplet(platform))/nonce")
     end
 
