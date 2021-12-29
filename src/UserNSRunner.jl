@@ -62,7 +62,7 @@ function UserNSRunner(workspace_root::String;
         sandbox_cmd = `$sandbox_cmd --verbose`
     end
     sandbox_cmd = `$sandbox_cmd --rootfs $(mpath)`
-    if cwd != nothing
+    if cwd !== nothing
         sandbox_cmd = `$sandbox_cmd --cd $cwd`
     end
 
@@ -204,21 +204,7 @@ function run_interactive(ur::UserNSRunner, user_cmd::Cmd; stdin = nothing, stdou
 
     try
         mount_shards(ur; verbose=verbose)
-        if stdout isa IOBuffer
-            if !(stdin isa IOBuffer)
-                stdin = devnull
-            end
-            process = open(cmd, "r", stdin)
-            @async begin
-                while !eof(process)
-                    write(stdout, read(process))
-                end
-            end
-            wait(process)
-            return success(process)
-        else
-            return success(run(cmd))
-        end
+        return success(run(cmd))
     finally
         unmount_shards(ur)
     end
