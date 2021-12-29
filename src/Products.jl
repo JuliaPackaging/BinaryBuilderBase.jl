@@ -51,7 +51,7 @@ If `isolate` is set to `true`, will isolate all checks from the main Julia
 process in the event that `dlopen()`'ing a library might cause issues.
 """
 function satisfied(p::Product, prefix::Prefix; kwargs...)
-    return locate(p, prefix; kwargs...) != nothing
+    return locate(p, prefix; kwargs...) !== nothing
 end
 
 
@@ -357,7 +357,7 @@ struct ExecutableProduct <: Product
             error("`$(varname)` is already defined in Base")
         end
         # If some other kind of AbstractString is passed in, convert it
-        if dir_path != nothing
+        if dir_path !== nothing
             dir_path = string(dir_path)
         end
         return new(binnames, varname, dir_path)
@@ -378,7 +378,7 @@ end
 function repr(p::ExecutableProduct)
     varname = repr(p.variable_name)
     binnames = repr(p.binnames)
-    if p.dir_path != nothing
+    if p.dir_path !== nothing
         return "ExecutableProduct($(binnames), $(varname), $(repr(p.dir_path)))"
     else
         return "ExecutableProduct($(binnames), $(varname))"
@@ -410,10 +410,10 @@ function locate(ep::ExecutableProduct, prefix::Prefix; platform::AbstractPlatfor
         end
 
         # Join into the `dir_path` given by the executable product
-        if ep.dir_path != nothing
-            path = joinpath(prefix.path, template(joinpath(ep.dir_path, binname), platform))
+        path = if ep.dir_path !== nothing
+            joinpath(prefix.path, template(joinpath(ep.dir_path, binname), platform))
         else
-            path = joinpath(bindir(prefix), template(binname, platform))
+            joinpath(bindir(prefix), template(binname, platform))
         end
 
         if isfile(path)

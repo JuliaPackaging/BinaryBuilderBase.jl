@@ -25,8 +25,8 @@ Strip out any tags that are not the basic annotations like `libc` and `call_abi`
 """
 function abi_agnostic(p::Platform)
     keeps = ("libc", "call_abi", "os_version")
-    filtered_tags = Dict(Symbol(k) => v for (k, v) in tags(p) if k ∈ keeps)
-    return Platform(arch(p), os(p); filtered_tags...)
+    filtered_tags = Dict{Symbol,String}(Symbol(k) => v for (k, v) in tags(p) if k ∈ keeps)
+    return Platform(arch(p)::String, os(p)::String; filtered_tags...)
 end
 abi_agnostic(p::AnyPlatform) = p
 

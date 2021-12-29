@@ -26,6 +26,8 @@ function cmake_os(p::AbstractPlatform)
         return "Darwin"
     elseif Sys.iswindows(p)
         return "Windows"
+    else
+        return "Unknown"
     end
 end
 
@@ -162,7 +164,7 @@ function meson_cpu_family(p::AbstractPlatform)
         return "x86_64"
     elseif arch(p) == "aarch64"
         return "aarch64"
-    elseif startswith(arch(p), "arm")
+    elseif startswith(arch(p)::String, "arm")
         return "arm"
     end
 end

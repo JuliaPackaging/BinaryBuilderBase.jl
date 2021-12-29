@@ -29,15 +29,15 @@ function get_concrete_platform(platform::Platform, shards::Vector{CompilerShard}
     # `package()` to be more specific than it is.
     concrete_platform = deepcopy(platform)
     gccboostrap_shard_idx = findfirst(x -> x.name == "GCCBootstrap" &&
-                                      arch(x.target) == arch(platform) &&
-                                      libc(x.target) == libc(platform),
+                                      arch(x.target::Platform) == arch(platform) &&
+                                      libc(x.target::Platform) == libc(platform),
                                       shards)
     if !isnothing(gccboostrap_shard_idx)
         cs = shards[gccboostrap_shard_idx]
         concrete_platform["libgfortran_version"] = string(preferred_libgfortran_version(platform, cs))
         concrete_platform["cxxstring_abi"] = string(preferred_cxxstring_abi(platform, cs))
-        if haskey(cs.target, "os_version")
-            concrete_platform["os_version"] = cs.target["os_version"]
+        if haskey(cs.target::Platform, "os_version")
+            concrete_platform["os_version"] = (cs.target::Platform)["os_version"]
         end
     end
     return concrete_platform

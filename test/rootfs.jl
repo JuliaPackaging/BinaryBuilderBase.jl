@@ -165,7 +165,7 @@ end
             # Make sure the C++ string ABI is not set
             @test !occursin("-D_GLIBCXX_USE_CXX11_ABI", read(joinpath(platform_bin_dir, "gcc"), String))
             # Make sure gfortran doesn't uses ccache when BinaryBuilderBase.use_ccache is true
-            BinaryBuilderBase.use_ccache && @test !occursin("ccache", read(joinpath(platform_bin_dir, "gfortran"), String))
+            BinaryBuilderBase.use_ccache[] && @test !occursin("ccache", read(joinpath(platform_bin_dir, "gfortran"), String))
         end
         platform = Platform("x86_64", "linux"; libc="musl", cxxstring_abi="cxx03")
         mktempdir() do bin_path
