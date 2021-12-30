@@ -182,7 +182,6 @@ function Base.read(ur::UserNSRunner, cmd; verbose=false)
     return collect_stdout(oc)
 end
 
-const AnyRedirectable = Union{Base.AbstractCmd, Base.TTY, IOStream}
 function run_interactive(ur::UserNSRunner, user_cmd::Cmd; stdin = nothing, stdout = nothing, stderr = nothing, verbose::Bool = false)
     warn_priviledged()
 

@@ -322,3 +322,10 @@ end
         end
     end
 end
+
+@testset "outptut runner" begin
+    io = IOBuffer()
+    run_interactive(BinaryBuilderBase.preferred_runner()(mktempdir(); platform=Platform("x86_64", "linux"; libc="musl")), `/bin/bash -c "echo \$PATH"`, stdout=io)
+    s = String(take!(io))
+    @test !isempty(s)
+end
