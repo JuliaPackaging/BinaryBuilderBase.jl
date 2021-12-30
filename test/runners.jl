@@ -325,7 +325,7 @@ end
 
 @testset "outptut runner" begin
     io = IOBuffer()
-    run_interactive(BinaryBuilderBase.preferred_runner()(mktempdir(); platform=Platform("x86_64", "linux"; libc="musl")), `/bin/bash -c "echo \$PATH"`, stdout=io)
+    run_interactive(BinaryBuilderBase.preferred_runner()(mktempdir(); platform=Platform("x86_64", "linux"; libc="musl")), `/bin/bash -c "echo hello world"`, stdout=io)
     s = String(take!(io))
-    @test !isempty(s)
+    @test s == "hello world\n"
 end
