@@ -3,6 +3,8 @@ abstract type Runner; end
 
 export default_host_platform
 
+const AnyRedirectable = Union{Base.AbstractCmd, Base.TTY, IOStream, IOBuffer}
+
 # Host platform _must_ match the C++ string ABI of the binaries we get from the
 # repositories.  Note: when preferred_gcc_version=v"4" we can't really build for
 # that C++ string ABI :-(

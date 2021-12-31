@@ -73,6 +73,23 @@ end
         end
     end
 
+    @testset "run_interactive" begin
+        platform = default_host_platform
+        io = IOBuffer()
+        @test run_interactive(preferred_runner()(mktempdir(); platform), `/bin/bash -c "echo hello world"`, stdout=io)
+        s = String(take!(io))
+        @test s == "hello world\n"
+        # Make sure that `run_interactive` consistently throws an error when the process fails,
+        # whatever is the type of `stdout`, or it consistently ignores failures if so requested.
+        # Ref: https://github.com/JuliaPackaging/BinaryBuilderBase.jl/pull/201#issuecomment-1003192121
+        cmd = `/bin/bash -c "false"`
+        @test_throws ProcessFailedException run_interactive(preferred_runner()(mktempdir(); platform), cmd)
+        @test_throws ProcessFailedException run_interactive(preferred_runner()(mktempdir(); platform), cmd; stdout=IOBuffer())
+        cmd = Cmd(`/bin/bash -c "false"`; ignorestatus=true)
+        @test !run_interactive(preferred_runner()(mktempdir(); platform), cmd)
+        @test !run_interactive(preferred_runner()(mktempdir(); platform), cmd; stdout=IOBuffer())
+    end
+
     if lowercase(get(ENV, "BINARYBUILDER_FULL_SHARD_TEST", "false")) == "true"
         @info("Beginning full shard test... (this can take a while)")
         platforms = supported_platforms()

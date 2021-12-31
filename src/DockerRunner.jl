@@ -212,21 +212,7 @@ function run_interactive(dr::DockerRunner, cmd::Cmd; stdin = nothing, stdout = n
 
     try
         mount_shards(dr; verbose=verbose)
-        if stdout isa IOBuffer
-            if !(stdin isa IOBuffer)
-                stdin = devnull
-            end
-            process = open(docker_cmd, "r", stdin)
-            @async begin
-                while !eof(process)
-                    write(stdout, read(process))
-                end
-            end
-            wait(process)
-            return success(process)
-        else
-            return success(run(docker_cmd))
-        end
+        return success(run(docker_cmd))
     finally
         unmount_shards(dr; verbose=verbose)
         # Cleanup permissions, if we need to.
