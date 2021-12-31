@@ -649,11 +649,14 @@ end
 choose_shards(::AnyPlatform; kwargs...) = choose_shards(default_host_platform; kwargs...)
 
 """
-    supported_platforms(;exclude::Union{Vector{<:Platform},Function}=x->false)
+    supported_platforms(;exclude::Union{Vector{<:Platform},Function}=x->false,
+                        experimental::Bool=true)
 
 Return the list of supported platforms as an array of `Platform`s.  These are the platforms we
 officially support building for, if you see a mapping in `get_shard_hash()` that isn't
-represented here, it's probably because that platform is still considered "in beta".
+represented here, it's probably because that platform is still considered "in beta".  If
+`experimental=true`, include platforms considered experimental, like aarch64-apple-darwin and
+armv6l architectures.
 
 Platforms can be excluded from the list by specifying an array of platforms to `exclude` i.e.
 `supported_platforms(exclude=[Platform("i686", "windows"), Platform("x86_64", "windows")])`
@@ -663,7 +666,7 @@ supported_platforms(exclude=Sys.islinux)
 ```
 """
 function supported_platforms(;exclude::Union{Vector{<:Platform},Function}=x->false,
-                              experimental::Bool=false)
+                             experimental::Bool=true)
     exclude_platforms!(platforms, exclude::Function) = filter(!exclude, platforms)
     exclude_platforms!(platforms, exclude::Vector{<:Platform}) = filter!(!in(exclude), platforms)
     standard_platforms = [
