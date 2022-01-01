@@ -650,13 +650,12 @@ choose_shards(::AnyPlatform; kwargs...) = choose_shards(default_host_platform; k
 
 """
     supported_platforms(;exclude::Union{Vector{<:Platform},Function}=x->false,
-                        experimental::Bool=true)
+                        experimental::Bool=false)
 
 Return the list of supported platforms as an array of `Platform`s.  These are the platforms we
 officially support building for, if you see a mapping in `get_shard_hash()` that isn't
 represented here, it's probably because that platform is still considered "in beta".  If
-`experimental=true`, include platforms considered experimental, like aarch64-apple-darwin and
-armv6l architectures.
+`experimental=true`, include platforms considered experimental.
 
 Platforms can be excluded from the list by specifying an array of platforms to `exclude` i.e.
 `supported_platforms(exclude=[Platform("i686", "windows"), Platform("x86_64", "windows")])`
@@ -666,7 +665,7 @@ supported_platforms(exclude=Sys.islinux)
 ```
 """
 function supported_platforms(;exclude::Union{Vector{<:Platform},Function}=x->false,
-                             experimental::Bool=true)
+                             experimental::Bool=false)
     exclude_platforms!(platforms, exclude::Function) = filter(!exclude, platforms)
     exclude_platforms!(platforms, exclude::Vector{<:Platform}) = filter!(!in(exclude), platforms)
     standard_platforms = [
@@ -674,7 +673,7 @@ function supported_platforms(;exclude::Union{Vector{<:Platform},Function}=x->fal
         Platform("i686", "linux"),
         Platform("x86_64", "linux"),
         Platform("aarch64", "linux"),
-        # Platform("armv6l", "linux"),
+        Platform("armv6l", "linux"),
         Platform("armv7l", "linux"),
         Platform("powerpc64le", "linux"),
 
@@ -682,11 +681,12 @@ function supported_platforms(;exclude::Union{Vector{<:Platform},Function}=x->fal
         Platform("i686", "linux"; libc="musl"),
         Platform("x86_64", "linux"; libc="musl"),
         Platform("aarch64", "linux"; libc="musl"),
-        # Platform("armv6l", "linux"; libc="musl"),
+        Platform("armv6l", "linux"; libc="musl"),
         Platform("armv7l", "linux"; libc="musl"),
 
         # BSDs
         Platform("x86_64", "macos"),
+        Platform("aarch64", "macos"),
         Platform("x86_64", "freebsd"),
 
         # Windows
@@ -697,9 +697,6 @@ function supported_platforms(;exclude::Union{Vector{<:Platform},Function}=x->fal
     # We have experimental support for some platforms, allow easily including them
     if experimental
         append!(standard_platforms, [
-            Platform("aarch64", "macos"),
-            Platform("armv6l", "linux"),
-            Platform("armv6l", "linux"; libc="musl"),
         ])
     end
     return exclude_platforms!(standard_platforms,exclude)
