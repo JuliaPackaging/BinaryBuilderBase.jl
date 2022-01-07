@@ -390,6 +390,11 @@ Return a `Set` of all JLL packages in the `manifest` with `dependencies` being
 the list of direct dependencies of the environment.
 """
 function collect_jlls(manifest::Dict, dependencies::Set{<:AbstractString})
+    # Handle Manifest format v2.0
+    if get(manifest, "manifest_format", "1.0") == "2.0" && haskey(manifest, "deps")
+        return collect_jlls(manifest["deps"], dependencies)
+    end
+
     jlls = copy(dependencies)
     for (pkg, infos) in manifest
         for info in infos
