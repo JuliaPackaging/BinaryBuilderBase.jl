@@ -384,27 +384,18 @@ function setup_workspace(build_path::AbstractString, sources::Vector,
 end
 
 """
-    collect_jlls(manifest::Dict, dependencies::Vector{<:AbstractString})
+    collect_jll_uuids(manifest::Pkg.Types.Manifest, dependencies::Set{Base.UUID})
 
 Return a `Set` of all JLL packages in the `manifest` with `dependencies` being
 the list of direct dependencies of the environment.
 """
-function collect_jlls(manifest::Dict, dependencies::Set{<:AbstractString})
-    # Handle Manifest format v2.0
-    if get(manifest, "manifest_format", "1.0") == "2.0" && haskey(manifest, "deps")
-        return collect_jlls(manifest["deps"], dependencies)
-    end
-
+function collect_jll_uuids(manifest::Pkg.Types.Manifest, dependencies::Set{Base.UUID})
     jlls = copy(dependencies)
-    for (pkg, infos) in manifest
-        for info in infos
-            if pkg in jlls
-                deps = get(info, "deps", nothing)
-                deps === nothing && continue
-                for dep in deps
-                    if endswith(dep, "_jll")
-                        push!(jlls, dep)
-                    end
+    for (uuid, pkg_entry) in manifest
+        if uuid in jlls
+            for (dep_name, dep_uuid) in pkg_entry.deps
+                if endswith(dep_name, "_jll")
+                    push!(jlls, dep_uuid)
                 end
             end
         end
@@ -412,7 +403,7 @@ function collect_jlls(manifest::Dict, dependencies::Set{<:AbstractString})
     if jlls == dependencies
         return jlls
     else
-        return collect_jlls(manifest, jlls)
+        return collect_jll_uuids(manifest, jlls)
     end
 end
 
@@ -452,41 +443,63 @@ function setup_dependencies(prefix::Prefix, dependencies::Vector{PkgSpec}, platf
 
     # We're going to create a project and install all dependent packages within
     # it, then create symlinks from those installed products to our build prefix
-
     mkpath(joinpath(prefix, triplet(platform), "artifacts"))
     deps_project = joinpath(prefix, triplet(platform), ".project")
     Pkg.activate(deps_project) do
         # Update registry first, in case the jll packages we're looking for have just been registered/updated
-        ctx = Pkg.Types.Context(;julia_version = julia_version)
+        ctx = Pkg.Types.Context(;julia_version)
         outs = verbose ? stdout : devnull
         update_registry(outs)
 
         # Add all dependencies
         Pkg.add(ctx, dependencies; platform=platform, io=outs)
 
-        # Get all JLL packages within the current project
-        installed_jlls = [
-            Pkg.Types.PackageSpec(name=p.name, uuid=u, tree_hash=p.tree_hash) for (u, p) in ctx.env.manifest if endswith(p.name, "_jll")
-        ]
-
         # Some JLLs are also standard libraries that may be present in the manifest because
         # they were pulled by other stdlibs (e.g. through dependence on `Pkg`), not beacuse
         # they were actually required for this package. Filter them out if they're present
         # in the manifest but aren't direct dependencies or dependencies of other JLLS.
-        manifest = TOML.parsefile(ctx.env.manifest_file)
-        dependencies_names = Set(getfield.(dependencies, :name))
-        jll_direct_deps = collect_jlls(manifest, dependencies_names)
-        filter!(jll -> jll.name ∈ jll_direct_deps, installed_jlls)
+        installed_jll_uuids = collect_jll_uuids(ctx.env.manifest, Set(getfield.(dependencies, :uuid)))
+        installed_jlls = [
+            Pkg.Types.PackageSpec(;
+                name=pkg.name,
+                uuid,
+                tree_hash=pkg.tree_hash,
+            ) for (uuid, pkg) in ctx.env.manifest if uuid ∈ installed_jll_uuids
+        ]
+
+        # From here on out, we're using `julia_version=nothing` to install stdlib dependencies
+        ctx = Pkg.Types.Context!(ctx; julia_version=nothing)
+        stdlib_jlls = false
+        for dep in installed_jlls
+            # First, figure out if this JLL was treated as a stdlib:
+            if dep.tree_hash === nothing
+                # If it was, we need to figure out the package version for the requested
+                # julia version, then figure out the treehash
+                dep.version = stdlib_version(dep.uuid, julia_version)
+                Pkg.Operations.load_tree_hash!(ctx.registries, dep, nothing)
+
+                # Directly update the pre-existing `PackageEntry`, so that we can directly
+                # call `Operations.download_*()` functions, which bypasses resolution
+                ctx.env.manifest[dep.uuid].tree_hash = dep.tree_hash
+                stdlib_jlls = true
+            end
+        end
+
+        # Re-install stdlib dependencies, but this time with `julia_version = nothing`
+        # Note that we directly use `Pkg.Operations.download_{source,artifacts}()`, so
+        # that we can dodge the resolution machinery in Pkg, which will do things like
+        # treat `v1.2.12+1` and `v1.2.12+2` the same, and always choose the latter.
+        # This wouldn't be an issue, except that we really really want to tell the
+        # difference between those two versions.
+        if stdlib_jlls
+            Pkg.Operations.download_source(ctx)
+            Pkg.Operations.download_artifacts(ctx.env; julia_version=ctx.julia_version, verbose)
+        end
 
         # Load their Artifacts.toml files
         for dep in installed_jlls
-            local dep_path
-            if dep.tree_hash === nothing
-                dep_path = Pkg.Types.stdlib_path(dep.name)
-            else
-                dep_path = Pkg.Operations.find_installed(dep.name, dep.uuid, dep.tree_hash)
-            end
             name = getname(dep)
+            dep_path = Pkg.Operations.find_installed(name, dep.uuid, dep.tree_hash)
 
             # Skip dependencies that didn't get installed?
             if dep_path === nothing

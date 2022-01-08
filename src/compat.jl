@@ -16,3 +16,16 @@ function valid_dl_path(path, platform)
         return false
     end
 end
+
+# If we don't have `stdlib_version` from Pkg, recreate it ourselves
+if !isdefined(Pkg.Types, :stdlib_version)
+    function stdlib_version(uuid::Base.UUID, julia_version::Union{VersionNumber,Nothing})::Union{VersionNumber,Nothing}
+        last_stdlibs = Pkg.Types.get_last_stdlibs(julia_version)
+        if !(uuid in keys(last_stdlibs))
+            return nothing
+        end
+        return last_stdlibs[uuid][2]
+    end
+else
+    const stdlib_version = Pkg.Types.stdlib_version
+end
