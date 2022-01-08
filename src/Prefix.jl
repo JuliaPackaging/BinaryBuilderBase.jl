@@ -487,6 +487,11 @@ function setup_dependencies(prefix::Prefix, dependencies::Vector{PkgSpec}, platf
                 # Directly update the pre-existing `PackageEntry`, so that we can directly
                 # call `Operations.download_*()` functions, which bypasses resolution
                 ctx.env.manifest[dep.uuid].tree_hash = dep.tree_hash
+                # Ensure the dependency has a non-nothing version number, to
+                # work around https://github.com/JuliaLang/Pkg.jl/issues/2931
+                if ctx.env.manifest[dep.uuid].version === nothing
+                    ctx.env.manifest[dep.uuid].version = dep.version
+                end
                 stdlib_jlls = true
             end
         end
