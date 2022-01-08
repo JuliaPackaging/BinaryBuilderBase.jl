@@ -434,6 +434,7 @@ function setup_dependencies(prefix::Prefix, dependencies::Vector{PkgSpec}, platf
         return p
     end
     dependencies = filter_redundant_version.(dependencies)
+    dependencies_names = getname.(dependencies)
 
     # Get julia version specificity, if it exists, from the `Platform` object
     julia_version = nothing
@@ -454,11 +455,16 @@ function setup_dependencies(prefix::Prefix, dependencies::Vector{PkgSpec}, platf
         # Add all dependencies
         Pkg.add(ctx, dependencies; platform=platform, io=outs)
 
+        # Ony Julia v1.6, `Pkg.add()` doesn't mutate `dependencies`, so we can't use the `UUID`
+        # that was found during resolution there.  Instead, we'll make use of `ctx.env` to figure
+        # out the UUIDs of all our packages.
+        dependency_uuids = Set([uuid for (uuid, pkg) in ctx.env.manifest if pkg.name ∈ dependencies_names])
+
         # Some JLLs are also standard libraries that may be present in the manifest because
         # they were pulled by other stdlibs (e.g. through dependence on `Pkg`), not beacuse
         # they were actually required for this package. Filter them out if they're present
         # in the manifest but aren't direct dependencies or dependencies of other JLLS.
-        installed_jll_uuids = collect_jll_uuids(ctx.env.manifest, Set(getfield.(dependencies, :uuid)))
+        installed_jll_uuids = collect_jll_uuids(ctx.env.manifest, dependency_uuids)
         installed_jlls = [
             Pkg.Types.PackageSpec(;
                 name=pkg.name,
