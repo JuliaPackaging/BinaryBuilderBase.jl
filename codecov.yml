@@ -3,10 +3,6 @@ comment: false
 coverage:
   status:
     project:
-      default:
-        threshold: 1%
-        target: 1%
+      default: false # Disable the `codecov/project` commit status
     patch:
-      default:
-        threshold: 1%
-        target: 1%
+      default: false # Disable the `codecov/patch` commit status
