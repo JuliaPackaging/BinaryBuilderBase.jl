@@ -45,9 +45,6 @@ function temp_prefix(func::Function)
     end
 end
 
-# This is the default prefix that things get saved to, it is initialized within
-# __init__() on first module load.
-global_prefix = nothing
 struct Prefix
     path::String
 
