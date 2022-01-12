@@ -296,6 +296,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     end
 
     function macos_version(kernel_version::Integer)
+        # See https://en.wikipedia.org/wiki/Darwin_(operating_system)#Release_history
         kernel_to_macos = Dict(
             12 => "10.8",
             13 => "10.9",
@@ -306,6 +307,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             18 => "10.14",
             19 => "10.15",
             20 => "11.0",
+            21 => "12.0",
         )
         return get(kernel_to_macos, kernel_version, nothing)
     end
@@ -320,7 +322,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
 
         # Eventually, we'll take this in `os_version(p)`, but not just yet.  We need to fix the paths
         # to the compiler shards first, since right now they have `14` at the end
-        version = v"14.0.0"
+        version = something(os_version(p), v"14.0.0")
         return macos_version(version.major)
     end
 
@@ -391,8 +393,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         end
 
         # Simulate some of the `__OSX_AVAILABLE()` macro usage that is broken in GCC
-        # Currently, we only target 10.10, but eventually, we'll want to tailor this to `os_version(p)`
-        if Sys.isapple(p) && 14 < 16
+        if Sys.isapple(p) && something(os_version(p), v"14") < v"16"
             # Disable usage of `clock_gettime()`
             push!(flags, "-D_DARWIN_FEATURE_CLOCK_GETTIME=0")
         end
