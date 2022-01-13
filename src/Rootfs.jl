@@ -487,18 +487,27 @@ function gcc_version(p::AbstractPlatform,GCC_builds::Vector{GCCBuild},
         # "thunderx2t99" introduced in GCC v7.1:
         # https://www.gnu.org/software/gcc/gcc-7/changes.html
         GCC_builds = filter(b -> getversion(b) >= v"7.1", GCC_builds)
-    elseif march(p) in ("armv8_2_crypto", "armv8_4_crypto_sve")
-        # "+aes" and "+sha2" extensions for aarch64 introduced in GCC v8:
-        # https://www.gnu.org/software/gcc/gcc-8/changes.html
-        GCC_builds = filter(b -> getversion(b) >= v"8.1", GCC_builds)
+    elseif march(p) in ("armv8_2_crypto",)
+        # `cortex-a76` target introduced in GCC v9.1:
+        # https://www.gnu.org/software/gcc/gcc-9/changes.html
+        GCC_builds = filter(b -> getversion(b) >= v"9.1", GCC_builds)
+    elseif march(p) in ("a64fx",)
+        # `a64fx` target introduced in GCC v10.3:
+        # https://www.gnu.org/software/gcc/gcc-10/changes.html
+        GCC_builds = filter(b -> getversion(b) >= v"10.3", GCC_builds)
+    elseif march(p) in ("apple_m1",)
+        # At the moment we can only target this CPU with GCC 12
+        GCC_builds = filter(b -> getversion(b) >= v"12", GCC_builds)
     end
 
     return getversion.(GCC_builds)
 end
 
 function llvm_version(p::AbstractPlatform, LLVM_builds::Vector{LLVMBuild})
-    if march(p) in ("armv8_2_crypto", "armv8_4_crypto_sve")
+    if march(p) in ("armv8_2_crypto",)
         LLVM_builds = filter(b -> getversion(b) >= v"9.0", LLVM_builds)
+    elseif march(p) in ("a64fx", "apple_m1",)
+        LLVM_builds = filter(b -> getversion(b) >= v"11.0", LLVM_builds)
     end
     return getversion.(LLVM_builds)
 end
@@ -827,8 +836,22 @@ function expand_microarchitectures(platform::AbstractPlatform)
         return [platform]
     end
 
-    # Otherwise, return a bunch of Platform objects with appropriately-set `march` tags
-    return map(get_all_march_names(arch(platform))) do march
+    # Otherwise, return a bunch of Platform objects with appropriately-set `march` tags, but
+    # first filter out some meaningless combinations of microarchitectures.
+    all_marchs = filter(get_all_march_names(arch(platform))) do march
+        if (!Sys.isapple(platform) && march == "apple_m1") ||
+            (Sys.isapple(platform) && arch(platform) == "aarch64" && march ∉ ("armv8_0", "apple_m1"))
+            # `apple_m1` makes sense only on macOS, and the only aarch64 microarchitectures
+            # that make sense on macOS are M1 and the generic one.
+            return false
+        elseif march == "a64fx" && !(Sys.islinux(platform) && libc(platform) == "glibc")
+            # Let's be honest: it's unlikely we'll see Alpine Linux on A64FX.
+            return false
+        end
+        return true
+    end
+
+    return map(all_marchs) do march
         p = deepcopy(platform)
         p["march"] = march
         return p
