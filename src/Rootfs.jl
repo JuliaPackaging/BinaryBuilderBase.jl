@@ -94,7 +94,6 @@ end
 const ALL_SHARDS = Ref{Union{Vector{CompilerShard},Nothing}}(nothing)
 function all_compiler_shards()::Vector{CompilerShard}
     if ALL_SHARDS[] === nothing
-        artifacts_toml = joinpath(dirname(@__DIR__), "Artifacts.toml")
         artifact_dict = load_artifacts_toml(artifacts_toml)
 
         ALL_SHARDS[] = CompilerShard[]
@@ -124,7 +123,6 @@ function all_compiler_shards()::Vector{CompilerShard}
 end
 
 function shard_source_artifact_hash(cs::CompilerShard)
-    artifacts_toml = joinpath(dirname(@__DIR__), "Artifacts.toml")
     name = artifact_name(cs)
     hash = artifact_hash(
         name,
@@ -179,7 +177,6 @@ function mount_path(cs::CompilerShard, build_prefix::AbstractString)
         return joinpath(build_prefix, ".mounts", artifact_name(cs))
     else
         name = artifact_name(cs)
-        artifacts_toml = joinpath(@__DIR__, "..", "Artifacts.toml")
         hash = artifact_hash(name, artifacts_toml; platform=cs.host)
         if hash === nothing
             error("Unable to find artifact $(name) within $(artifacts_toml)")
@@ -254,7 +251,6 @@ function mount(cs::CompilerShard, build_prefix::AbstractString; verbose::Bool = 
     end
 
     # Ensure this artifact is on-disk; hard to mount it if it's not installed
-    artifacts_toml = joinpath(dirname(@__DIR__), "Artifacts.toml")
     ensure_artifact_installed(artifact_name(cs), artifacts_toml; platform=cs.host, verbose=true)
 
     # Easy out if we're not Linux with a UserNSRunner trying to use a .squashfs
@@ -345,7 +341,6 @@ function macos_sdk_already_installed()
     css = all_compiler_shards()
     macos_artifact_names = artifact_name.(filter(cs -> cs.target !== nothing && Sys.isapple(cs.target::Platform), css))
 
-    artifacts_toml = joinpath(dirname(@__DIR__), "Artifacts.toml")
     macos_artifact_hashes = artifact_hash.(macos_artifact_names, artifacts_toml; platform=default_host_platform)
 
     # Return `true` if _any_ of these artifacts exist on-disk:
@@ -913,7 +908,6 @@ happens, you don't need an internet connection to build your precious, precious
 binaries.
 """
 function download_all_artifacts(; verbose::Bool = false)
-    artifacts_toml = joinpath(dirname(@__DIR__), "Artifacts.toml")
     ensure_all_artifacts_installed(
         artifacts_toml;
         include_lazy=true,
