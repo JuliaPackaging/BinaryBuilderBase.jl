@@ -183,11 +183,7 @@ filter_platforms(deps::AbstractVector{<:AbstractDependency}, p::AbstractPlatform
 # Wrapper around `Pkg.Types.registry_resolve!` which keeps the type of the
 # dependencies.  TODO: improve this
 function registry_resolve!(ctx, dependencies::Vector{<:AbstractDependency})
-    @static if VERSION < v"1.7-DEV"
-        resolved_dependencies = Pkg.Types.registry_resolve!(ctx, getpkg.(dependencies))
-    else
-        resolved_dependencies = Pkg.Types.registry_resolve!(ctx.registries, getpkg.(dependencies))
-    end
+    resolved_dependencies = Pkg.Types.registry_resolve!(ctx.registries, getpkg.(dependencies))
     for idx in eachindex(dependencies)
         dependencies[idx] = typeof(dependencies[idx])(resolved_dependencies[idx]; platforms=dependencies[idx].platforms)
     end

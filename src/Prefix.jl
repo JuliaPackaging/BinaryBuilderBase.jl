@@ -418,7 +418,7 @@ function get_tree_hash(tree::LibGit2.GitTree)
 end
 
 """
-    get_addable_spec(name, version)
+    get_addable_spec(name::AbstractString, version::VersionNumber)
 
 Given a JLL name and registered version, return a `PackageSpec` that, when passed as a
 `Dependency`, ensures that exactly that version will be installed.  Example usage:

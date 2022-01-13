@@ -1,7 +1,7 @@
 using Test
 using Pkg, Base.BinaryPlatforms
 using BinaryBuilderBase
-using BinaryBuilderBase: getname, getpkg, dependencify, destdir, PKG_VERSIONS
+using BinaryBuilderBase: getname, getpkg, dependencify, destdir, PKG_VERSIONS, get_addable_spec
 using JSON
 
 # Define equality between dependencies, in order to carry out the tests below
@@ -105,6 +105,18 @@ end
     end
 
     @testset "Setup" begin
+        @test BinaryBuilderBase.get_addable_spec("LLVM_jll", v"13.0.0+2") ==
+            PackageSpec(
+                name="LLVM_jll",
+                uuid="86de99a1-58d6-5da7-8064-bd56ce2e322c",
+                tree_hash=Base.SHA1("83481d62501cf2ef22bed745dbcedc4e75fa6e95"),
+                version=PKG_VERSIONS.VersionSpec("*"),
+                repo=Pkg.Types.GitRepo(
+                    source="https://github.com/JuliaBinaryWrappers/LLVM_jll.jl.git",
+                    rev="2772761b330d51146ace3125b26acdad0df4f30f",
+                ),
+            )
+
         with_temp_project() do dir
             prefix = Prefix(dir)
             dependencies = [
