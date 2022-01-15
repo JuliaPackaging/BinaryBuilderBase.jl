@@ -978,3 +978,13 @@ function unmount_shards(ur::Runner; verbose::Bool = false)
     catch
     end
 end
+
+"""
+    installed_shards()
+Return a vector of compiler shards currently downloaded on the local system
+"""
+function installed_shards()
+    idx = artifact_exists.(shard_source_artifact_hash.(all_compiler_shards()))
+
+    return all_compiler_shards()[idx]
+end
