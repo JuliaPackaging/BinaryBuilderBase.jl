@@ -2,7 +2,7 @@
 #  on disk.  Things like the name of where downloads are stored, and what
 #  environment variables must be updated to, etc...
 import Base: convert, joinpath, show
-using SHA, CodecZlib, TOML
+using SHA, CodecZlib, TOML, LibGit2_jll
 
 export Prefix, bindir, libdirs, includedir, logdir, temp_prefix, package
 
@@ -261,16 +261,17 @@ end
 
 function setup(source::SetupSource{GitSource}, targetdir, verbose)
     mkpath(targetdir)
-    # Chop off the `.git` at the end of the source.path
+    # Chop off the `.git-$(sha256(url))` at the end of the source.path
     name = basename(source.path)
-    if endswith(name, ".git")
-        name = name[1:end-4]
+    m = match(r"(.*)\.git-[0-9a-fA-F]{64}$", name)
+    if m !== nothing
+        name = m.captures[1]
     end
     repo_dir = joinpath(targetdir, name)
     if verbose
         # Need to strip the trailing separator
         path = strip_path_separator(targetdir)
-        @info "Cloning $(basename(source.path)) to $(basename(repo_dir))..."
+        @info "Checking $(basename(source.path)) out to $(basename(repo_dir))..."
     end
     LibGit2.with(LibGit2.clone(source.path, repo_dir)) do repo
         LibGit2.checkout!(repo, source.hash)
@@ -381,22 +382,18 @@ function setup_workspace(build_path::AbstractString, sources::Vector,
 end
 
 """
-    collect_jlls(manifest::Dict, dependencies::Vector{<:AbstractString})
+    collect_jll_uuids(manifest::Pkg.Types.Manifest, dependencies::Set{Base.UUID})
 
 Return a `Set` of all JLL packages in the `manifest` with `dependencies` being
 the list of direct dependencies of the environment.
 """
-function collect_jlls(manifest::Dict, dependencies::Set{<:AbstractString})
+function collect_jll_uuids(manifest::Pkg.Types.Manifest, dependencies::Set{Base.UUID})
     jlls = copy(dependencies)
-    for (pkg, infos) in manifest
-        for info in infos
-            if pkg in jlls
-                deps = get(info, "deps", nothing)
-                deps === nothing && continue
-                for dep in deps
-                    if endswith(dep, "_jll")
-                        push!(jlls, dep)
-                    end
+    for (uuid, pkg_entry) in manifest
+        if uuid in jlls
+            for (dep_name, dep_uuid) in pkg_entry.deps
+                if endswith(dep_name, "_jll")
+                    push!(jlls, dep_uuid)
                 end
             end
         end
@@ -404,8 +401,123 @@ function collect_jlls(manifest::Dict, dependencies::Set{<:AbstractString})
     if jlls == dependencies
         return jlls
     else
-        return collect_jlls(manifest, jlls)
+        return collect_jll_uuids(manifest, jlls)
     end
+end
+
+"""
+    get_tree_hash(tree::LibGit2.GitTree)
+
+Given a `GitTree`, get the `GitHash` that identifies it.
+"""
+function get_tree_hash(tree::LibGit2.GitTree)
+    oid_ptr = Ref(LibGit2.GitHash())
+    oid_ptr = ccall((:git_tree_id, libgit2), Ptr{LibGit2.GitHash}, (Ptr{Cvoid},), tree.ptr)
+    oid_ptr == C_NULL && throw("bad tree ID: $tree")
+    return unsafe_load(oid_ptr)
+end
+
+"""
+    get_addable_spec(name::AbstractString, version::VersionNumber)
+
+Given a JLL name and registered version, return a `PackageSpec` that, when passed as a
+`Dependency`, ensures that exactly that version will be installed.  Example usage:
+
+    dependencies = [
+        BuildDependency(get_addable_spec("LLVM_jll", v"9.0.1+0")),
+    ]
+"""
+function get_addable_spec(name::AbstractString, version::VersionNumber;
+                          ctx = Pkg.Types.Context(), verbose::Bool = false)
+    # First, resolve the UUID
+    uuid = first(Pkg.Types.registry_resolve!(ctx.registries, Pkg.Types.PackageSpec(;name))).uuid
+
+    # Next, determine the tree hash from the registry
+    repo_urls = Set{String}()
+    tree_hashes = Set{Base.SHA1}()
+    for reg in ctx.registries
+        if !haskey(reg, uuid)
+            continue
+        end
+
+        pkg_info = registry_info(reg[uuid])
+        if pkg_info.repo !== nothing
+            push!(repo_urls, pkg_info.repo)
+        end
+        if pkg_info.version_info !== nothing
+            if haskey(pkg_info.version_info, version)
+                version_info = pkg_info.version_info[version]
+                push!(tree_hashes, version_info.git_tree_sha1)
+            end
+        end
+    end
+
+    if isempty(tree_hashes)
+        @error("Unable to find dependency!",
+            name,
+            version,
+            registries=ctx.registries,
+        )
+        error("Unable to find dependency!")
+    end
+    if length(tree_hashes) != 1
+        @error("Multiple treehashes found!",
+            name,
+            version,
+            tree_hashes,
+            registries=ctx.registries,
+        )
+        error("Multiple treehashes found!")
+    end
+
+    tree_hash_sha1 = first(tree_hashes)
+    tree_hash_bytes = tree_hash_sha1.bytes
+
+    # Once we have a tree hash, turn that into a git commit sha
+    git_commit_sha = nothing
+    valid_url = nothing
+    for url in repo_urls
+        dir = cached_git_clone(url; verbose)
+
+        LibGit2.with(LibGit2.GitRepo(dir)) do repo
+            LibGit2.with(LibGit2.GitRevWalker(repo)) do walker
+                LibGit2.push_head!(walker)
+                # For each commit in the git repo, check to see if its treehash
+                # matches the one we're looking for.
+                for oid in walker
+                    tree = LibGit2.peel(LibGit2.GitTree, LibGit2.GitCommit(repo, oid))
+                    if all(get_tree_hash(tree).val .== tree_hash_bytes)
+                        git_commit_sha = LibGit2.string(oid)
+                        valid_url = url
+                        break
+                    end
+                end
+            end
+        end
+
+        # Stop searching urls as soon as we find one
+        if git_commit_sha !== nothing
+            break
+        end
+    end
+
+    if git_commit_sha === nothing
+        @error("Unable to find revision for specified dependency!",
+            name,
+            version,
+            tree_hash = bytes2hex(tree_hash_bytes),
+            urls,
+        )
+        error("Unable to find revision for specified dependency!")
+    end
+
+    return Pkg.Types.PackageSpec(
+        name=name,
+        uuid=uuid,
+        #version=version,
+        tree_hash=tree_hash_sha1,
+        repo=Pkg.Types.GitRepo(rev=git_commit_sha, source=valid_url),
+    )
 end
 
 """
@@ -420,7 +532,10 @@ to modify the dependent artifact files, and (c) keeping a record of what files a
 dependencies as opposed to the package being built, in the form of symlinks to a specific artifacts
 directory.
 """
-function setup_dependencies(prefix::Prefix, dependencies::Vector{PkgSpec}, platform::AbstractPlatform; verbose::Bool = false)
+function setup_dependencies(prefix::Prefix,
+                            dependencies::Vector{PkgSpec},
+                            platform::AbstractPlatform;
+                            verbose::Bool = false)
     artifact_paths = String[]
     if isempty(dependencies)
         return artifact_paths
@@ -435,6 +550,7 @@ function setup_dependencies(prefix::Prefix, dependencies::Vector{PkgSpec}, platf
         return p
     end
     dependencies = filter_redundant_version.(dependencies)
+    dependencies_names = getname.(dependencies)
 
     # Get julia version specificity, if it exists, from the `Platform` object
     julia_version = nothing
@@ -444,41 +560,63 @@ function setup_dependencies(prefix::Prefix, dependencies::Vector{PkgSpec}, platf
 
     # We're going to create a project and install all dependent packages within
     # it, then create symlinks from those installed products to our build prefix
-
     mkpath(joinpath(prefix, triplet(platform), "artifacts"))
     deps_project = joinpath(prefix, triplet(platform), ".project")
     Pkg.activate(deps_project) do
         # Update registry first, in case the jll packages we're looking for have just been registered/updated
-        ctx = Pkg.Types.Context(;julia_version = julia_version)
+        ctx = Pkg.Types.Context(;julia_version)
         outs = verbose ? stdout : devnull
-        update_registry(ctx, outs)
+        update_registry(outs)
 
         # Add all dependencies
         Pkg.add(ctx, dependencies; platform=platform, io=outs)
 
-        # Get all JLL packages within the current project
-        installed_jlls = [
-            Pkg.Types.PackageSpec(name=p.name, uuid=u, tree_hash=p.tree_hash) for (u, p) in ctx.env.manifest if endswith(p.name, "_jll")
-        ]
+        # Ony Julia v1.6, `Pkg.add()` doesn't mutate `dependencies`, so we can't use the `UUID`
+        # that was found during resolution there.  Instead, we'll make use of `ctx.env` to figure
+        # out the UUIDs of all our packages.
+        dependency_uuids = Set([uuid for (uuid, pkg) in ctx.env.manifest if pkg.name ∈ dependencies_names])
 
         # Some JLLs are also standard libraries that may be present in the manifest because
         # they were pulled by other stdlibs (e.g. through dependence on `Pkg`), not beacuse
         # they were actually required for this package. Filter them out if they're present
         # in the manifest but aren't direct dependencies or dependencies of other JLLS.
-        manifest = TOML.parsefile(ctx.env.manifest_file)
-        dependencies_names = Set(getfield.(dependencies, :name))
-        jll_direct_deps = collect_jlls(manifest, dependencies_names)
-        filter!(jll -> jll.name ∈ jll_direct_deps, installed_jlls)
+        installed_jll_uuids = collect_jll_uuids(ctx.env.manifest, dependency_uuids)
+        installed_jlls = [
+            Pkg.Types.PackageSpec(;
+                name=pkg.name,
+                uuid,
+                tree_hash=pkg.tree_hash,
+            ) for (uuid, pkg) in ctx.env.manifest if uuid ∈ installed_jll_uuids
+        ]
+
+        # Check for stdlibs lurking in the installed JLLs
+        stdlib_pkgspecs = PackageSpec[]
+        for dep in installed_jlls
+            # If the `tree_hash` is `nothing`, then this JLL was treated as an stdlib
+            if dep.tree_hash === nothing
+                # Figure out what version this stdlib _should_ be at for this version
+                dep.version = stdlib_version(dep.uuid, julia_version)
+
+                # Interrogate the registry to determine the correct treehash
+                Pkg.Operations.load_tree_hash!(ctx.registries, dep, nothing)
+
+                # We'll still use `Pkg.add()` to install the version we want, even though
+                # we've used the above two lines to figure out the treehash, so construct
+                # an addable spec that will get the correct bits down on disk.
+                push!(stdlib_pkgspecs, get_addable_spec(dep.name, dep.version; verbose))
+            end
+        end
+
+        # Re-install stdlib dependencies, but this time with `julia_version = nothing`
+        if !isempty(stdlib_pkgspecs)
+            #ctx = Pkg.Types.Context!(ctx; julia_version=nothing)
+            Pkg.add(ctx, stdlib_pkgspecs; julia_version=nothing)
+        end
 
         # Load their Artifacts.toml files
         for dep in installed_jlls
-            local dep_path
-            if dep.tree_hash === nothing
-                dep_path = Pkg.Types.stdlib_path(dep.name)
-            else
-                dep_path = Pkg.Operations.find_installed(dep.name, dep.uuid, dep.tree_hash)
-            end
             name = getname(dep)
+            dep_path = Pkg.Operations.find_installed(name, dep.uuid, dep.tree_hash)
 
             # Skip dependencies that didn't get installed?
             if dep_path === nothing

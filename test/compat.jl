@@ -1,6 +1,8 @@
 using Test
-using BinaryBuilderBase: extract_kwargs, extract_fields, strip_path_separator, ArchiveSource
+using BinaryBuilderBase: extract_kwargs, extract_fields, strip_path_separator, ArchiveSource, stdlib_version
 using Downloads: RequestError
+using UUIDs: UUID
+
 @testset "Compat functions" begin
     foo(; kwargs...) = collect(extract_kwargs(kwargs, (:bar, :qux)))
     @test foo(; a = 1) == Pair[]
@@ -19,6 +21,22 @@ using Downloads: RequestError
     @test basename(strip_path_separator("/home/wizard/")) == "wizard"
     @test basename(strip_path_separator("/home//wizard///")) == "wizard"
     @test basename(strip_path_separator("wizard.jl")) == "wizard.jl"
+
+    gmp_jll = UUID("781609d7-10c4-51f6-84f2-b8444358ff6d")
+    llvmlibwnwind_jll = UUID("47c5dbc3-30ba-59ef-96a6-123e260183d9")
+    @test stdlib_version(gmp_jll, v"1.6") == v"6.2.0+5"
+    @test stdlib_version(llvmlibwnwind_jll, v"1.6") === nothing
+    if VERSION ≥ v"1.7-DEV"
+        # Fascinating, different versions of Julia have different opinions about GMP_jll in v1.7
+        if VERSION ≥ v"1.8-DEV"
+            @test stdlib_version(gmp_jll, v"1.7") == v"6.2.1+1"
+            @test stdlib_version(gmp_jll, v"1.8") == v"6.2.1+1"
+            @test stdlib_version(llvmlibwnwind_jll, v"1.8") == v"12.0.1+0"
+        else
+            @test stdlib_version(gmp_jll, v"1.7") == v"6.2.1+0"
+            @test stdlib_version(llvmlibwnwind_jll, v"1.7") == v"11.0.1+1"
+        end
+    end
 end
 
 using BinaryBuilderBase: download_verify, list_tarball_files

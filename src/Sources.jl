@@ -142,38 +142,38 @@ function download_source(source::T; verbose::Bool = false, downloads_dir = stora
     return SetupSource{T}(src_path, source.hash, gettarget(source))
 end
 
-function download_source(source::GitSource; verbose::Bool = false, downloads_dir = storage_dir("downloads"))
-    src_path = joinpath(downloads_dir, basename(source.url))
-
-    # If this git repository already exists, ensure that its origin remote actually matches
-    if isdir(src_path)
-        origin_url = LibGit2.with(LibGit2.GitRepo(src_path)) do repo
-            LibGit2.url(LibGit2.get(LibGit2.GitRemote, repo, "origin"))
+function cached_git_clone(url::String;
+                          hash_to_check::Union{Nothing, String} = nothing,
+                          downloads_dir::String = storage_dir("downloads"),
+                          verbose::Bool = false,
+                          )
+    repo_path = joinpath(downloads_dir, "clones", string(basename(url), "-", bytes2hex(sha256(url))))
+    if isdir(repo_path)
+        if verbose
+            @info("Using cached git repository", url, repo_path)
         end
-
-        # If the origin url doesn't match, wipe out this git repo.  We'd rather have a
-        # thrashed cache than an incorrect cache.
-        if origin_url != source.url
-            rm(src_path; recursive=true, force=true)
-        end
-    end
-
-    if isdir(src_path)
-        @info "Cached repository found in $(src_path)"
         # If we didn't just mercilessly obliterate the cached git repo, use it!
-        LibGit2.with(LibGit2.GitRepo(src_path)) do repo
-            # Only bother to fetch the remote repository if it doesn't already have
-            # the hash we want to build within it; this is not only faster, it avoids
-            # race conditions when we have multiple builders on the same machine.
-            if !LibGit2.iscommit(source.hash, repo)
+        LibGit2.with(LibGit2.GitRepo(repo_path)) do repo
+            # In some cases, we know the hash we're looking for, so only fetch() if
+            # this git repository doesn't contain the hash we're seeking
+            # this is not only faster, it avoids race conditions when we have
+            # multiple builders on the same machine all fetching at once.
+            if hash_to_check === nothing || !LibGit2.iscommit(hash_to_check, repo)
                 LibGit2.fetch(repo)
             end
         end
     else
-        @info "Cloning $(source.url) to $(src_path)..."
-        # If there is no src_path yet, clone it down.
-        repo = LibGit2.clone(source.url, src_path; isbare=true)
+        if verbose
+            @info("Cloning git repository", url, repo_path)
+        end
+        # If there is no repo_path yet, clone it down into a bare repository
+        LibGit2.clone(url, repo_path; isbare=true)
     end
+    return repo_path
+end
+
+function download_source(source::GitSource; kwargs...)
+    src_path = cached_git_clone(source.url; hash_to_check=source.hash, kwargs...)
     return SetupSource{GitSource}(src_path, source.hash, source.unpack_target)
 end
 
@@ -181,7 +181,9 @@ function download_source(source::DirectorySource; verbose::Bool = false)
     if !isdir(source.path)
         error("Could not find directory \"$(source.path)\".")
     end
-    @info "Directory \"$(source.path)\" found"
+    if verbose
+        @info "Directory \"$(source.path)\" found"
+    end
     return SetupSource{DirectorySource}(abspath(source.path), "", source.target, source.follow_symlinks)
 end
 
