@@ -970,8 +970,7 @@ end
 Return a vector of compiler shards currently downloaded on the local system
 """
 function installed_shards()
-    hashes = shard_source_artifact_hash.(all_compiler_shards())
-    idx = artifact_exists.(hashes)
+    idx = artifact_exists.(shard_source_artifact_hash.(all_compiler_shards()))
 
     return all_compiler_shards()[idx]
 end
