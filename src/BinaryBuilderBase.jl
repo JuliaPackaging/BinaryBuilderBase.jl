@@ -176,7 +176,7 @@ function __init__()
 
     deps_path = joinpath(@__DIR__, "..", "deps")
     ispath(deps_path) || begin
-        deps_path = joinpath(Base.DEPOT_PATH, "BinaryBuilderBase.jl", "deps")
+        deps_path = joinpath(Pkg.depots1(), "dev", "BinaryBuilderBase.jl", "deps")
         @info "Creating a storage cache at $deps_path"
     end
     # Allow the user to override the default value for `storage_dir`
