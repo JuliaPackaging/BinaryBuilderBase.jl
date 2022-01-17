@@ -2,6 +2,7 @@ export supported_platforms, expand_gfortran_versions, expand_cxxstring_abis, exp
 
 using Pkg.Artifacts: load_artifacts_toml, ensure_all_artifacts_installed
 using Base.BinaryPlatforms: set_compare_strategy!, compare_version_cap
+using REPL.TerminalMenus
 
 # This is a type that encompasses a shard; it makes it easy to pass it around,
 # get its download url, extraction url, mounting url, etc...
@@ -987,4 +988,18 @@ function installed_shards()
     idx = artifact_exists.(shard_source_artifact_hash.(all_compiler_shards()))
 
     return all_compiler_shards()[idx]
+end
+
+
+"""
+    manage_shards()
+Open a prompt allowing a user to selectively remove downloaded compiler shards
+"""
+function manage_shards()
+    manage_shards_menu = TerminalMenus.request("Which compiler shards should be removed?",
+                                       TerminalMenus.MultiSelectMenu(string.(installed_shards()) , pagesize = 10; charset=:ascii)
+                                       )
+
+    installed_shards()[Int.(manage_shards_menu)]
+    Pkg.remove_artifact.(BinaryBuilderBase.shard_source_artifact_hash.(not_installed[Int.(manage_shards_menu)]))
 end
