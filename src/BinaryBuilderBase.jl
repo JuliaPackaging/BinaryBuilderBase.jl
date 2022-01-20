@@ -71,7 +71,6 @@ const use_ccache = Ref(false)
 const bootstrap_list = Symbol[]
 
 const _artifacts_toml = @path Pkg.Artifacts.find_artifacts_toml(@__FILE__)
-const artifacts_toml = String(_artifacts_toml)
 
 function get_bbb_version(dir=@__DIR__, uuid="7f725544-6523-48cd-82d1-3fa08ff4056e")
     # Get BinaryBuilder.jl's version and git sha

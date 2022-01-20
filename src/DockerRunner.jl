@@ -16,6 +16,7 @@ end
 docker_image(version::VersionNumber) = "julia_binarybuilder_rootfs:v$(version)"
 function docker_image(rootfs::CompilerShard)
     name = artifact_name(rootfs)
+    artifacts_toml = String(_artifacts_toml)
     hash = artifact_hash(name, artifacts_toml; platform=rootfs.host)
     return string(
         "julia_binarybuilder_rootfs:",
