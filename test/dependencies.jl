@@ -105,7 +105,7 @@ end
     end
 
     @testset "Setup" begin
-        @test BinaryBuilderBase.get_addable_spec("LLVM_jll", v"13.0.0+2") ==
+        @test get_addable_spec("LLVM_jll", v"13.0.0+2") ==
             PackageSpec(
                 name="LLVM_jll",
                 uuid="86de99a1-58d6-5da7-8064-bd56ce2e322c",
@@ -132,6 +132,20 @@ end
             @test_nowarn cleanup_dependencies(prefix, ap, platform)
             @test readdir(joinpath(destdir(dir, platform), "include")) == []
             @test readdir(joinpath(destdir(dir, platform), "logs")) == []
+        end
+
+        # Make sure we can use `get_addable_spec` to work around
+        # https://github.com/JuliaLang/Pkg.jl/issues/2942
+        with_temp_project() do dir
+            prefix = Prefix(dir)
+            spec = get_addable_spec("LibOSXUnwind_jll", v"0.0.6+1")
+            dependencies = [BuildDependency(spec)]
+            platform = Platform("x86_64", "macos"; julia_version="1.6.0")
+            @test setup_dependencies(prefix, getpkg.(dependencies), platform) isa Vector{String} broken=VERSION<v"1.8.0-DEV"
+            @test all(in(readdir(joinpath(destdir(dir, platform), "lib"))), ("libosxunwind.a", "libosxunwind.dylib")) broken=VERSION<v"1.8.0-DEV"
+            # Make sure the right directory is installed.  Note: for this test to be more reliable we'd need a clean depot.
+            pkg_dir = Pkg.Operations.find_installed(spec.name, spec.uuid, spec.tree_hash)
+            @test isdir(pkg_dir) broken=VERSION<v"1.8.0-DEV"
         end
 
         # Setup a dependency of a JLL package which is also a standard library
