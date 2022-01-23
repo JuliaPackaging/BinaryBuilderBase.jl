@@ -609,8 +609,7 @@ function setup_dependencies(prefix::Prefix,
 
         # Re-install stdlib dependencies, but this time with `julia_version = nothing`
         if !isempty(stdlib_pkgspecs)
-            #ctx = Pkg.Types.Context!(ctx; julia_version=nothing)
-            Pkg.add(ctx, stdlib_pkgspecs; julia_version=nothing)
+            Pkg.add(ctx, stdlib_pkgspecs; io=outs, julia_version=nothing)
         end
 
         # Load their Artifacts.toml files
