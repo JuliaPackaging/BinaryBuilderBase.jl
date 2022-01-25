@@ -74,7 +74,7 @@ const _artifacts_toml = @path Pkg.Artifacts.find_artifacts_toml(@__FILE__)
 
 function get_bbb_version(dir=@__DIR__, uuid="7f725544-6523-48cd-82d1-3fa08ff4056e")
     # Get BinaryBuilder.jl's version and git sha
-    version = Pkg.activate() do
+    version = Pkg.activate(".") do
         Pkg.Types.EnvCache().project.version
     end
     try
@@ -176,7 +176,7 @@ function __init__()
 
     deps_path = joinpath(@__DIR__, "..", "deps")
     ispath(deps_path) || begin
-        deps_path = joinpath(Pkg.depots1(), "dev", "BinaryBuilderBase.jl", "deps")
+        deps_path = joinpath(Pkg.depots1(), "binary_builder_deps")
         @info "Creating a storage cache at $deps_path"
     end
     # Allow the user to override the default value for `storage_dir`
