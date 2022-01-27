@@ -550,6 +550,7 @@ function setup_dependencies(prefix::Prefix,
         return p
     end
     dependencies = filter_redundant_version.(dependencies)
+    Pkg.API.handle_package_input!.(dependencies)
     dependencies_names = getname.(dependencies)
 
     # Get julia version specificity, if it exists, from the `Platform` object
