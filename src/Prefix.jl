@@ -261,12 +261,8 @@ end
 
 function setup(source::SetupSource{GitSource}, targetdir, verbose)
     mkpath(targetdir)
-    # Chop off the `.git-$(sha256(url))` at the end of the source.path
-    name = basename(source.path)
-    m = match(r"(.*)\.git-[0-9a-fA-F]{64}$", name)
-    if m !== nothing
-        name = m.captures[1]
-    end
+    # Chop off the `.git-$(sha256(url))` at the end of the source.path (`.git` is optional).
+    name = replace(basename(source.path), r"(\.git)?-[0-9a-fA-F]{64}$" => "")
     repo_dir = joinpath(targetdir, name)
     if verbose
         # Need to strip the trailing separator
