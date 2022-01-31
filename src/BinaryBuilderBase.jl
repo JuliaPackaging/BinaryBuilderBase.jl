@@ -75,7 +75,13 @@ const _artifacts_toml = @path Pkg.Artifacts.find_artifacts_toml(@__FILE__)
 function get_bbb_version(dir=@__DIR__, uuid="7f725544-6523-48cd-82d1-3fa08ff4056e")
     # Get BinaryBuilder.jl's version and git sha
     version = Pkg.activate(".") do
-        Pkg.Types.EnvCache().project.version
+        Pkg.Types.EnvCache().project.name == "BinaryBuilderBase" ?
+            Pkg.Types.EnvCache().project.version :
+            try
+                Pkg.TOML.parsefile(normpath(Base.find_package("BinaryBuilderBase.jl"), "..", "..", "Project.toml"))["version"]
+            catch e
+                nothing
+            end
     end
     try
         # get the gitsha if we can
