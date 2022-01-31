@@ -31,7 +31,7 @@ using JSON
                 # Clone the repo once
                 sgs = @test_logs (:info, r"^Cloning") download_source(gs; verbose = true, downloads_dir = dir)
                 # Fetch again the repo to make sure cache works
-                @test @test_logs (:info, r"^Cached repository found in") download_source(gs; verbose = true, downloads_dir = dir) == sgs
+                @test @test_logs (:info, r"^Using cached git repository") download_source(gs; verbose = true, downloads_dir = dir) == sgs
                 # Fetch the temp directory as a `DirectorySource`
                 ds_follow = DirectorySource("./bundled_follow"; follow_symlinks=true)
                 patchdir = abspath(joinpath(dir, ds_follow.path, "patches_follow"))
@@ -71,7 +71,7 @@ using JSON
                 @test_logs (:info, r"^Copying") setup(sfs, target, true)
                 @test isfile(target)
                 target = joinpath(srcdir, gs.unpack_target)
-                @test_logs (:info, "Cloning ARCHDefs.git to ARCHDefs...") setup(sgs, target, true)
+                @test_logs (:info, r"^Checking ARCHDefs.git-[0-9a-fA-F]{64} out to ARCHDefs...") setup(sgs, target, true)
                 @test isdir(target)
                 # Setup directory source with links to follow
                 target = abspath(joinpath(srcdir, "patches_follow"))
@@ -95,7 +95,7 @@ using JSON
                 workspace = joinpath(dir, "workspace")
                 mkpath(workspace)
                 prefix = @test_logs(
-                    (:info, r"^Copying"), (:info, r"^Copying"), (:info, r"^Copying"), (:info, r"^Copying"), (:info, r"^Cloning"),
+                    (:info, r"^Copying"), (:info, r"^Copying"), (:info, r"^Copying"), (:info, r"^Copying"), (:info, r"^Checking"),
                     setup_workspace(workspace, [sfs, sds_follow, sds_nofollow, sds_target, sgs], HostPlatform(); verbose=true)
                 )
                 @test Set(readdir(joinpath(prefix.path, "srcdir"))) == Set(

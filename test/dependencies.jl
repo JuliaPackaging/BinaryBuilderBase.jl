@@ -1,7 +1,7 @@
 using Test
 using Pkg, Base.BinaryPlatforms
 using BinaryBuilderBase
-using BinaryBuilderBase: getname, getpkg, dependencify, destdir
+using BinaryBuilderBase: getname, getpkg, dependencify, destdir, PKG_VERSIONS, get_addable_spec
 using JSON
 
 # Define equality between dependencies, in order to carry out the tests below
@@ -32,21 +32,21 @@ end
     dep_buildver = Dependency(PackageSpec(; name = name), build_version)
     @test Dependency(name, build_version) == dep_buildver
     @test getname(dep_buildver) == name
-    @test getpkg(dep_buildver) == PackageSpec(; name = name, version = build_version)
+    @test getpkg(dep_buildver) == PackageSpec(; name = name, version = PKG_VERSIONS.VersionSpec(build_version))
     @test getcompat(dep_buildver) == ""
 
     # the same but with compat info
     dep_buildver = Dependency(PackageSpec(; name = name), build_version; compat = "~1.2", platforms=[Platform("x86_64", "linux"; cxxstring_abi="cxx11")])
     @test Dependency(name, build_version) == dep_buildver
     @test getname(dep_buildver) == name
-    @test getpkg(dep_buildver) == PackageSpec(; name = name, version = build_version)
+    @test getpkg(dep_buildver) == PackageSpec(; name = name, version = PKG_VERSIONS.VersionSpec(build_version))
     @test getcompat(dep_buildver) == "~1.2"
 
     # the same but only with compat specifier
     dep_compat = Dependency(PackageSpec(; name); compat = "2, ~$(build_version)")
     @test Dependency(name, build_version) == dep_compat
     @test getname(dep_compat) == name
-    @test getpkg(dep_compat) == PackageSpec(; name, version = build_version)
+    @test getpkg(dep_compat) == PackageSpec(; name, version = PKG_VERSIONS.VersionSpec(build_version))
     @test getcompat(dep_compat) == "2, ~$(build_version)"
 
     # if build_version and compat don't match, an error should be thrown
@@ -97,7 +97,7 @@ end
         @test jhost_dep == Dict("type" => "hostdependency", "name" => host_name, "uuid" => nothing, "compat" => "", "version-major" => 0x0, "version-minor" => 0x0, "version-patch" => 0x0, "platforms" => ["any"])
         @test dependencify(jhost_dep) == host_dep
 
-        full_dep = Dependency(PackageSpec(; name = "Baz_jll", uuid = "00000000-1111-2222-3333-444444444444", version = "3.1.4"))
+        full_dep = Dependency(PackageSpec(; name = "Baz_jll", uuid = "00000000-1111-2222-3333-444444444444", version = PKG_VERSIONS.VersionSpec("3.1.4")))
         jfull_dep = JSON.lower(full_dep)
         @test jfull_dep == Dict("type" => "dependency", "name" => "Baz_jll", "uuid" => "00000000-1111-2222-3333-444444444444", "compat" => "", "version-major" => 0x3, "version-minor" => 0x1, "version-patch" => 0x4, "platforms" => ["any"])
         @test dependencify(jfull_dep) == full_dep
@@ -105,6 +105,18 @@ end
     end
 
     @testset "Setup" begin
+        @test BinaryBuilderBase.get_addable_spec("LLVM_jll", v"13.0.0+2") ==
+            PackageSpec(
+                name="LLVM_jll",
+                uuid="86de99a1-58d6-5da7-8064-bd56ce2e322c",
+                tree_hash=Base.SHA1("83481d62501cf2ef22bed745dbcedc4e75fa6e95"),
+                version=PKG_VERSIONS.VersionSpec("*"),
+                repo=Pkg.Types.GitRepo(
+                    source="https://github.com/JuliaBinaryWrappers/LLVM_jll.jl.git",
+                    rev="2772761b330d51146ace3125b26acdad0df4f30f",
+                ),
+            )
+
         with_temp_project() do dir
             prefix = Prefix(dir)
             dependencies = [

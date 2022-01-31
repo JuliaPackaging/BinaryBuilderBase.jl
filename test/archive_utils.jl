@@ -1,6 +1,5 @@
-using BinaryBuilderBase: archive_artifact, package
+using BinaryBuilderBase: archive_artifact, package, list_tarball_files
 using Pkg.Artifacts: create_artifact, remove_artifact, with_artifacts_directory
-using Pkg: PlatformEngines
 
 @testset "Archive Utils" begin
     @testset "package" begin
@@ -31,7 +30,7 @@ using Pkg: PlatformEngines
                     @test isfile(tarball_path)
 
                     # Test that we can inspect the contents of the tarball
-                    contents = PlatformEngines.list_tarball_files(tarball_path)
+                    contents = list_tarball_files(tarball_path)
                     @test "bin/bar.sh" in contents
                     @test "lib/baz.so" in contents
                     @test "etc/qux.conf" in contents
@@ -46,7 +45,7 @@ using Pkg: PlatformEngines
                 hash = create_artifact(p -> touch(joinpath(p, "foo")))
                 tarball_path = joinpath(art_dir, "foo.tar.gz")
                 archive_artifact(hash, tarball_path)
-                @test "foo" in PlatformEngines.list_tarball_files(tarball_path)
+                @test "foo" in list_tarball_files(tarball_path)
                 rm(tarball_path)
 
                 # Test custom `package` function and ensure failure if no `tarball_path` file

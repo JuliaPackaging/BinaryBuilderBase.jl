@@ -200,10 +200,8 @@ function __init__()
     end
 
     # If the user has asked for squashfs mounting instead of tarball mounting,
-    # use that here.  Note that on Travis, we default to using squashfs, unless
-    # BINARYBUILDER_USE_SQUASHFS is set to "false", which overrides this
-    # default. If we are not on Travis, we default to using tarballs and not
-    # squashfs images as using them requires `sudo` access.
+    # use that here.  We default to using tarballs and not squashfs images as
+    # using them requires `sudo` access.
     if get(ENV, "BINARYBUILDER_USE_SQUASHFS", "") == "false"
         use_squashfs[] = false
     elseif get(ENV, "BINARYBUILDER_USE_SQUASHFS", "") == "true"
@@ -214,7 +212,7 @@ function __init__()
         if preferred_runner() == DockerRunner
             # Conversely, if we're dock'ing it up, don't use it.
             use_squashfs[] = false
-        elseif runner_override == "privileged"
+        elseif runner_override[] == "privileged"
             # If we're forcing a privileged runner, go ahead and default to squashfs
             use_squashfs[] = true
         end
