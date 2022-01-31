@@ -3,7 +3,7 @@ module BinaryBuilderBase
 using Pkg, Pkg.Artifacts, Random, Libdl, InteractiveUtils
 using Base.BinaryPlatforms
 using Downloads
-using JSON, OutputCollectors, Scratch
+using JSON, OutputCollectors, Scratch, RelocatableFolders
 
 # Re-export useful stuff from Base.BinaryPlatforms:
 export HostPlatform, platform_dlext, valid_dl_path, arch, libc,
@@ -70,9 +70,19 @@ const allow_ecryptfs = Ref(false)
 const use_ccache = Ref(false)
 const bootstrap_list = Symbol[]
 
+const _artifacts_toml = @path Pkg.Artifacts.find_artifacts_toml(@__FILE__)
+
 function get_bbb_version(dir=@__DIR__, uuid="7f725544-6523-48cd-82d1-3fa08ff4056e")
     # Get BinaryBuilder.jl's version and git sha
-    version = Pkg.TOML.parsefile(joinpath(dir, "..", "Project.toml"))["version"]
+    version = Pkg.activate(".") do
+        Pkg.Types.EnvCache().project.name == "BinaryBuilderBase" ?
+            Pkg.Types.EnvCache().project.version :
+            try
+                Pkg.TOML.parsefile(normpath(Base.find_package("BinaryBuilderBase.jl"), "..", "..", "Project.toml"))["version"]
+            catch e
+                nothing
+            end
+    end
     try
         # get the gitsha if we can
         repo = LibGit2.GitRepo(dirname(@__DIR__))
@@ -170,9 +180,14 @@ function __init__()
     global runner_override, use_squashfs, allow_ecryptfs
     global use_ccache, storage_cache
 
+    deps_path = joinpath(@__DIR__, "..", "deps")
+    ispath(deps_path) || begin
+        deps_path = joinpath(Pkg.depots1(), "binary_builder_deps")
+        @info "Creating a storage cache at $deps_path"
+    end
     # Allow the user to override the default value for `storage_dir`
     storage_cache[] = get(ENV, "BINARYBUILDER_STORAGE_DIR",
-                          abspath(joinpath(@__DIR__, "..", "deps")))
+                          abspath(deps_path))
 
     # If the user has signalled that they really want us to automatically
     # accept apple EULAs, do that.
