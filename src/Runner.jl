@@ -807,12 +807,20 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     if os(platform) == "macos"
         # `sw_vers -productVersion` is needed to make CMake correctly initialise the macOS
         # platform, ref: <https://github.com/JuliaPackaging/Yggdrasil/pull/4403>.  In the
-        # future we may add more arguments.
+        # future we may add more arguments, see
+        # <https://www.unix.com/man-page/osx/1/sw_vers/> for reference.
+        product_version = macos_version(platform)
+        product_name = VersionNumber(product_version) < v"10.12" ? "Mac OS X" : "macOS"
         sw_vers_path = joinpath(bin_path, triplet(platform), "sw_vers")
         write(sw_vers_path, """
               #!/bin/sh
-              if [[ "\${*}" == "-productVersion" ]]; then
-                  echo "$(macos_version(platform))"
+              if [[ -z "\${@}" ]]; then
+                  echo "ProductName:    $(product_name)"
+                  echo "ProductVersion: $(product_version)"
+              elif [[ "\${@}" == "-productName" ]]; then
+                  echo "$(product_name)"
+              elif [[ "\${@}" == "-productVersion" ]]; then
+                  echo "$(product_version)"
               fi
               """)
         chmod(sw_vers_path, 0o775)
