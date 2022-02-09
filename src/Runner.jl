@@ -106,6 +106,37 @@ function ld_library_path(target::AbstractPlatform,
     return join(paths, ":")
 end
 
+function macos_version(kernel_version::Integer)
+    # See https://en.wikipedia.org/wiki/Darwin_(operating_system)#Release_history
+    kernel_to_macos = Dict(
+        12 => "10.8",
+        13 => "10.9",
+        14 => "10.10",
+        15 => "10.11",
+        16 => "10.12",
+        17 => "10.13",
+        18 => "10.14",
+        19 => "10.15",
+        20 => "11.0",
+        21 => "12.0",
+    )
+    return get(kernel_to_macos, kernel_version, nothing)
+end
+function macos_version(p::AbstractPlatform)
+    if os(p) != "macos"
+        return nothing
+    end
+
+    # If no `os_version` is specified in `p`, default to the oldest we support in the Julia world,
+    # which is `10.8`, but if it is actually specified, then set that corresponding value.
+    #version = something(os_version(p), v"14.0.0")
+
+    # Eventually, we'll take this in `os_version(p)`, but not just yet.  We need to fix the paths
+    # to the compiler shards first, since right now they have `14` at the end
+    version = something(os_version(p), v"14.0.0")
+    return macos_version(version.major)
+end
+
 """
     generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::AbstractString,
                                 host_platform::AbstractPlatform = $(repr(default_host_platform)),
@@ -293,37 +324,6 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             ])
         end
         return flags
-    end
-
-    function macos_version(kernel_version::Integer)
-        # See https://en.wikipedia.org/wiki/Darwin_(operating_system)#Release_history
-        kernel_to_macos = Dict(
-            12 => "10.8",
-            13 => "10.9",
-            14 => "10.10",
-            15 => "10.11",
-            16 => "10.12",
-            17 => "10.13",
-            18 => "10.14",
-            19 => "10.15",
-            20 => "11.0",
-            21 => "12.0",
-        )
-        return get(kernel_to_macos, kernel_version, nothing)
-    end
-    function macos_version(p::AbstractPlatform)
-        if os(p) != "macos"
-            return nothing
-        end
-
-        # If no `os_version` is specified in `p`, default to the oldest we support in the Julia world,
-        # which is `10.8`, but if it is actually specified, then set that corresponding value.
-        #version = something(os_version(p), v"14.0.0")
-
-        # Eventually, we'll take this in `os_version(p)`, but not just yet.  We need to fix the paths
-        # to the compiler shards first, since right now they have `14` at the end
-        version = something(os_version(p), v"14.0.0")
-        return macos_version(version.major)
     end
 
     function min_macos_version_flag(p::AbstractPlatform)
@@ -1076,7 +1076,7 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
     # If we're on macOS, we give a hint to things like `configure` that they should use this as the linker
     if Sys.isapple(platform)
         mapping["LD"] = "/opt/bin/$(triplet(platform))/ld"
-        mapping["MACOSX_DEPLOYMENT_TARGET"] = "10.8"
+        mapping["MACOSX_DEPLOYMENT_TARGET"] = macos_version(platform)
     end
 
     # There is no broad agreement on what host compilers should be called,
