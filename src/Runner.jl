@@ -653,10 +653,19 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     end
 
     # Write out a bunch of common tools
-    for tool in (:as, :cpp, :ld, :nm, :libtool, :objcopy, :objdump, :otool,
+    for tool in (:cpp, :ld, :nm, :libtool, :objcopy, :objdump, :otool,
                  :strip, :install_name_tool, :dlltool, :windres, :winmc, :lipo)
         @eval $(tool)(io::IO, p::AbstractPlatform) = $(wrapper)(io, string("/opt/", aatriplet(p), "/bin/", aatriplet(p), "-", $(string(tool))); allow_ccache=false)
     end
+    as(io::IO, p::AbstractPlatform) =
+        wrapper(io, string("/opt/", aatriplet(p), "/bin/", aatriplet(p), "-as");
+                allow_ccache=false,
+                # At the moment `as` for `aarch64-apple-darwin` is `clang-8`, which can't deal with
+                # `MACOSX_DEPLOYMENT_TARGET=11.0`, so we pretend to be on 10.16.  Note: a better check would be
+                # `VersionNumber(macos_version(p)) ≥ v"11"`, but sometimes `p` may not have `os_version` set, leading to
+                # an error.  TODO: remove this hack and create `as` wrapper together with the tools above when we
+                # upgrade `as` to a newer version of Clang.
+                env=(Sys.isapple(p) && arch(p) == "aarch64") ? Dict("MACOSX_DEPLOYMENT_TARGET"=>"10.16") : Dict{String,String}())
 
     # c++filt is hard to write in symbols
     function cxxfilt(io::IO, p::AbstractPlatform)
