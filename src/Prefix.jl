@@ -479,7 +479,12 @@ function get_addable_spec(name::AbstractString, version::VersionNumber;
             LibGit2.with(LibGit2.GitRevWalker(repo)) do walker
                 # The repo is cached, so locally it may be checking out an outdated commit.
                 # Start the search from HEAD of the tracking upstream repo.
-                LibGit2.push!(walker, LibGit2.GitHash(LibGit2.peel(LibGit2.GitCommit, LibGit2.upstream(LibGit2.head(repo)))))
+                try
+                    LibGit2.push!(walker, LibGit2.GitHash(LibGit2.peel(LibGit2.GitCommit, LibGit2.upstream(LibGit2.head(repo)))))
+                catch
+                    @warn("Could not walk from origin branch!")
+                    LibGit2.push_head!(walker)
+                end
                 # For each commit in the git repo, check to see if its treehash
                 # matches the one we're looking for.
                 for oid in walker
