@@ -502,7 +502,7 @@ function get_addable_spec(name::AbstractString, version::VersionNumber;
             name,
             version,
             tree_hash = bytes2hex(tree_hash_bytes),
-            urls,
+            url,
         )
         error("Unable to find revision for specified dependency!")
     end
