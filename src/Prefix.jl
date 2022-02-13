@@ -414,6 +414,44 @@ function get_tree_hash(tree::LibGit2.GitTree)
 end
 
 """
+    get_commit_sha(url::String, tree_hash::Base.SHA1; verbose::Bool=false)
+
+Find the latest git commit corresponding to the given git tree SHA1 for the remote
+repository with the given `url`.  The repository is cached locally for quicker future
+access.  If `verbose` is `true`, print to screen some debugging information.
+
+The return value is the commit SHA as a `String`, if the corresponding revision is found,
+`nothing` otherwise.
+"""
+function get_commit_sha(url::String, tree_hash::Base.SHA1; verbose::Bool=false)
+    git_commit_sha = nothing
+    dir = cached_git_clone(url; verbose)
+
+    LibGit2.with(LibGit2.GitRepo(dir)) do repo
+        LibGit2.with(LibGit2.GitRevWalker(repo)) do walker
+            # The repo is cached, so locally it may be checking out an outdated commit.
+            # Start the search from HEAD of the tracking upstream repo.
+            try
+                LibGit2.push!(walker, LibGit2.GitHash(LibGit2.peel(LibGit2.GitCommit, LibGit2.upstream(LibGit2.head(repo)))))
+            catch
+                @warn("Could not walk from origin branch!")
+                LibGit2.push_head!(walker)
+            end
+            # For each commit in the git repo, check to see if its treehash
+            # matches the one we're looking for.
+            for oid in walker
+                tree = LibGit2.peel(LibGit2.GitTree, LibGit2.GitCommit(repo, oid))
+                if all(get_tree_hash(tree).val .== tree_hash.bytes)
+                    git_commit_sha = LibGit2.string(oid)
+                    break
+                end
+            end
+        end
+    end
+    return git_commit_sha
+end
+
+"""
     get_addable_spec(name::AbstractString, version::VersionNumber)
 
 Given a JLL name and registered version, return a `PackageSpec` that, when passed as a
@@ -467,39 +505,15 @@ function get_addable_spec(name::AbstractString, version::VersionNumber;
     end
 
     tree_hash_sha1 = first(tree_hashes)
-    tree_hash_bytes = tree_hash_sha1.bytes
 
     # Once we have a tree hash, turn that into a git commit sha
     git_commit_sha = nothing
     valid_url = nothing
     for url in repo_urls
-        dir = cached_git_clone(url; verbose)
-
-        LibGit2.with(LibGit2.GitRepo(dir)) do repo
-            LibGit2.with(LibGit2.GitRevWalker(repo)) do walker
-                # The repo is cached, so locally it may be checking out an outdated commit.
-                # Start the search from HEAD of the tracking upstream repo.
-                try
-                    LibGit2.push!(walker, LibGit2.GitHash(LibGit2.peel(LibGit2.GitCommit, LibGit2.upstream(LibGit2.head(repo)))))
-                catch
-                    @warn("Could not walk from origin branch!")
-                    LibGit2.push_head!(walker)
-                end
-                # For each commit in the git repo, check to see if its treehash
-                # matches the one we're looking for.
-                for oid in walker
-                    tree = LibGit2.peel(LibGit2.GitTree, LibGit2.GitCommit(repo, oid))
-                    if all(get_tree_hash(tree).val .== tree_hash_bytes)
-                        git_commit_sha = LibGit2.string(oid)
-                        valid_url = url
-                        break
-                    end
-                end
-            end
-        end
-
+        git_commit_sha = get_commit_sha(url, tree_hash_sha1; verbose)
         # Stop searching urls as soon as we find one
         if git_commit_sha !== nothing
+            valid_url = url
             break
         end
     end
@@ -508,7 +522,7 @@ function get_addable_spec(name::AbstractString, version::VersionNumber;
         @error("Unable to find revision for specified dependency!",
             name,
             version,
-            tree_hash = bytes2hex(tree_hash_bytes),
+            tree_hash = bytes2hex(tree_hash_sha1.bytes),
             repo_urls,
         )
         error("Unable to find revision for specified dependency!")
