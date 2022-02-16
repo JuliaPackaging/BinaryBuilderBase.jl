@@ -74,15 +74,17 @@ const _artifacts_toml = @path Pkg.Artifacts.find_artifacts_toml(@__FILE__)
 
 function get_bbb_version(dir=@__DIR__, uuid="7f725544-6523-48cd-82d1-3fa08ff4056e")
     # Get BinaryBuilder.jl's version and git sha
-    version = Pkg.activate(".") do
-        Pkg.Types.EnvCache().project.name == "BinaryBuilderBase" ?
-            Pkg.Types.EnvCache().project.version :
-            try
-                Pkg.TOML.parsefile(normpath(Base.find_package("BinaryBuilderBase.jl"), "..", "..", "Project.toml"))["version"]
-            catch e
-                nothing
-            end
-    end
+    version = isdir(dir) ? Pkg.TOML.parsefile(joinpath(dir, "..", "Project.toml"))["version"] :
+        Pkg.activate(".") do
+            pkgname = basename(dirname(dirname(dir)))
+            Pkg.Types.EnvCache().project.name == pkgname ?
+                Pkg.Types.EnvCache().project.version :
+                try
+                    Pkg.TOML.parsefile(normpath(Base.find_package(pkgname), "..", "..", "Project.toml"))["version"]
+                catch e
+                    @info "Couldn't find $pkgname in the current environment"
+                end
+        end
     try
         # get the gitsha if we can
         repo = LibGit2.GitRepo(dirname(@__DIR__))
