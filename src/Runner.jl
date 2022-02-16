@@ -15,7 +15,7 @@ const AnyRedirectable = Union{Base.AbstractCmd, Base.TTY, IOStream, IOBuffer}
 
 The default host platform in the build environment.
 """
-const default_host_platform = Sys.islinux(HostPlatform()) ? Platform(arch(HostPlatform()), "linux"; libc="musl", cxxstring_abi="cxx11") : Platform("x86_64", "linux"; libc="musl", cxxstring_abi="cxx11")
+const default_host_platform = Platform("x86_64", "linux"; libc="musl", cxxstring_abi="cxx11")
 
 function nbits(p::AbstractPlatform)
     if arch(p) in ("i686", "armv6l", "armv7l")
