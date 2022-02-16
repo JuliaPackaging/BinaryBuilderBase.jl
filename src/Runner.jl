@@ -8,12 +8,13 @@ const AnyRedirectable = Union{Base.AbstractCmd, Base.TTY, IOStream, IOBuffer}
 # Host platform _must_ match the C++ string ABI of the binaries we get from the
 # repositories.  Note: when preferred_gcc_version=v"4" we can't really build for
 # that C++ string ABI :-(
+# Non-Linux will end up using DockerRunner and we need (and can use) x86 here.    
 """
     default_host_platform
 
 The default host platform in the build environment.
 """
-const default_host_platform = Platform(arch(HostPlatform()), "linux"; libc="musl", cxxstring_abi="cxx11")
+const default_host_platform = Sys.islinux(HostPlatform()) ? Platform(arch(HostPlatform()), "linux"; libc="musl", cxxstring_abi="cxx11") : Platform("x86_64", "linux"; libc="musl", cxxstring_abi="cxx11")
 
 function nbits(p::AbstractPlatform)
     if arch(p) in ("i686", "armv6l", "armv7l")
