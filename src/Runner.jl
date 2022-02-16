@@ -8,7 +8,8 @@ const AnyRedirectable = Union{Base.AbstractCmd, Base.TTY, IOStream, IOBuffer}
 # Host platform _must_ match the C++ string ABI of the binaries we get from the
 # repositories.  Note: when preferred_gcc_version=v"4" we can't really build for
 # that C++ string ABI :-(
-# Non-Linux will end up using DockerRunner and we need (and can use) x86 here.    
+# Non-Linux platforms *should* end up using DockerRunner
+# so we can safely assume x86_64 support
 """
     default_host_platform
 
