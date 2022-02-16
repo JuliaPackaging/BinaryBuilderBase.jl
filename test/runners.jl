@@ -103,8 +103,7 @@ end
     @testset "Compilation - C++ string ABI" begin
         mktempdir() do dir
             # Host is x86_64-linux-musl-cxx11 and target is x86_64-linux-musl-cxx03
-            platform = HostPlatform(parse(Platform, join(["x86_64", split(Base.BinaryPlatforms.host_triplet(), "-")[2:end]...], "-")))
-            ur = preferred_runner()(dir; platform=Platform(arch(platform), "linux"; libc="musl", cxxstring_abi="cxx03"), preferred_gcc_version=v"5")
+            ur = preferred_runner()(dir; platform=Platform("x86_64", "linux"; libc="musl", cxxstring_abi="cxx03"), preferred_gcc_version=v"5")
             iobuff = IOBuffer()
             test_script = raw"""
             set -e
