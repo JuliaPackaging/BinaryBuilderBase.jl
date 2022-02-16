@@ -122,11 +122,11 @@ end
             dependencies = [
                 Dependency("Zlib_jll")
             ]
-            platform = HostPlatform()
+            platform = HostPlatform(parse(Platform, join(["x86_64", split(Base.BinaryPlatforms.host_triplet(), "-")[2:end]...], "-")))
             ap = @test_logs setup_dependencies(prefix, getpkg.(dependencies), platform)
             @test "libz." * platform_dlext(platform) in readdir(last(libdirs(Prefix(destdir(dir, platform)))))
             @test "zlib.h" in readdir(joinpath(destdir(dir, platform), "include"))
-            @test readdir(joinpath(destdir(dir, platform), "logs")) == ["Zlib.log.gz"]
+            @test "Zlib.log.gz" in readdir(joinpath(destdir(dir, platform), "logs"))
 
             # Make sure the directories are emptied by `cleanup_dependencies`
             @test_nowarn cleanup_dependencies(prefix, ap, platform)
