@@ -79,8 +79,10 @@ struct Dependency <: AbstractDependency
     build_version::Union{VersionNumber,Nothing}
     compat::String  # semver string for use in Project.toml of the JLL
     platforms::Vector{<:AbstractPlatform}
+    prefix::String
     function Dependency(pkg::PkgSpec, build_version = nothing; compat::String = "",
-                        platforms::Vector{<:AbstractPlatform}=[AnyPlatform()])
+                        platforms::Vector{<:AbstractPlatform} = [AnyPlatform()],
+                        prefix::AbstractString = "")
         if length(compat) > 0
             spec = PKG_VERSIONS.semver_spec(compat) # verify compat is valid
             if build_version === nothing
@@ -96,12 +98,11 @@ struct Dependency <: AbstractDependency
                 throw(ArgumentError("PackageSpec version and compat for $(pkg) are incompatible"))
             end
         end
-        new(pkg, build_version, compat, platforms)
+        new(pkg, build_version, compat, platforms, string(prefix))
     end
 end
-function Dependency(dep::AbstractString, build_version = nothing;
-                    compat::String = "", platforms::Vector{<:AbstractPlatform}=[AnyPlatform()])
-    return Dependency(PackageSpec(; name = dep), build_version; compat, platforms)
+function Dependency(dep::AbstractString, build_version = nothing; kwargs...)
+    return Dependency(PackageSpec(; name = dep), build_version; kwargs...)
 end
 is_host_dependency(::Dependency) = false
 is_build_dependency(::Dependency) = true
@@ -122,11 +123,14 @@ platforms.
 struct BuildDependency <: AbstractDependency
     pkg::PkgSpec
     platforms::Vector{<:AbstractPlatform}
-    BuildDependency(pkg::PkgSpec; platforms::Vector{<:AbstractPlatform}=[AnyPlatform()]) =
-        new(pkg, platforms)
+    prefix::String
+    function BuildDependency(pkg::PkgSpec;
+                             platforms::Vector{<:AbstractPlatform} = [AnyPlatform()],
+                             prefix::AbstractString = "")
+        return new(pkg, platforms, string(prefix))
+    end
 end
-BuildDependency(dep::AbstractString; platforms::Vector{<:AbstractPlatform}=[AnyPlatform()]) =
-    BuildDependency(PackageSpec(; name = dep); platforms)
+BuildDependency(dep::AbstractString; kwargs...) = BuildDependency(PackageSpec(; name = dep); kwargs...)
 is_host_dependency(::BuildDependency) = false
 is_build_dependency(::BuildDependency) = true
 is_runtime_dependency(::BuildDependency) = false
@@ -149,11 +153,14 @@ platforms.
 struct HostBuildDependency <: AbstractDependency
     pkg::PkgSpec
     platforms::Vector{<:AbstractPlatform}
-    HostBuildDependency(pkg::PkgSpec; platforms::Vector{<:AbstractPlatform}=[AnyPlatform()]) =
-        new(pkg, platforms)
+    prefix::String
+    function HostBuildDependency(pkg::PkgSpec;
+                                 platforms::Vector{<:AbstractPlatform} = [AnyPlatform()],
+                                 prefix::AbstractString = "")
+        return new(pkg, platforms, string(prefix))
+    end
 end
-HostBuildDependency(dep::AbstractString; platforms::Vector{<:AbstractPlatform}=[AnyPlatform()]) =
-    HostBuildDependency(PackageSpec(; name = dep); platforms)
+HostBuildDependency(dep::AbstractString; kwargs...) = HostBuildDependency(PackageSpec(; name = dep); kwargs...)
 is_host_dependency(::HostBuildDependency) = true
 is_build_dependency(::HostBuildDependency) = true
 is_runtime_dependency(::HostBuildDependency) = false
@@ -171,6 +178,7 @@ end
 
 getname(x::PkgSpec) = x.name
 getname(x::AbstractDependency) = getname(getpkg(x))
+getprefix(x::AbstractDependency) = x.prefix
 
 """
     filter_platforms(deps::AbstractVector{<:AbstractDependency}, p::AbstractPlatform)
@@ -185,7 +193,11 @@ filter_platforms(deps::AbstractVector{<:AbstractDependency}, p::AbstractPlatform
 function registry_resolve!(ctx, dependencies::Vector{<:AbstractDependency})
     resolved_dependencies = Pkg.Types.registry_resolve!(ctx.registries, getpkg.(dependencies))
     for idx in eachindex(dependencies)
-        dependencies[idx] = typeof(dependencies[idx])(resolved_dependencies[idx]; platforms=dependencies[idx].platforms)
+        dependencies[idx] = typeof(dependencies[idx])(
+            resolved_dependencies[idx];
+            platforms=dependencies[idx].platforms,
+            prefix=dependencies[idx].prefix,
+        )
     end
     return dependencies
 end
@@ -259,6 +271,7 @@ for (type, type_descr) in ((Dependency, "dependency"), (BuildDependency, "buildd
                                "version-minor" => minor(version(d)),
                                "version-patch" => patch(version(d)),
                                "platforms" => triplet.(d.platforms),
+                               "prefix" => getprefix(d),
                                )
 end
 
@@ -273,12 +286,13 @@ function dependencify(d::Dict)
         version = version == PKG_VERSIONS.VersionSpec(v"0") ? PKG_VERSIONS.VersionSpec() : version
         spec = PackageSpec(; name = d["name"], uuid = uuid, version = version)
         platforms = parse_platform.(d["platforms"])
+        prefix = d["prefix"]
         if d["type"] == "dependency"
-            return Dependency(spec; compat, platforms)
+            return Dependency(spec; compat, platforms, prefix)
         elseif d["type"] == "builddependency"
-            return BuildDependency(spec; platforms)
+            return BuildDependency(spec; platforms, prefix)
         elseif d["type"] == "hostdependency"
-            return HostBuildDependency(spec; platforms)
+            return HostBuildDependency(spec; platforms, prefix)
         end
     end
     error("Cannot convert to dependency")

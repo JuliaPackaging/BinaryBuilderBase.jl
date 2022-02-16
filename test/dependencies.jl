@@ -1,7 +1,7 @@
 using Test
 using Pkg, Base.BinaryPlatforms
 using BinaryBuilderBase
-using BinaryBuilderBase: getname, getpkg, dependencify, destdir, PKG_VERSIONS, get_addable_spec, cached_git_clone
+using BinaryBuilderBase: getname, getpkg, getprefix, dependencify, destdir, PKG_VERSIONS, get_addable_spec, cached_git_clone
 using JSON
 using LibGit2
 
@@ -28,6 +28,7 @@ end
     @test getname(PackageSpec(; name = name)) == name
     @test getpkg(dep) == PackageSpec(; name = name)
     @test getcompat(dep) == ""
+    @test getprefix(dep) == ""
 
     build_version = v"1.2.3"
     dep_buildver = Dependency(PackageSpec(; name = name), build_version)
@@ -124,7 +125,7 @@ end
                 Dependency("Zlib_jll")
             ]
             platform = HostPlatform()
-            ap = @test_logs setup_dependencies(prefix, getpkg.(dependencies), platform)
+            ap = @test_logs setup_dependencies(prefix, dependencies, platform)
             @test "libz." * platform_dlext(platform) in readdir(last(libdirs(Prefix(destdir(dir, platform)))))
             @test sort!(readdir(joinpath(destdir(dir, platform), "include"))) == ["zconf.h", "zlib.h"]
 
@@ -156,7 +157,7 @@ end
                 Dependency("LibCURL_jll")
             ]
             platform = HostPlatform()
-            ap = @test_logs setup_dependencies(prefix, getpkg.(dependencies), platform)
+            ap = @test_logs setup_dependencies(prefix, dependencies, platform)
             @test "libcurl." * platform_dlext(platform) in readdir(last(libdirs(Prefix(destdir(dir, platform)))))
             @test "curl.h" in readdir(joinpath(destdir(dir, platform), "include", "curl"))
             @test "libssh2." * platform_dlext(platform) in readdir(last(libdirs(Prefix(destdir(dir, platform)))))
@@ -180,7 +181,7 @@ end
             ]
             platform = Platform("i686", "linux"; libc="musl")
             @test_logs (:warn, r"Dependency LibOSXUnwind_jll does not have a mapping for artifact LibOSXUnwind for platform i686-linux-musl") begin
-                setup_dependencies(prefix, getpkg.(dependencies), platform)
+                setup_dependencies(prefix, dependencies, platform)
             end
             @test "destdir" ∉ readdir(dirname(destdir(dir, platform)))
         end
@@ -192,7 +193,11 @@ end
             platform = Platform("x86_64", "linux"; julia_version=v"1.5")
 
             # Test that a particular version of GMP is installed
+<<<<<<< HEAD
             @test_logs setup_dependencies(prefix, getpkg.(dependencies), platform)
+=======
+            ap = @test_logs setup_dependencies(prefix, dependencies, platform)
+>>>>>>> Add `prefix` argument to `Dependency` objects
             @test isfile(joinpath(destdir(dir, platform), "lib", "libgmp.so.10.3.2"))
         end
 
@@ -203,7 +208,11 @@ end
             platform = Platform("x86_64", "linux"; julia_version=v"1.6")
 
             # Test that a particular version of GMP is installed
+<<<<<<< HEAD
             @test_logs setup_dependencies(prefix, getpkg.(dependencies), platform)
+=======
+            ap = @test_logs setup_dependencies(prefix, dependencies, platform)
+>>>>>>> Add `prefix` argument to `Dependency` objects
             @test isfile(joinpath(destdir(dir, platform), "lib", "libgmp.so.10.4.0"))
         end
 
@@ -217,6 +226,7 @@ end
 
             # Test that this is not instantiatable with either Julia v1.5 or v1.6
             platform = Platform("x86_64", "linux"; julia_version=v"1.5")
+<<<<<<< HEAD
             @test_throws Pkg.Resolve.ResolverError setup_dependencies(prefix, getpkg.(dependencies), platform)
             platform = Platform("x86_64", "linux"; julia_version=v"1.6")
             @test_throws Pkg.Resolve.ResolverError setup_dependencies(prefix, getpkg.(dependencies), platform)
@@ -224,10 +234,20 @@ end
             # If we don't give a `julia_version`, then we are FULLY UNSHACKLED.
             platform = Platform("x86_64", "linux")
             @test_logs setup_dependencies(prefix, getpkg.(dependencies), platform)
+=======
+            ap = @test_throws Pkg.Resolve.ResolverError setup_dependencies(prefix, dependencies, platform)
+            platform = Platform("x86_64", "linux"; julia_version=v"1.6")
+            ap = @test_throws Pkg.Resolve.ResolverError setup_dependencies(prefix, dependencies, platform)
+
+            # If we don't give a `julia_version`, then we are FULLY UNSHACKLED.
+            platform = Platform("x86_64", "linux")
+            ap = @test_logs setup_dependencies(prefix, dependencies, platform)
+>>>>>>> Add `prefix` argument to `Dependency` objects
             @test isfile(joinpath(destdir(dir, platform), "lib", "libgmp.so.10.3.2"))
             @test isfile(joinpath(destdir(dir, platform), "lib", "libmpfr.so.6.1.0"))
         end
 
+<<<<<<< HEAD
         # Dependency as a local directory
         with_temp_project() do dir
             mktempdir() do pkgdir
@@ -263,6 +283,24 @@ end
             platform = Platform("x86_64", "linux"; libc="glibc")
             @test_logs setup_dependencies(prefix, dependencies, platform)
             @test readdir(joinpath(destdir(dir, platform), "bin")) == ["hello_world"]
+=======
+        # Test unpacking a dependency into a sub-prefix
+        with_temp_project() do dir
+            prefix = Prefix(dir)
+            dependencies = [
+                Dependency("Zlib_jll"; prefix="usr")
+            ]
+            platform = HostPlatform()
+            ap = @test_logs setup_dependencies(prefix, dependencies, platform)
+            usr_dir = joinpath(destdir(dir, platform), "usr")
+            @test "libz." * platform_dlext(platform) in readdir(last(libdirs(Prefix(usr_dir))))
+            @test "zlib.h" in readdir(joinpath(usr_dir, "include"))
+
+            # Make sure the directories are emptied by `cleanup_dependencies`
+            @test_nowarn cleanup_dependencies(prefix, ap, platform)
+            @test readdir(joinpath(usr_dir, "include")) == []
+            @test readdir(joinpath(usr_dir, "logs")) == []
+>>>>>>> Add `prefix` argument to `Dependency` objects
         end
     end
 end

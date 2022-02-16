@@ -170,7 +170,7 @@ end
                 # https://github.com/JuliaPackaging/BinaryBuilderBase.jl/pull/157#issuecomment-879263820
                 artifact_paths =
                     setup_dependencies(prefix,
-                                       [PackageSpec(; name="MPICH_jll", version=v"3.4.2")],
+                                       [Dependency(PackageSpec(; name="MPICH_jll", version=v"3.4.2"))],
                                        concrete_platform, verbose=false)
                 ur = preferred_runner()(prefix.path;
                                         platform=concrete_platform,
@@ -222,7 +222,7 @@ end
                 # https://github.com/JuliaPackaging/BinaryBuilderBase.jl/issues/163
                 artifact_paths =
                     setup_dependencies(prefix,
-                                       [PackageSpec(; name="CompilerSupportLibraries_jll", version=v"0.5.0")],
+                                       [Dependency(PackageSpec(; name="CompilerSupportLibraries_jll", version=v"0.5.0"))],
                                        concrete_platform, verbose=false)
                 ur = preferred_runner()(prefix.path;
                                         platform=concrete_platform,

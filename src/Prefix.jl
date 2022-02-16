@@ -552,7 +552,7 @@ function Pkg_add(args...; kwargs...)
 end
 
 """
-    setup_dependencies(prefix::Prefix, dependencies::Vector{PackageSpec}, platform::AbstractPlatform; verbose::Bool = false)
+    setup_dependencies(prefix::Prefix, dependencies::Vector{AbstractDependency}, platform::AbstractPlatform; verbose::Bool = false)
 
 Given a list of JLL package specifiers, install their artifacts into the build prefix.
 The artifacts are installed into the global artifact store, then copied into a temporary location,
@@ -564,7 +564,7 @@ dependencies as opposed to the package being built, in the form of symlinks to a
 directory.
 """
 function setup_dependencies(prefix::Prefix,
-                            dependencies::Vector{PkgSpec},
+                            dependencies::Vector{<:AbstractDependency},
                             platform::AbstractPlatform;
                             verbose::Bool = false)
     artifact_paths = String[]
@@ -580,7 +580,7 @@ function setup_dependencies(prefix::Prefix,
         end
         return p
     end
-    dependencies = filter_redundant_version.(dependencies)
+    dependency_pkgs = filter_redundant_version.(getpkg.(dependencies))
     dependencies_names = getname.(dependencies)
 
     # Get julia version specificity, if it exists, from the `Platform` object
@@ -600,9 +600,9 @@ function setup_dependencies(prefix::Prefix,
         update_registry(outs)
 
         # Add all dependencies
-        Pkg_add(ctx, dependencies; platform=platform, io=outs)
+        Pkg.add(ctx, dependency_pkgs; platform=platform, io=outs)
 
-        # Ony Julia v1.6, `Pkg.add()` doesn't mutate `dependencies`, so we can't use the `UUID`
+        # Ony Julia v1.6, `Pkg.add()` doesn't mutate `dependency_pkgs`, so we can't use the `UUID`
         # that was found during resolution there.  Instead, we'll make use of `ctx.env` to figure
         # out the UUIDs of all our packages.
         dependency_uuids = Set([uuid for (uuid, pkg) in ctx.env.manifest if pkg.name ∈ dependencies_names])
@@ -678,11 +678,23 @@ function setup_dependencies(prefix::Prefix,
             end
             ensure_artifact_installed(name[1:end-4], meta, artifacts_toml; platform=platform)
 
+            # Try to lookup whether this JLL was requested via a `Dependency()`
+            # If it was, see if it was requested to be installed to a particular prefix
+            dep_prefix = ""
+            for dep in dependencies
+                if getname(dep) == name
+                    dep_prefix = getprefix(dep)
+                    break
+                end
+            end
+
             # Copy the artifact from the global installation location into this build-specific artifacts collection
             src_path = Pkg.Artifacts.artifact_path(Base.SHA1(meta["git-tree-sha1"]))
             dest_path = joinpath(prefix, triplet(platform), "artifacts", basename(src_path))
-            rm(dest_path; force=true, recursive=true)
-            cp(src_path, dest_path)
+            dest_path_prefixed = joinpath(dest_path, dep_prefix)
+            mkpath(dest_path_prefixed)
+            rm(dest_path_prefixed; force=true, recursive=true)
+            cp(src_path, dest_path_prefixed)
 
             # Keep track of our dep paths for later symlinking
             push!(artifact_paths, dest_path)
