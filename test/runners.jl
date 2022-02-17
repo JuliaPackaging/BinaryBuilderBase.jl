@@ -30,8 +30,7 @@ end
 # Are we using docker? If so, test that the docker runner works...
 @testset "Runner utilities" begin
     # Test that is_ecryptfs works for something we're certain isn't encrypted
-    if Sys.islinux(HostPlatform())
-        if isdir("/proc")
+    if Sys.islinux() && isdir("/proc")
             isecfs = (false, "/proc/")
             @test_logs (:info, "Checking to see if /proc/ is encrypted...") @test BinaryBuilderBase.is_ecryptfs("/proc"; verbose=true) == isecfs
             @test_logs (:info, "Checking to see if /proc/ is encrypted...") @test BinaryBuilderBase.is_ecryptfs("/proc/"; verbose=true) == isecfs
