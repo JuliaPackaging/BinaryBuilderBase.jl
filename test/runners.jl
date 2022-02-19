@@ -30,12 +30,13 @@ end
 # Are we using docker? If so, test that the docker runner works...
 @testset "Runner utilities" begin
     # Test that is_ecryptfs works for something we're certain isn't encrypted
-    if isdir("/proc")
+
+    if isdir("/proc") && Sys.islinux()
         isecfs = (false, "/proc/")
         @test_logs (:info, "Checking to see if /proc/ is encrypted...") @test BinaryBuilderBase.is_ecryptfs("/proc"; verbose=true) == isecfs
         @test_logs (:info, "Checking to see if /proc/ is encrypted...") @test BinaryBuilderBase.is_ecryptfs("/proc/"; verbose=true) == isecfs
         @test_logs (:info, "Checking to see if /proc/not_a_file is encrypted...") @test BinaryBuilderBase.is_ecryptfs("/proc/not_a_file"; verbose=true) == isecfs
-    else
+    elseif Sys.islinux()
         @test_logs (:info, "Checking to see if /proc/ is encrypted...") @test BinaryBuilderBase.is_ecryptfs("/proc"; verbose=true) == (false, "/proc")
         @test_logs (:info, "Checking to see if /proc/ is encrypted...") @test BinaryBuilderBase.is_ecryptfs("/proc/"; verbose=true) == (false, "/proc/")
         @test_logs (:info, "Checking to see if /proc/not_a_file is encrypted...") @test BinaryBuilderBase.is_ecryptfs("/proc/not_a_file"; verbose=true) == (false, "/proc/not_a_file")
@@ -101,7 +102,7 @@ end
     @testset "Compilation - C++ string ABI" begin
         mktempdir() do dir
             # Host is x86_64-linux-musl-cxx11 and target is x86_64-linux-musl-cxx03
-            ur = preferred_runner()(dir; platform=Platform(arch(HostPlatform()), "linux"; libc="musl", cxxstring_abi="cxx03"), preferred_gcc_version=v"5")
+            ur = preferred_runner()(dir; platform=Platform("x86_64", "linux"; libc="musl", cxxstring_abi="cxx03"), preferred_gcc_version=v"5")
             iobuff = IOBuffer()
             test_script = raw"""
             set -e

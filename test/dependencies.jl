@@ -126,7 +126,13 @@ end
             ap = @test_logs setup_dependencies(prefix, getpkg.(dependencies), platform)
             @test "libz." * platform_dlext(platform) in readdir(last(libdirs(Prefix(destdir(dir, platform)))))
             @test "zlib.h" in readdir(joinpath(destdir(dir, platform), "include"))
-            @test readdir(joinpath(destdir(dir, platform), "logs")) == ["Zlib.log.gz"]
+
+            if os(platform) == "macos"
+                zlib_log_files = ["Zlib.log.gz", "fix_identity_mismatch_libz.1.2.11.dylib.log.gz", "ldid_libz.1.2.11.dylib.log.gz"]
+            else
+                zlib_log_files = ["Zlib.log.gz"]
+            end
+            @test readdir(joinpath(destdir(dir, platform), "logs")) == zlib_log_files
 
             # Make sure the directories are emptied by `cleanup_dependencies`
             @test_nowarn cleanup_dependencies(prefix, ap, platform)
