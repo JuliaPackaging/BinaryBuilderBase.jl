@@ -526,7 +526,7 @@ function choose_shards(p::AbstractPlatform;
             GCC_builds::Vector{GCCBuild}=available_gcc_builds,
             LLVM_builds::Vector{LLVMBuild}=available_llvm_builds,
             Rust_build::VersionNumber=v"1.57.0",
-            Go_build::VersionNumber=v"1.16.3",
+            Go_build::VersionNumber=v"1.17.7",
             archive_type::Symbol = (use_squashfs[] ? :squashfs : :unpacked),
             bootstrap_list::Vector{Symbol} = bootstrap_list,
             # Because GCC has lots of compatibility issues, we always default to
