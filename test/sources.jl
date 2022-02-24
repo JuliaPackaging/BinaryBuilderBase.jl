@@ -65,7 +65,7 @@ using JSON
                 # Setup the sources with `setup`
                 srcdir = joinpath(dir, "srcdir")
                 target = joinpath(srcdir, as.unpack_target)
-                @test_logs (:info, r"^Extracting tarball") setup(sas, target, true; tar_flags = "xof")
+                @test_logs (:info, r"^Extracting tarball") setup(sas, target, true)
                 @test isdir(target)
                 target = joinpath(srcdir, fs.filename)
                 @test_logs (:info, r"^Copying") setup(sfs, target, true)

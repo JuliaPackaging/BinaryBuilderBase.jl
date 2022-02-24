@@ -274,7 +274,7 @@ function setup(source::SetupSource{GitSource}, targetdir, verbose)
     end
 end
 
-function setup(source::SetupSource{ArchiveSource}, targetdir, verbose; tar_flags = verbose ? "xvof" : "xof")
+function setup(source::SetupSource{ArchiveSource}, targetdir, verbose; tar_flags = "xof")
     mkpath(targetdir)
     # Extract with host tools because it is _much_ faster on e.g. OSX.
     # If this becomes a compatibility problem, we'll just have to install
