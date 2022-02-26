@@ -373,6 +373,14 @@ struct LLVMBuild <: CompilerBuild
 end
 LLVMBuild(v::VersionNumber) = LLVMBuild(v, (;))
 
+struct GoBuild <: CompilerBuild
+    version::VersionNumber
+end
+
+struct RustBuild <: CompilerBuild
+    version::VersionNumber
+end
+
 getversion(c::CompilerBuild) = c.version
 getabi(c::CompilerBuild) = c.abi
 
@@ -395,6 +403,12 @@ const available_llvm_builds = [
     LLVMBuild(v"11.0.1"),
     LLVMBuild(v"12.0.0"),
 ]
+
+const available_go_builds =
+    GoBuild.(unique(sort(VersionNumber.(join.(getindex.(split.(filter(x->startswith(x, "Go."), keys(load_artifacts_toml(joinpath(dirname(@__DIR__), "Artifacts.toml")))), '.'), Ref(2:4)), '.')))))
+
+const available_rust_builds =
+    RustBuild.(unique(sort(VersionNumber.(join.(getindex.(split.(filter(x->startswith(x, "RustBase."), keys(load_artifacts_toml(joinpath(dirname(@__DIR__), "Artifacts.toml")))), '.'), Ref(2:4)), '.')))))
 
 """
     gcc_version(p::AbstractPlatform, GCC_builds::Vector{GCCBuild},
@@ -525,8 +539,8 @@ function choose_shards(p::AbstractPlatform;
             ps_build::VersionNumber=v"2021.08.10",
             GCC_builds::Vector{GCCBuild}=available_gcc_builds,
             LLVM_builds::Vector{LLVMBuild}=available_llvm_builds,
-            Rust_build::VersionNumber=v"1.57.0",
-            Go_build::VersionNumber=v"1.17.7",
+            Rust_build::VersionNumber=maximum(getversion.(available_rust_builds)),
+            Go_build::VersionNumber=maximum(getversion.(available_go_builds)),
             archive_type::Symbol = (use_squashfs[] ? :squashfs : :unpacked),
             bootstrap_list::Vector{Symbol} = bootstrap_list,
             # Because GCC has lots of compatibility issues, we always default to
