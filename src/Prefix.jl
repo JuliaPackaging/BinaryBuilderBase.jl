@@ -603,14 +603,16 @@ function setup_dependencies(prefix::Prefix,
                 name=pkg.name,
                 uuid,
                 tree_hash=pkg.tree_hash,
+                path=pkg.path,
             ) for (uuid, pkg) in ctx.env.manifest if uuid ∈ installed_jll_uuids
         ]
 
         # Check for stdlibs lurking in the installed JLLs
         stdlib_pkgspecs = PackageSpec[]
         for dep in installed_jlls
-            # If the `tree_hash` is `nothing`, then this JLL was treated as an stdlib
-            if dep.tree_hash === nothing
+            # If the dependency doesn't have a path yet and the `tree_hash` is
+            # `nothing`, then this JLL is probably an stdlib.
+            if dep.path === nothing && dep.tree_hash === nothing
                 # Figure out what version this stdlib _should_ be at for this version
                 dep.version = stdlib_version(dep.uuid, julia_version)
 
@@ -632,7 +634,9 @@ function setup_dependencies(prefix::Prefix,
         # Load their Artifacts.toml files
         for dep in installed_jlls
             name = getname(dep)
-            dep_path = Pkg.Operations.find_installed(name, dep.uuid, dep.tree_hash)
+            # If the package has a path, use it, otherwise ask Pkg where it
+            # should have been installed.
+            dep_path = dep.path !== nothing ? dep.path : Pkg.Operations.find_installed(name, dep.uuid, dep.tree_hash)
 
             # Skip dependencies that didn't get installed?
             if dep_path === nothing
