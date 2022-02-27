@@ -1,8 +1,9 @@
 using Test
 using Pkg, Base.BinaryPlatforms
 using BinaryBuilderBase
-using BinaryBuilderBase: getname, getpkg, dependencify, destdir, PKG_VERSIONS, get_addable_spec
+using BinaryBuilderBase: getname, getpkg, dependencify, destdir, PKG_VERSIONS, get_addable_spec, cached_git_clone
 using JSON
+using LibGit2
 
 # Define equality between dependencies, in order to carry out the tests below
 Base.:(==)(a::AbstractDependency, b::AbstractDependency) = getpkg(a) == getpkg(b)
@@ -179,7 +180,7 @@ end
             platform = Platform("x86_64", "linux"; julia_version=v"1.5")
 
             # Test that a particular version of GMP is installed
-            ap = @test_logs setup_dependencies(prefix, getpkg.(dependencies), platform)
+            @test_logs setup_dependencies(prefix, getpkg.(dependencies), platform)
             @test isfile(joinpath(destdir(dir, platform), "lib", "libgmp.so.10.3.2"))
         end
 
@@ -190,7 +191,7 @@ end
             platform = Platform("x86_64", "linux"; julia_version=v"1.6")
 
             # Test that a particular version of GMP is installed
-            ap = @test_logs setup_dependencies(prefix, getpkg.(dependencies), platform)
+            @test_logs setup_dependencies(prefix, getpkg.(dependencies), platform)
             @test isfile(joinpath(destdir(dir, platform), "lib", "libgmp.so.10.4.0"))
         end
 
@@ -204,15 +205,52 @@ end
 
             # Test that this is not instantiatable with either Julia v1.5 or v1.6
             platform = Platform("x86_64", "linux"; julia_version=v"1.5")
-            ap = @test_throws Pkg.Resolve.ResolverError setup_dependencies(prefix, getpkg.(dependencies), platform)
+            @test_throws Pkg.Resolve.ResolverError setup_dependencies(prefix, getpkg.(dependencies), platform)
             platform = Platform("x86_64", "linux"; julia_version=v"1.6")
-            ap = @test_throws Pkg.Resolve.ResolverError setup_dependencies(prefix, getpkg.(dependencies), platform)
+            @test_throws Pkg.Resolve.ResolverError setup_dependencies(prefix, getpkg.(dependencies), platform)
 
             # If we don't give a `julia_version`, then we are FULLY UNSHACKLED.
             platform = Platform("x86_64", "linux")
-            ap = @test_logs setup_dependencies(prefix, getpkg.(dependencies), platform)
+            @test_logs setup_dependencies(prefix, getpkg.(dependencies), platform)
             @test isfile(joinpath(destdir(dir, platform), "lib", "libgmp.so.10.3.2"))
             @test isfile(joinpath(destdir(dir, platform), "lib", "libmpfr.so.6.1.0"))
+        end
+
+        # Dependency as a local directory
+        with_temp_project() do dir
+            mktempdir() do pkgdir
+                prefix = Prefix(dir)
+                # Clone if necessary the remote repository and check out its
+                # working directory in a temporary space.
+                cache_dir = cached_git_clone("https://github.com/JuliaBinaryWrappers/HelloWorldC_jll.jl")
+                LibGit2.with(LibGit2.clone(cache_dir, pkgdir)) do repo
+                    LibGit2.checkout!(repo, "c7f2e95d9c04e218931c14954ecd31ebde72cca5")
+                end
+                dependencies = [
+                    PackageSpec(
+                        name="HelloWorldC_jll",
+                        path=pkgdir,
+                    ),
+                ]
+                platform = Platform("x86_64", "linux"; libc="glibc")
+                @test_logs setup_dependencies(prefix, dependencies, platform)
+                @test readdir(joinpath(destdir(dir, platform), "bin")) == ["hello_world"]
+            end
+        end
+
+        # Dependency as a remote repository
+        with_temp_project() do dir
+            prefix = Prefix(dir)
+            dependencies = [
+                PackageSpec(
+                    name="HelloWorldC_jll",
+                    url="https://github.com/JuliaBinaryWrappers/HelloWorldC_jll.jl",
+                    rev="c7f2e95d9c04e218931c14954ecd31ebde72cca5",
+                ),
+            ]
+            platform = Platform("x86_64", "linux"; libc="glibc")
+            @test_logs setup_dependencies(prefix, dependencies, platform)
+            @test readdir(joinpath(destdir(dir, platform), "bin")) == ["hello_world"]
         end
     end
 end
