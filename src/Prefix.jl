@@ -537,6 +537,20 @@ function get_addable_spec(name::AbstractString, version::VersionNumber;
     )
 end
 
+# Helper function to install packages also in Julia v1.9
+function Pkg_add(args...; kwargs...)
+    if VERSION < v"1.9.0-DEV"
+        Pkg.add(args...; kwargs...)
+    else
+        try
+            Pkg.respect_sysimage_versions(false)
+            Pkg.add(args...; kwargs...)
+        finally
+            Pkg.respect_sysimage_versions(true)
+        end
+    end
+end
+
 """
     setup_dependencies(prefix::Prefix, dependencies::Vector{PackageSpec}, platform::AbstractPlatform; verbose::Bool = false)
 
@@ -586,7 +600,7 @@ function setup_dependencies(prefix::Prefix,
         update_registry(outs)
 
         # Add all dependencies
-        Pkg.add(ctx, dependencies; platform=platform, io=outs)
+        Pkg_add(ctx, dependencies; platform=platform, io=outs)
 
         # Ony Julia v1.6, `Pkg.add()` doesn't mutate `dependencies`, so we can't use the `UUID`
         # that was found during resolution there.  Instead, we'll make use of `ctx.env` to figure
@@ -628,7 +642,7 @@ function setup_dependencies(prefix::Prefix,
 
         # Re-install stdlib dependencies, but this time with `julia_version = nothing`
         if !isempty(stdlib_pkgspecs)
-            Pkg.add(ctx, stdlib_pkgspecs; io=outs, julia_version=nothing)
+            Pkg_add(ctx, stdlib_pkgspecs; io=outs, julia_version=nothing)
         end
 
         # Load their Artifacts.toml files

@@ -88,7 +88,7 @@ end
         jdep_buildver = JSON.lower(dep_buildver)
         @test jdep_buildver == Dict("type" => "dependency", "name" => name, "uuid" => nothing, "compat" => "~1.2", "version-major" => 0x0, "version-minor" => 0x0, "version-patch" => 0x0, "platforms" => ["x86_64-linux-gnu-cxx11"])
         # the build_version is currently not serialized, so the following test fails
-        @test_broken dependencify(jdep_buildver) == dep_buildver
+        @test dependencify(jdep_buildver) == dep_buildver broken=true
 
         jbuild_dep = JSON.lower(build_dep)
         @test jbuild_dep == Dict("type" => "builddependency", "name" => build_name, "uuid" => nothing, "compat" => "", "version-major" => 0x0, "version-minor" => 0x0, "version-patch" => 0x0, "platforms" => ["any"])
@@ -126,14 +126,14 @@ end
             platform = HostPlatform()
             ap = @test_logs setup_dependencies(prefix, getpkg.(dependencies), platform)
             @test "libz." * platform_dlext(platform) in readdir(last(libdirs(Prefix(destdir(dir, platform)))))
-            @test "zlib.h" in readdir(joinpath(destdir(dir, platform), "include"))
+            @test sort!(readdir(joinpath(destdir(dir, platform), "include"))) == ["zconf.h", "zlib.h"]
 
-            if os(platform) == "macos"
-                zlib_log_files = ["Zlib.log.gz", "fix_identity_mismatch_libz.1.2.11.dylib.log.gz", "ldid_libz.1.2.11.dylib.log.gz"]
+            zlib_log_files = if os(platform) == "macos"
+                ["Zlib.log.gz", "fix_identity_mismatch_libz.1.2.11.dylib.log.gz", "ldid_libz.1.2.11.dylib.log.gz"]
             else
-                zlib_log_files = ["Zlib.log.gz"]
+                ["Zlib.log.gz"]
             end
-            @test readdir(joinpath(destdir(dir, platform), "logs")) == zlib_log_files
+            @test sort!(readdir(joinpath(destdir(dir, platform), "logs"))) == zlib_log_files
 
             # Make sure the directories are emptied by `cleanup_dependencies`
             @test_nowarn cleanup_dependencies(prefix, ap, platform)
@@ -156,8 +156,12 @@ end
             # Make sure the directories are emptied by `cleanup_dependencies`
             @test_nowarn cleanup_dependencies(prefix, ap, platform)
             # This shuld be empty, but the `curl/` directory is left here, empty
-            @test_broken readdir(joinpath(destdir(dir, platform), "include")) == []
-            @test readdir(joinpath(destdir(dir, platform), "logs")) == []
+            @test readdir(joinpath(destdir(dir, platform), "include")) == [] broken=true
+            # Since Julia v1.9 we use builds of LibCURL and its dependencies which have logs
+            # in subdirectories of `${prefix}/logs`, so we have the same problem as above:
+            # those subdirectories are left there empty, cannot be removed by
+            # `cleanup_dependencies`.
+            @test readdir(joinpath(destdir(dir, platform), "logs")) == [] broken=VERSION≥v"1.9.0-DEV"
         end
 
         # Setup a dependency that doesn't have a mapping for the given platform
