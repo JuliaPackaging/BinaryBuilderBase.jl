@@ -331,6 +331,23 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         return "-mmacosx-version-min=$(macos_version(p))"
     end
 
+    function add_system_includedir(flags::Vector{String})
+        # GCC 4.8.5 for musl and clang on FreeBSD do not have `SYSROOT/usr/local` (which
+        # in our build environments is a symlink to $includedir = "$(prefix)/include")
+        # in the default list of include search directories. As a result, quite some
+        # builders that work fine everywhere else need to add something like
+        # `-I${includedir}` to their CPPFLAGS.
+        #
+        # To remove this annoyance, we simply add it here. We use `-isystem` instead
+        # of `-I` to mimic how this dir is treated on other operating systems. It
+        # is still not a perfect match, as the order of the default search directories
+        # differs, but this should not matter in practice.
+        #
+        # See also https://github.com/JuliaPackaging/Yggdrasil/issues/3949 and
+        # https://github.com/JuliaPackaging/Yggdrasil/pull/3969 for further details.
+        append!(flags, ["-isystem", raw"${includedir}"])
+    end
+
     function clang_compile_flags!(p::AbstractPlatform, flags::Vector{String} = String[])
         if lock_microarchitecture
             append!(flags, get_march_flags(arch(p), march(p), "clang"))
@@ -350,6 +367,9 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
                 "-Wno-unused-command-line-argument",
                 min_macos_version_flag(p),
             ])
+        end
+        if Sys.isfreebsd(p)
+            add_system_includedir(flags)
         end
         return flags
     end
@@ -419,6 +439,10 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         end
         if lock_microarchitecture
             append!(flags, get_march_flags(arch(p), march(p), "gcc"))
+        end
+        gcc_version, llvm_version = select_compiler_versions(p, compilers)
+        if libc(platform) == "musl" && gcc_version == v"4.8.5"
+            add_system_includedir(flags)
         end
         return flags
     end
