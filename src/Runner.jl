@@ -441,7 +441,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             append!(flags, get_march_flags(arch(p), march(p), "gcc"))
         end
         gcc_version, llvm_version = select_compiler_versions(p, compilers)
-        if libc(platform) == "musl" && gcc_version == v"4.8.5"
+        if libc(platform) == "musl" && gcc_version in (v"4.8.5", v"5.2.0")
             add_system_includedir(flags)
         end
         return flags
