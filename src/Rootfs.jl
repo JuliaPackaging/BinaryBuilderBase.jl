@@ -393,7 +393,10 @@ const available_gcc_builds = [
     GCCBuild(v"9.1.0", (libgfortran_version = v"5", libstdcxx_version = v"3.4.26", cxxstring_abi = "cxx11")),
     GCCBuild(v"10.2.0", (libgfortran_version = v"5", libstdcxx_version = v"3.4.28", cxxstring_abi = "cxx11")),
     GCCBuild(v"11.1.0", (libgfortran_version = v"5", libstdcxx_version = v"3.4.29", cxxstring_abi = "cxx11")),
-    GCCBuild(v"11.0.0-iains", (libgfortran_version = v"5", libstdcxx_version = v"3.4.28", cxxstring_abi = "cxx11")),
+    ## v"11.0.0-iains" is a very old build with some ABI incompatibilities with new versions (for example `libgcc_s`
+    ## soversion, see https://github.com/JuliaLang/julia/issues/44435), let's pretend it never existed.
+    # GCCBuild(v"11.0.0-iains", (libgfortran_version = v"5", libstdcxx_version = v"3.4.28", cxxstring_abi = "cxx11")),
+    GCCBuild(v"12.0.1-iains", (libgfortran_version = v"5", libstdcxx_version = v"3.4.29", cxxstring_abi = "cxx11")),
 ]
 const available_llvm_builds = [
     LLVMBuild(v"6.0.1"),
@@ -535,7 +538,7 @@ consists of four shards, but that may not always be the case.
 """
 function choose_shards(p::AbstractPlatform;
             compilers::Vector{Symbol} = [:c],
-            rootfs_build::VersionNumber=v"2022.2.5",
+            rootfs_build::VersionNumber=v"2022.3.5",
             ps_build::VersionNumber=v"2021.08.10",
             GCC_builds::Vector{GCCBuild}=available_gcc_builds,
             LLVM_builds::Vector{LLVMBuild}=available_llvm_builds,
@@ -555,7 +558,7 @@ function choose_shards(p::AbstractPlatform;
         # aarch64-apple-darwin is a special platform because it has a single GCCBootstrap
         # with a version number different from any other platforms: match this shard with a
         # regular GCCBootstrap v11 for the host.
-        if name == "GCCBootstrap" && version == v"11.0.0-iains" && target !== nothing && Sys.islinux(target)
+        if name == "GCCBootstrap" && version == v"12.0.1-iains" && target !== nothing && Sys.islinux(target)
             version = v"11.1.0"
         end
 

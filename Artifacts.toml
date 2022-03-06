@@ -20,6 +20,28 @@ os = "linux"
     sha256 = "e0d112457ef4543908c36c13c55b1d20d75f50380e071b5290e7c6b51855694b"
     url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v11.0.0-iains/GCCBootstrap-aarch64-apple-darwin20.v11.0.0-iains.x86_64-linux-musl.unpacked.tar.gz"
 
+[["GCCBootstrap-aarch64-apple-darwin20.v12.0.1-iains.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "fde256ed93d833d11d921332df9d254962583e94"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-aarch64-apple-darwin20.v12.0.1-iains.x86_64-linux-musl.squashfs".download]]
+    sha256 = "fc86772e26efcf4a777895334861ac43a51c0530291598cad2463db73dff74c4"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v12.0.1-iains/GCCBootstrap-aarch64-apple-darwin20.v12.0.1-iains.x86_64-linux-musl.squashfs.tar.gz"
+
+[["GCCBootstrap-aarch64-apple-darwin20.v12.0.1-iains.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "d6f2dc0e73e8796cb9bb992a4970412bc9e4cea3"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-aarch64-apple-darwin20.v12.0.1-iains.x86_64-linux-musl.unpacked".download]]
+    sha256 = "d6ab9dc831485214eac9995e8614d34cfd2cc9f806e00b0cfdb8c425cbbc4520"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v12.0.1-iains/GCCBootstrap-aarch64-apple-darwin20.v12.0.1-iains.x86_64-linux-musl.unpacked.tar.gz"
+
 [["GCCBootstrap-aarch64-linux-gnu.v10.2.0.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
 git-tree-sha1 = "48b35d2a1ffc89eccafdbb1480081bca923ebfa4"
@@ -2814,27 +2836,27 @@ os = "linux"
     sha256 = "5cc8c42875360e9ff28e49135556363bdb43a837d660fbd86fafe64529d2abcd"
     url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2021.8.10/PlatformSupport-x86_64-w64-mingw32.v2021.8.10.x86_64-linux-musl.unpacked.tar.gz"
 
-[["Rootfs.v2022.2.5.x86_64-linux-musl.squashfs"]]
+[["Rootfs.v2022.3.5.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
-git-tree-sha1 = "45bebe2108ea52c92941030d319eb414727f84dc"
+git-tree-sha1 = "711007e9f06dbd041af01abf10baefef4db58fbd"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["Rootfs.v2022.2.5.x86_64-linux-musl.squashfs".download]]
-    sha256 = "863437794e9c7a5e7962648ae25008b592bf0cc5b275669f19bc5d8b89c89e12"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/Rootfs-v2022.2.5/Rootfs.v2022.2.5.x86_64-linux-musl.squashfs.tar.gz"
+    [["Rootfs.v2022.3.5.x86_64-linux-musl.squashfs".download]]
+    sha256 = "1f90cf9ef2ea181bf985873ba9305858a6c1b67f834eca3c63d5628bdf5c40ae"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/Rootfs-v2022.3.5/Rootfs.v2022.3.5.x86_64-linux-musl.squashfs.tar.gz"
 
-[["Rootfs.v2022.2.5.x86_64-linux-musl.unpacked"]]
+[["Rootfs.v2022.3.5.x86_64-linux-musl.unpacked"]]
 arch = "x86_64"
-git-tree-sha1 = "34dae1bda740e22fb6bb40b54c6fac8ebd6ce7a3"
+git-tree-sha1 = "35b8a8925cc319dd6caeb3b12c58e691dd61e50c"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["Rootfs.v2022.2.5.x86_64-linux-musl.unpacked".download]]
-    sha256 = "1df8588e642ce3efb26076fabf43dcdbcbfa8e509a8e980d890a649728efee52"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/Rootfs-v2022.2.5/Rootfs.v2022.2.5.x86_64-linux-musl.unpacked.tar.gz"
+    [["Rootfs.v2022.3.5.x86_64-linux-musl.unpacked".download]]
+    sha256 = "5562fd59712e37c941001d207a3d49b6d951932874bfa1795132bd1e5bb93397"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/Rootfs-v2022.3.5/Rootfs.v2022.3.5.x86_64-linux-musl.unpacked.tar.gz"
 
 [["RustBase.v1.57.0.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
