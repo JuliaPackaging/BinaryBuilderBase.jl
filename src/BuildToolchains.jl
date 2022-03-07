@@ -40,56 +40,40 @@ function toolchain_file(bt::CMake, p::AbstractPlatform; is_host::Bool=false)
     # <https://cmake.org/cmake/help/latest/variable/CMAKE_CROSSCOMPILING.html>.
     # We want to have the host toolchain always setting `HOST_SYSTEM_NAME`, and
     # the target toolchain always setting `SYSTEM_NAME`.
-    system_name_var = if is_host
-        "CMAKE_HOST_SYSTEM_NAME"
+    system_name_var, system_proc_var = if is_host
+        "CMAKE_HOST_SYSTEM_NAME", "CMAKE_HOST_SYSTEM_PROCESSOR"
     else
-        "CMAKE_SYSTEM_NAME"
+        "CMAKE_SYSTEM_NAME", "CMAKE_SYSTEM_PROCESSOR"
     end
 
-    if Sys.isapple(p)
+    file = """
+        # CMake toolchain file for $(c_compiler(bt)) running on $(target)
+        set($(system_name_var) $(cmake_os(p)))
+        set($(system_proc_var) $(cmake_arch(p)))
+
+        """
+
+    file *= if Sys.isapple(p)
         darwin_ver = something(os_version(p), v"14.5.0")
         maj_ver = darwin_ver.major
         min_ver = darwin_ver.minor
-        return """
-        # CMake toolchain file for $(c_compiler(bt)) running on $(target)
-        set($(system_name_var) $(cmake_os(p)))
-        set(CMAKE_SYSTEM_PROCESSOR $(cmake_arch(p)))
+        """
         set(CMAKE_SYSTEM_VERSION $(maj_ver).$(min_ver))
         set(DARWIN_MAJOR_VERSION $(maj_ver))
         set(DARWIN_MINOR_VERSION $(min_ver))
-
-        # Enable rpath support
-        set(CMAKE_SHARED_LIBRARY_RUNTIME_C_FLAG "-Wl,-rpath,")
 
         set(CMAKE_SYSROOT /opt/$(aatarget)/$(aatarget)/sys-root)
         set(CMAKE_SYSTEM_FRAMEWORK_PATH
             \${CMAKE_SYSROOT}/System/Library/Frameworks
             \${CMAKE_SYSROOT}/System/Library/PrivateFrameworks
         )
-        set(CMAKE_INSTALL_PREFIX \$ENV{prefix})
-
-        set(CMAKE_C_COMPILER   /opt/bin/$(target)/$(aatarget)-$(c_compiler(bt)))
-        set(CMAKE_CXX_COMPILER /opt/bin/$(target)/$(aatarget)-$(cxx_compiler(bt)))
-        set(CMAKE_Fortran_COMPILER /opt/bin/$(target)/$(aatarget)-$(fortran_compiler(bt)))
-
-        set(CMAKE_LINKER  /opt/bin/$(target)/$(aatarget)-ld)
-        set(CMAKE_OBJCOPY /opt/bin/$(target)/$(aatarget)-objcopy)
-
-        set(CMAKE_AR     /opt/bin/$(target)/$(aatarget)-ar)
-        set(CMAKE_NM     /opt/bin/$(target)/$(aatarget)-nm)
-        set(CMAKE_RANLIB /opt/bin/$(target)/$(aatarget)-ranlib)
-
-        if( \$ENV{CC} MATCHES ccache )
-            set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE ccache)
-        endif()
         """
     else
-        return """
-        # CMake toolchain file for $(c_compiler(bt)) running on $(target)
-        set($(system_name_var) $(cmake_os(p)))
-        set(CMAKE_SYSTEM_PROCESSOR $(cmake_arch(p)))
-
+        """
         set(CMAKE_SYSROOT /opt/$(aatarget)/$(aatarget)/sys-root/)
+        """
+    end
+    file *= """
         set(CMAKE_INSTALL_PREFIX \$ENV{prefix})
 
         set(CMAKE_C_COMPILER   /opt/bin/$(target)/$(aatarget)-$(c_compiler(bt)))
@@ -107,7 +91,6 @@ function toolchain_file(bt::CMake, p::AbstractPlatform; is_host::Bool=false)
             set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE ccache)
         endif()
         """
-    end
 end
 
 meson_c_args(p::AbstractPlatform, envs::Dict{String,String}; is_host::Bool=false) =
