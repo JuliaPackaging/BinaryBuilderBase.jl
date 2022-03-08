@@ -31,65 +31,58 @@ function cmake_os(p::AbstractPlatform)
     end
 end
 
-function toolchain_file(bt::CMake, p::AbstractPlatform; is_host::Bool=false)
+function toolchain_file(bt::CMake, p::AbstractPlatform, host_platform::AbstractPlatform; is_host::Bool=false)
     target = triplet(p)
     aatarget = aatriplet(p)
 
-    # CMake uses the setting of `HOST_SYSTEM_NAME` and `SYSTEM_NAME` to decide
-    # whether the current build is a cross-compilation or not:
-    # <https://cmake.org/cmake/help/latest/variable/CMAKE_CROSSCOMPILING.html>.
-    # We want to have the host toolchain always setting `HOST_SYSTEM_NAME`, and
-    # the target toolchain always setting `SYSTEM_NAME`.
-    system_name_var = if is_host
-        "CMAKE_HOST_SYSTEM_NAME"
-    else
-        "CMAKE_SYSTEM_NAME"
+    # In order to get the version of the host system we need to call `/bin/uname -r`.
+    file = """
+        # CMake toolchain file for $(c_compiler(bt)) running on $(target)
+        set(CMAKE_HOST_SYSTEM_NAME $(cmake_os(host_platform)))
+        set(CMAKE_HOST_SYSTEM_PROCESSOR $(cmake_arch(host_platform)))
+        execute_process(COMMAND /bin/uname -r OUTPUT_VARIABLE CMAKE_HOST_SYSTEM_VERSION)
+        """
+
+    if !is_host
+        # CMake checks whether `SYSTEM_NAME` is set manually to decide whether the current
+        # build is a cross-compilation or not:
+        # <https://cmake.org/cmake/help/latest/variable/CMAKE_CROSSCOMPILING.html>.  We
+        # always set `HOST_SYSTEM_NAME`, but set `SYSTEM_NAME` only for the target
+        # toolchain.
+        file *= """
+        set(CMAKE_SYSTEM_NAME $(cmake_os(p)))
+        set(CMAKE_SYSTEM_PROCESSOR $(cmake_arch(p)))
+        """
     end
 
     if Sys.isapple(p)
         darwin_ver = something(os_version(p), v"14.5.0")
         maj_ver = darwin_ver.major
         min_ver = darwin_ver.minor
-        return """
-        # CMake toolchain file for $(c_compiler(bt)) running on $(target)
-        set($(system_name_var) $(cmake_os(p)))
-        set(CMAKE_SYSTEM_PROCESSOR $(cmake_arch(p)))
+        file *= """
         set(CMAKE_SYSTEM_VERSION $(maj_ver).$(min_ver))
         set(DARWIN_MAJOR_VERSION $(maj_ver))
         set(DARWIN_MINOR_VERSION $(min_ver))
-
-        # Enable rpath support
-        set(CMAKE_SHARED_LIBRARY_RUNTIME_C_FLAG "-Wl,-rpath,")
 
         set(CMAKE_SYSROOT /opt/$(aatarget)/$(aatarget)/sys-root)
         set(CMAKE_SYSTEM_FRAMEWORK_PATH
             \${CMAKE_SYSROOT}/System/Library/Frameworks
             \${CMAKE_SYSROOT}/System/Library/PrivateFrameworks
         )
-        set(CMAKE_INSTALL_PREFIX \$ENV{prefix})
-
-        set(CMAKE_C_COMPILER   /opt/bin/$(target)/$(aatarget)-$(c_compiler(bt)))
-        set(CMAKE_CXX_COMPILER /opt/bin/$(target)/$(aatarget)-$(cxx_compiler(bt)))
-        set(CMAKE_Fortran_COMPILER /opt/bin/$(target)/$(aatarget)-$(fortran_compiler(bt)))
-
-        set(CMAKE_LINKER  /opt/bin/$(target)/$(aatarget)-ld)
-        set(CMAKE_OBJCOPY /opt/bin/$(target)/$(aatarget)-objcopy)
-
-        set(CMAKE_AR     /opt/bin/$(target)/$(aatarget)-ar)
-        set(CMAKE_NM     /opt/bin/$(target)/$(aatarget)-nm)
-        set(CMAKE_RANLIB /opt/bin/$(target)/$(aatarget)-ranlib)
-
-        if( \$ENV{CC} MATCHES ccache )
-            set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE ccache)
-        endif()
         """
     else
-        return """
-        # CMake toolchain file for $(c_compiler(bt)) running on $(target)
-        set($(system_name_var) $(cmake_os(p)))
-        set(CMAKE_SYSTEM_PROCESSOR $(cmake_arch(p)))
+        if !is_host
+            file *= """
+        execute_process(COMMAND /usr/bin/uname -r OUTPUT_VARIABLE CMAKE_SYSTEM_VERSION)
 
+        """
+        end
+        file *= """
         set(CMAKE_SYSROOT /opt/$(aatarget)/$(aatarget)/sys-root/)
+        """
+    end
+
+    file *= """
         set(CMAKE_INSTALL_PREFIX \$ENV{prefix})
 
         set(CMAKE_C_COMPILER   /opt/bin/$(target)/$(aatarget)-$(c_compiler(bt)))
@@ -107,7 +100,6 @@ function toolchain_file(bt::CMake, p::AbstractPlatform; is_host::Bool=false)
             set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE ccache)
         endif()
         """
-    end
 end
 
 meson_c_args(p::AbstractPlatform, envs::Dict{String,String}; is_host::Bool=false) =
@@ -229,12 +221,12 @@ function generate_toolchain_files!(platform::AbstractPlatform, envs::Dict{String
         for compiler in (:clang, :gcc)
             # Target toolchains
             if platforms_match(p, platform)
-                write(joinpath(dir, "target_$(aatriplet(p))_$(compiler).cmake"), toolchain_file(CMake{compiler}(), p; is_host=false))
+                write(joinpath(dir, "target_$(aatriplet(p))_$(compiler).cmake"), toolchain_file(CMake{compiler}(), p, host_platform; is_host=false))
                 write(joinpath(dir, "target_$(aatriplet(p))_$(compiler).meson"), toolchain_file(Meson{compiler}(), p, envs; is_host=false))
             end
             # Host toolchains
             if platforms_match(p, host_platform)
-                write(joinpath(dir, "host_$(aatriplet(p))_$(compiler).cmake"), toolchain_file(CMake{compiler}(), p; is_host=true))
+                write(joinpath(dir, "host_$(aatriplet(p))_$(compiler).cmake"), toolchain_file(CMake{compiler}(), p, host_platform; is_host=true))
                 write(joinpath(dir, "host_$(aatriplet(p))_$(compiler).meson"), toolchain_file(Meson{compiler}(), p, envs; is_host=true))
             end
         end
