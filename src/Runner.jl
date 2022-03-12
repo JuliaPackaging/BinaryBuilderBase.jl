@@ -905,6 +905,7 @@ end
                   host_platform = default_host_platform,
                   bootstrap::Bool=!isempty(bootstrap_list),
                   compilers::Vector{Symbol}=[:c],
+                  rust_version::Union{Nothing,VersionNumber}=nothing,
                   verbose::Bool = false,
                   )
 
@@ -918,13 +919,16 @@ Accepted keyword arguments are:
 * `host_platform`: the platform of the host system,
 * `bootstraop`: if `true`, only basic environment variables will be generated,
 * `compilers`: list of compilers, some environment variables will be generated
-  only if the relevant compilers are used (e.g., for Go and Rust)
+  only if the relevant compilers are used (e.g., for Go and Rust),
+* `rust_version`: version of the Rust toolchain, needed to set the environment
+  variable `RUSTUP_TOOLCHAIN`,
 * `verbose`: holds the value of the `V` and `VERBOSE` environment variables.
 """
 function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
                        host_platform = default_host_platform,
                        bootstrap::Bool=!isempty(bootstrap_list),
                        compilers::Vector{Symbol}=[:c],
+                       rust_version::Union{Nothing,VersionNumber}=nothing,
                        verbose::Bool = false,
                        )
     global use_ccache
@@ -1053,9 +1057,12 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
             "CARGO_BUILD_TARGET" => map_rust_target(platform),
             "CARGO_HOME" => "/opt/$(host_target)",
             "RUSTUP_HOME" => "/opt/$(host_target)",
-            # TODO: we'll need a way to parameterize this toolchain number
-            "RUSTUP_TOOLCHAIN" => "1.57.0-$(map_rust_target(host_platform))",
         ))
+        if rust_version !== nothing
+            merge!(mapping, Dict(
+                "RUSTUP_TOOLCHAIN" => "$(rust_version)-$(map_rust_target(host_platform))",
+            ))
+        end
     end
 
     merge!(mapping, Dict(
@@ -1202,9 +1209,17 @@ function runner_setup!(workspaces, mappings, workspace_root, verbose, kwargs, pl
     # Extract compilers argument
     compilers = extract_kwargs(kwargs, (:compilers,))
 
+    if isnothing(shards)
+        # Choose the shards we're going to mount
+        shards::Vector{CompilerShard} = choose_shards(platform; compilers..., extract_kwargs(kwargs, (:preferred_gcc_version,:preferred_llvm_version,:bootstrap_list))...)
+    end
+    # Determine version of Rust toolchain
+    rb = filter(s -> s.name == "RustBase", shards)
+    rust_version = length(rb) == 1 ? only(rb).version : nothing
+
     # Construct environment variables we'll use from here on out
     platform::Platform = get_concrete_platform(platform; compilers..., extract_kwargs(kwargs, (:preferred_gcc_version,:preferred_llvm_version))...)
-    envs::Dict{String,String} = merge(platform_envs(platform, src_name; verbose, compilers...), extra_env)
+    envs::Dict{String,String} = merge(platform_envs(platform, src_name; rust_version, verbose, compilers...), extra_env)
 
     # JIT out some compiler wrappers, add it to our mounts
     generate_compiler_wrappers!(platform; bin_path=compiler_wrapper_path, compilers..., extract_kwargs(kwargs, (:allow_unsafe_flags,:lock_microarchitecture))...)
@@ -1246,11 +1261,6 @@ function runner_setup!(workspaces, mappings, workspace_root, verbose, kwargs, pl
             mkpath(ccache_dir())
         end
         push!(workspaces, ccache_dir() => "/root/.ccache")
-    end
-
-    if isnothing(shards)
-        # Choose the shards we're going to mount
-        shards::Vector{CompilerShard} = choose_shards(platform; compilers..., extract_kwargs(kwargs, (:preferred_gcc_version,:preferred_llvm_version,:bootstrap_list))...)
     end
 
     return platform, envs, shards
