@@ -1054,7 +1054,7 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
             "CARGO_HOME" => "/opt/$(host_target)",
             "RUSTUP_HOME" => "/opt/$(host_target)",
             # TODO: we'll need a way to parameterize this toolchain number
-            "RUSTUP_TOOLCHAIN" => "1.57.0-$(map_rust_target(host_platform))",
+            "RUSTUP_TOOLCHAIN" => "1.59.0-$(map_rust_target(host_platform))",
         ))
     end
 
