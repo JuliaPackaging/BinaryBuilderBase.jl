@@ -1,4 +1,5 @@
 using Base.BinaryPlatforms
+using OrderedCollections
 
 export AnyPlatform
 
@@ -91,11 +92,11 @@ end
 const ARCHITECTURE_FLAGS = Dict(
     # Many compiler flags are the same across clang and gcc, store those in "common"
     "common" => Dict(
-        "i686" => Dict(
+        "i686" => OrderedDict(
             "pentium4" => ["-march=pentium4", "-mtune=generic"],
             "prescott" => ["-march=prescott", "-mtune=prescott"],
         ),
-        "x86_64" => Dict(
+        "x86_64" => OrderedDict(
             # Better be always explicit about `-march` & `-mtune`:
             # https://lemire.me/blog/2018/07/25/it-is-more-complicated-than-i-thought-mtune-march-in-gcc/
             "x86_64" => ["-march=x86-64", "-mtune=generic"],
@@ -103,21 +104,29 @@ const ARCHITECTURE_FLAGS = Dict(
             "avx2"   => ["-march=haswell", "-mtune=haswell"],
             "avx512" => ["-march=skylake-avx512", "-mtune=skylake-avx512"],
         ),
-        "armv6l" => Dict(
+        "armv6l" => OrderedDict(
             # This is the only known armv6l chip that runs Julia, so it's the only one we care about.
             "arm1176jzfs" => ["-mcpu=arm1176jzf-s", "-mfpu=vfp", "-mfloat-abi=hard"],
         ),
-        "armv7l" => Dict(
+        "armv7l" => OrderedDict(
             # Base armv7l architecture, with the most basic of FPU's
             "armv7l"   => ["-march=armv7-a", "-mtune=generic-armv7-a", "-mfpu=vfpv3", "-mfloat-abi=hard"],
             # armv7l plus NEON and vfpv4, (Raspberry Pi 2B+, RK3328, most boards Elliot has access to)
             "neonvfpv4" => ["-march=armv7-a", "-mtune=cortex-a53", "-mfpu=neon-vfpv4", "-mfloat-abi=hard"],
         ),
-        "aarch64" => Dict(
-            # Base armv8.0-a architecture, tune for generic cortex-a57
-            "armv8_0"  => ["-march=armv8-a", "-mtune=cortex-a57"],
+        "aarch64" => OrderedDict(
+            # For GCC, see: <https://gcc.gnu.org/onlinedocs/gcc/AArch64-Options.html>.  For
+            # LLVM, for the list of features see
+            # <https://github.com/llvm/llvm-project/blob/1bcc28b884ff4fbe2ecc011b8ea2b84e7987167b/llvm/include/llvm/Support/AArch64TargetParser.def>
+            # and
+            # <https://github.com/llvm/llvm-project/blob/85e9b2687a13d1908aa86d1b89c5ce398a06cd39/llvm/lib/Target/AArch64/AArch64.td>.
+            # Run `clang --print-supported-cpus` for the list of values of `-mtune`.
+            "armv8_0"        => ["-march=armv8-a", "-mtune=cortex-a57"],
+            "armv8_1"        => ["-march=armv8.1-a", "-mtune=thunderx2t99"],
+            "armv8_2_crypto" => ["-march=armv8.2-a+aes+sha2", "-mtune=cortex-a76"],
+            "a64fx"          => ["-march=armv8.2-a+aes+sha2+fp16+sve", "-mtune=a64fx"],
         ),
-        "powerpc64le" => Dict(
+        "powerpc64le" => OrderedDict(
             "power8"  => ["-mcpu=power8", "-mtune=power8"],
             # Note that power9 requires GCC 6+, and we need CPUID for this
             #"power9"  => ["-mcpu=power9", "-mtune=power9"],
@@ -126,21 +135,13 @@ const ARCHITECTURE_FLAGS = Dict(
         )
     ),
     "gcc" => Dict(
-        "aarch64" => Dict(
-            # `clang`/`gcc` disagree on `rdm(a)`
-            "armv8_1"            => ["-march=armv8-a+lse+crc+rdma", "-mtune=thunderx2t99"],
-            # Note that these targets require gcc 9+
-            "armv8_2_crypto"     => ["-march=armv8-a+lse+crc+rdma+aes+sha2", "-mtune=cortex-a76"],
-            "armv8_4_crypto_sve" => ["-march=armv8-a+les+crc+rdma+aes+sha2+fp16fml+dotprod+sve", "-mtune=cortex-a76"]
+        "aarch64" => OrderedDict(
+            "apple_m1"       => ["-march=armv8.5-a+aes+sha2+sha3+fp16fml+fp16+rcpc+dotprod", "-mtune=cortex-a76"],
         ),
     ),
     "clang" => Dict(
-        "aarch64" => Dict(
-            # `clang`/`gcc` disagree on `rdm` vs. `rdma`
-            "armv8_1"            => ["-march=armv8-a+lse+crc+rdm", "-mtune=thunderx2t99"],
-            # Note that these targets require clang 9+
-            "armv8_2_crypto"     => ["-march=armv8-a+lse+crc+rdm+aes+sha2", "-mtune=cortex-a76"],
-            "armv8_4_crypto_sve" => ["-march=armv8-a+les+crc+rdm+aes+sha2+fp16fml+dotprod+sve", "-mtune=cortex-a76"]
+        "aarch64" => OrderedDict(
+            "apple_m1"       => ["-march=armv8.5-a+aes+sha2+sha3+fp16fml+fp16+rcpc+dotprod", "-mtune=apple-a12"],
         ),
     ),
 )

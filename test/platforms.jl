@@ -95,12 +95,16 @@ using BinaryBuilderBase: get_march_flags, get_all_arch_names, get_all_march_name
     @test get_march_flags("x86_64", "avx", "gcc") == ["-march=sandybridge", "-mtune=sandybridge"]
 
     # Test one that is different between gcc and clang
-    @test get_march_flags("aarch64", "armv8_2_crypto", "gcc") == ["-march=armv8-a+lse+crc+rdma+aes+sha2", "-mtune=cortex-a76"]
-    @test get_march_flags("aarch64", "armv8_2_crypto", "clang") == ["-march=armv8-a+lse+crc+rdm+aes+sha2", "-mtune=cortex-a76"]
+    @test get_march_flags("aarch64", "apple_m1", "gcc") == ["-march=armv8.5-a+aes+sha2+sha3+fp16fml+fp16+rcpc+dotprod", "-mtune=cortex-a76"]
+    @test get_march_flags("aarch64", "apple_m1", "clang") == ["-march=armv8.5-a+aes+sha2+sha3+fp16fml+fp16+rcpc+dotprod", "-mtune=apple-a12"]
 
-    @test get_march_flags("aarch64", nothing, "gcc") == get_march_flags("aarch64", "armv8_0", "gcc")
-    @test get_march_flags("armv7l", nothing, "clang") == get_march_flags("armv7l", "armv7l", "clang")
-    @test get_march_flags("x86_64", nothing, "clang") == get_march_flags("x86_64", "x86_64", "clang")
+    for compiler in ("gcc", "clang")
+        # Make sure we get the right base microarchitecture for all compilers
+        @test get_march_flags("aarch64", nothing, compiler) == get_march_flags("aarch64", "armv8_0",  compiler)
+        @test get_march_flags("armv7l",  nothing, compiler) == get_march_flags("armv7l",  "armv7l",   compiler)
+        @test get_march_flags("i686",    nothing, compiler) == get_march_flags("i686",    "pentium4", compiler)
+        @test get_march_flags("x86_64",  nothing, compiler) == get_march_flags("x86_64",  "x86_64",   compiler)
+    end
 
     # Get all architectures and all microarchitectures for the different architectures
     @test sort(get_all_arch_names()) == ["aarch64", "armv6l", "armv7l", "i686", "powerpc64le", "x86_64"]
