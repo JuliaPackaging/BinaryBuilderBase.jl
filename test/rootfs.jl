@@ -57,6 +57,14 @@ using BinaryBuilderBase
         Platform("x86_64", "linux"; libc="glibc", march="avx512", cuda="10.1"),
         Platform("x86_64", "linux"; libc="glibc", march="x86_64", cuda="10.1"),
     ]
+    @test sort(expand_microarchitectures(Platform("x86_64", "linux"), ["x86_64", "avx512"]), by=triplet) == [
+        Platform("x86_64", "linux"; libc="glibc", march="avx512"),
+        Platform("x86_64", "linux"; libc="glibc", march="x86_64"),
+    ]
+    @test expand_microarchitectures(Platform("i686", "linux"), ["x86_64", "avx512"]) == [Platform("i686", "linux")]
+    @test expand_microarchitectures(Platform("aarch64", "linux"; libc="musl"), ["a64fx", "apple_m1"]) == [Platform("aarch64", "linux"; libc="musl")]
+    @test expand_microarchitectures(Platform("aarch64", "macos"), ["a64fx"]) == [Platform("aarch64", "macos")]
+
     @test sort(expand_microarchitectures(filter!(p -> Sys.islinux(p) && libc(p) == "glibc", supported_platforms())), by=triplet) == [
         Platform("aarch64", "linux"; libc="glibc", march="a64fx"),
         Platform("aarch64", "linux"; libc="glibc", march="armv8_0"),
@@ -73,17 +81,18 @@ using BinaryBuilderBase
         Platform("x86_64", "linux"; libc="glibc", march="avx512"),
         Platform("x86_64", "linux"; libc="glibc", march="x86_64"),
     ]
-    @test sort(expand_microarchitectures(filter!(p -> Sys.islinux(p) && arch(p) == "aarch64" && libc(p) == "musl", supported_platforms())), by=triplet) == [
+    @test sort(expand_microarchitectures(filter!(p -> Sys.islinux(p) && libc(p) == "musl", supported_platforms()); filter=p->arch(p) == "aarch64"), by=triplet) == [
         Platform("aarch64", "linux"; libc="musl", march="armv8_0"),
         Platform("aarch64", "linux"; libc="musl", march="armv8_1"),
         Platform("aarch64", "linux"; libc="musl", march="armv8_2_crypto"),
+        Platform("armv6l", "linux"; call_abi="eabihf", libc="musl"),
+        Platform("armv7l", "linux"; call_abi="eabihf", libc="musl"),
+        Platform("i686", "linux"; libc="musl"),
+        Platform("x86_64", "linux"; libc="musl"),
     ]
-    @test sort(expand_microarchitectures(filter!(p -> Sys.isapple(p), supported_platforms())), by=triplet) == [
+    @test sort(expand_microarchitectures(filter!(p -> Sys.isapple(p), supported_platforms()), ["a64fx", "apple_m1", "x86_64", "avx2"]), by=triplet) == [
         Platform("aarch64", "macos"; march="apple_m1"),
-        Platform("aarch64", "macos"; march="armv8_0"),
-        Platform("x86_64", "macos"; march="avx"),
         Platform("x86_64", "macos"; march="avx2"),
-        Platform("x86_64", "macos"; march="avx512"),
         Platform("x86_64", "macos"; march="x86_64"),
     ]
     @test expand_microarchitectures([Platform("x86_64", "windows"; march="avx", cuda="10.1")]) ==
