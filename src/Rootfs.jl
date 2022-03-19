@@ -671,6 +671,9 @@ end
 
 # We want AnyPlatform to look like `default_host_platform` in the build environment.
 choose_shards(::AnyPlatform; kwargs...) = choose_shards(default_host_platform; kwargs...)
+# We want `CrossPlatform` to look like its `target` here, pending us revamping the shard
+# selection via just `Artifacts`.
+choose_shards(cp::CrossPlatform; kwargs...) = choose_shards(cp.target; kwargs...)
 
 """
     supported_platforms(;exclude::Union{Vector{<:Platform},Function}=Returns(false),

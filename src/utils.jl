@@ -57,6 +57,13 @@ function get_concrete_platform(platform::AbstractPlatform; kwargs...)
     return get_concrete_platform(platform, shards)
 end
 
+# This should update the CrossPlatform's `target`
+function get_concrete_platform(cp::CrossPlatform, shards::Vector{CompilerShard})
+    concrete_target = get_concrete_platform(cp.target, shards)
+    return CrossPlatform(cp.host => concrete_target)
+end
+
+
 # We want the AnyPlatform to look like `default_host_platform`,
 get_concrete_platform(::AnyPlatform, shards::Vector{CompilerShard}) =
     get_concrete_platform(default_host_platform, shards)

@@ -248,6 +248,11 @@ function generate_toolchain_files!(platform::AbstractPlatform, envs::Dict{String
     end
 end
 
+function generate_toolchain_files!(cp::CrossPlatform, envs::Dict{String,String},
+                                   toolchains_path::AbstractString)
+    return generate_toolchain_files!(cp.target, envs, toolchains_path)
+end
+
 function cargo_config_file!(dir::AbstractString, platform::AbstractPlatform;
                             host_platform::AbstractPlatform=default_host_platform,
                             )
