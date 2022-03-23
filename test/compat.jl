@@ -71,3 +71,44 @@ using BinaryBuilderBase: download_verify, list_tarball_files
         end
     end
 end
+
+using BinaryBuilderBase: march_comparison_strategy
+using Base.BinaryPlatforms: Platform, platforms_match, set_compare_strategy!
+@testset "Microarchitecture augmentation" begin
+    linux_x86_64 = Platform("x86_64", "linux")
+    linux_avx = Platform("x86_64", "linux"; march="avx")
+    linux_avx2 = Platform("x86_64", "linux"; march="avx2")
+    linux_avx512 = Platform("x86_64", "linux"; march="avx512")
+    # Platform with non-existing microarchitecture
+    linux_bad = Platform("x86_64", "linux"; march="bad")
+
+    # Without any custom comparison strategy, the base platform without march matches
+    # everything, but the others are all incompatible
+    @test platforms_match(linux_x86_64, linux_avx)
+    @test platforms_match(linux_x86_64, linux_avx2)
+    @test platforms_match(linux_x86_64, linux_avx512)
+    @test platforms_match(linux_x86_64, linux_bad)
+    @test !platforms_match(linux_avx, linux_avx2)
+    @test !platforms_match(linux_avx, linux_avx512)
+    @test !platforms_match(linux_avx, linux_bad)
+    @test !platforms_match(linux_avx2, linux_bad)
+    @test !platforms_match(linux_avx2, linux_avx512)
+    @test !platforms_match(linux_avx512, linux_bad)
+
+    # Teach AVX2 platform how to compare the others
+    set_compare_strategy!(linux_avx2, "march", march_comparison_strategy)
+    for compatible_p in (linux_x86_64, linux_avx)
+        @test platforms_match(compatible_p, linux_avx2)
+        @test platforms_match(linux_avx2, compatible_p)
+    end
+    for incompatible_p in (linux_avx512, linux_bad)
+        @test !platforms_match(incompatible_p, linux_avx2)
+        @test !platforms_match(linux_avx2, incompatible_p)
+    end
+
+    # Teach also AVX platform how to compare
+    set_compare_strategy!(linux_avx, "march", march_comparison_strategy)
+    # Now when we compare AVX and AVX2, they must be equal
+    @test !platforms_match(linux_avx, linux_avx2)
+    @test !platforms_match(linux_avx2, linux_avx)
+end
