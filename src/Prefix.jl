@@ -462,9 +462,8 @@ Given a JLL name and registered version, return a `PackageSpec` that, when passe
     ]
 """
 function get_addable_spec(name::AbstractString, version::VersionNumber;
+                          uuid = first(Pkg.Types.registry_resolve!(ctx.registries, Pkg.Types.PackageSpec(;name))).uuid,
                           ctx = Pkg.Types.Context(), verbose::Bool = false)
-    # First, resolve the UUID
-    uuid = first(Pkg.Types.registry_resolve!(ctx.registries, Pkg.Types.PackageSpec(;name))).uuid
 
     # Next, determine the tree hash from the registry
     repo_urls = Set{String}()
