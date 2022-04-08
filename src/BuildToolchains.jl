@@ -40,7 +40,7 @@ function toolchain_file(bt::CMake, p::AbstractPlatform, host_platform::AbstractP
         # CMake toolchain file for $(c_compiler(bt)) running on $(target)
         set(CMAKE_HOST_SYSTEM_NAME $(cmake_os(host_platform)))
         set(CMAKE_HOST_SYSTEM_PROCESSOR $(cmake_arch(host_platform)))
-        execute_process(COMMAND /bin/uname -r OUTPUT_VARIABLE CMAKE_HOST_SYSTEM_VERSION)
+        execute_process(COMMAND /bin/uname -r OUTPUT_VARIABLE CMAKE_HOST_SYSTEM_VERSION OUTPUT_STRIP_TRAILING_WHITESPACE)
         """
 
     if !is_host
@@ -73,7 +73,7 @@ function toolchain_file(bt::CMake, p::AbstractPlatform, host_platform::AbstractP
     else
         if !is_host
             file *= """
-        execute_process(COMMAND /usr/bin/uname -r OUTPUT_VARIABLE CMAKE_SYSTEM_VERSION)
+        execute_process(COMMAND /usr/bin/uname -r OUTPUT_VARIABLE CMAKE_SYSTEM_VERSION OUTPUT_STRIP_TRAILING_WHITESPACE)
 
         """
         end
