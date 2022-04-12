@@ -110,9 +110,9 @@ const ARCHITECTURE_FLAGS = Dict(
         ),
         "armv7l" => OrderedDict(
             # Base armv7l architecture, with the most basic of FPU's
-            "armv7l"   => ["-march=armv7-a", "-mtune=generic-armv7-a", "-mfpu=vfpv3", "-mfloat-abi=hard"],
+            "armv7l"   => ["-mcpu=generic-armv7-a", "-mfpu=vfpv3", "-mfloat-abi=hard"],
             # armv7l plus NEON and vfpv4, (Raspberry Pi 2B+, RK3328, most boards Elliot has access to)
-            "neonvfpv4" => ["-march=armv7-a", "-mtune=cortex-a53", "-mfpu=neon-vfpv4", "-mfloat-abi=hard"],
+            "neonvfpv4" => ["-mcpu=cortex-a53", "-mfpu=neon-vfpv4", "-mfloat-abi=hard"],
         ),
         "aarch64" => OrderedDict(
             # For GCC, see: <https://gcc.gnu.org/onlinedocs/gcc/AArch64-Options.html>.  For
@@ -121,10 +121,10 @@ const ARCHITECTURE_FLAGS = Dict(
             # and
             # <https://github.com/llvm/llvm-project/blob/85e9b2687a13d1908aa86d1b89c5ce398a06cd39/llvm/lib/Target/AArch64/AArch64.td>.
             # Run `clang --print-supported-cpus` for the list of values of `-mtune`.
-            "armv8_0"        => ["-march=armv8-a", "-mtune=cortex-a57"],
-            "armv8_1"        => ["-march=armv8.1-a", "-mtune=thunderx2t99"],
-            "armv8_2_crypto" => ["-march=armv8.2-a+aes+sha2", "-mtune=cortex-a76"],
-            "a64fx"          => ["-march=armv8.2-a+aes+sha2+fp16+sve", "-mtune=a64fx"],
+            "armv8_0"        => ["-march=armv8-a", "-mcpu=cortex-a57"],
+            "armv8_1"        => ["-march=armv8.1-a", "-mcpu=thunderx2t99"],
+            "armv8_2_crypto" => ["-march=armv8.2-a+aes+sha2", "-mcpu=cortex-a76"],
+            "a64fx"          => ["-mcpu=a64fx"],
         ),
         "powerpc64le" => OrderedDict(
             "power8"  => ["-mcpu=power8", "-mtune=power8"],
@@ -136,7 +136,7 @@ const ARCHITECTURE_FLAGS = Dict(
     ),
     "gcc" => Dict(
         "aarch64" => OrderedDict(
-            "apple_m1"       => ["-march=armv8.5-a+aes+sha2+sha3+fp16fml+fp16+rcpc+dotprod", "-mtune=cortex-a76"],
+            "apple_m1"       => ["-march=armv8.5-a+aes+sha2+sha3+fp16fml+fp16+rcpc+dotprod", "-mcpu=cortex-a76"],
         ),
     ),
     "clang" => Dict(
