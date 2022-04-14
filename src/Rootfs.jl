@@ -384,6 +384,9 @@ end
 getversion(c::CompilerBuild) = c.version
 getabi(c::CompilerBuild) = c.abi
 
+get_available_builds(name::String) =
+    unique!(sort!(VersionNumber.(join.(getindex.(split.(filter(x->startswith(x, name), keys(load_artifacts_toml(joinpath(dirname(@__DIR__), "Artifacts.toml")))), '.'), Ref(2:4)), '.'))))
+
 const available_gcc_builds = [
     GCCBuild(v"4.8.5", (libgfortran_version = v"3", libstdcxx_version = v"3.4.19", cxxstring_abi = "cxx03")),
     GCCBuild(v"5.2.0", (libgfortran_version = v"3", libstdcxx_version = v"3.4.21", cxxstring_abi = "cxx11")),
@@ -398,21 +401,11 @@ const available_gcc_builds = [
     # GCCBuild(v"11.0.0-iains", (libgfortran_version = v"5", libstdcxx_version = v"3.4.28", cxxstring_abi = "cxx11")),
     GCCBuild(v"12.0.1-iains", (libgfortran_version = v"5", libstdcxx_version = v"3.4.29", cxxstring_abi = "cxx11")),
 ]
-const available_llvm_builds = [
-    LLVMBuild(v"6.0.1"),
-    LLVMBuild(v"7.1.0"),
-    LLVMBuild(v"8.0.1"),
-    LLVMBuild(v"9.0.1"),
-    LLVMBuild(v"11.0.1"),
-    LLVMBuild(v"12.0.0"),
-    LLVMBuild(v"13.0.1"),
-]
+const available_llvm_builds = LLVMBuild.(get_available_builds("LLVMBootstrap."))
 
-const available_go_builds =
-    GoBuild.(unique(sort(VersionNumber.(join.(getindex.(split.(filter(x->startswith(x, "Go."), keys(load_artifacts_toml(joinpath(dirname(@__DIR__), "Artifacts.toml")))), '.'), Ref(2:4)), '.')))))
+const available_go_builds = GoBuild.(get_available_builds("Go."))
 
-const available_rust_builds =
-    RustBuild.(unique(sort(VersionNumber.(join.(getindex.(split.(filter(x->startswith(x, "RustBase."), keys(load_artifacts_toml(joinpath(dirname(@__DIR__), "Artifacts.toml")))), '.'), Ref(2:4)), '.')))))
+const available_rust_builds = RustBuild.(get_available_builds("RustBase."))
 
 """
     gcc_version(p::AbstractPlatform, GCC_builds::Vector{GCCBuild},
