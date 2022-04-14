@@ -507,8 +507,11 @@ end
 function llvm_version(p::AbstractPlatform, LLVM_builds::Vector{LLVMBuild})
     if march(p) in ("armv8_2_crypto",)
         LLVM_builds = filter(b -> getversion(b) >= v"9.0", LLVM_builds)
-    elseif march(p) in ("a64fx", "apple_m1",)
+    elseif march(p) in ("a64fx",)
         LLVM_builds = filter(b -> getversion(b) >= v"11.0", LLVM_builds)
+    elseif march(p) in ("apple_m1",)
+        # The target `apple-m1` was introduced in LLVM 13
+        LLVM_builds = filter(b -> getversion(b) >= v"13.0", LLVM_builds)
     end
     return getversion.(LLVM_builds)
 end

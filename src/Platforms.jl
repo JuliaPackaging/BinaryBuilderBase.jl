@@ -141,7 +141,7 @@ const ARCHITECTURE_FLAGS = Dict(
     ),
     "clang" => Dict(
         "aarch64" => OrderedDict(
-            "apple_m1"       => ["-march=armv8.5-a+aes+sha2+sha3+fp16fml+fp16+rcpc+dotprod", "-mtune=apple-a12"],
+            "apple_m1"       => ["-mcpu=apple-m1"],
         ),
     ),
 )
