@@ -405,6 +405,7 @@ const available_llvm_builds = [
     LLVMBuild(v"9.0.1"),
     LLVMBuild(v"11.0.1"),
     LLVMBuild(v"12.0.0"),
+    LLVMBuild(v"13.0.1"),
 ]
 
 const available_go_builds =
