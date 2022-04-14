@@ -96,7 +96,7 @@ using BinaryBuilderBase: get_march_flags, get_all_arch_names, get_all_march_name
 
     # Test one that is different between gcc and clang
     @test get_march_flags("aarch64", "apple_m1", "gcc") == ["-march=armv8.5-a+aes+sha2+sha3+fp16fml+fp16+rcpc+dotprod", "-mtune=cortex-a76"]
-    @test get_march_flags("aarch64", "apple_m1", "clang") == ["-march=armv8.5-a+aes+sha2+sha3+fp16fml+fp16+rcpc+dotprod", "-mtune=apple-a12"]
+    @test get_march_flags("aarch64", "apple_m1", "clang") == ["-mcpu=apple-m1"]
 
     for compiler in ("gcc", "clang")
         # Make sure we get the right base microarchitecture for all compilers
