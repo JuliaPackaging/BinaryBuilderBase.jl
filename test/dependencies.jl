@@ -133,12 +133,20 @@ end
             else
                 ["Zlib.log.gz"]
             end
-            @test sort!(readdir(joinpath(destdir(dir, platform), "logs"))) == zlib_log_files
+            zlib_log_dir = if VERSION ≥ v"1.9.0-"
+                joinpath(destdir(dir, platform), "logs", "Zlib")
+            else
+                joinpath(destdir(dir, platform), "logs")
+            end
+            @test sort!(readdir(zlib_log_dir)) == zlib_log_files
 
             # Make sure the directories are emptied by `cleanup_dependencies`
             @test_nowarn cleanup_dependencies(prefix, ap, platform)
             @test readdir(joinpath(destdir(dir, platform), "include")) == []
-            @test readdir(joinpath(destdir(dir, platform), "logs")) == []
+            # Since Julia v1.9 we use builds of Zlib which have logs in
+            # subdirectories of `${prefix}/logs`, so those subdirectories are
+            # left there empty, cannot be removed by `cleanup_dependencies`.
+            @test readdir(joinpath(destdir(dir, platform), "logs")) == [] broken=VERSION≥v"1.9.0-"
         end
 
         # Setup a dependency of a JLL package which is also a standard library
