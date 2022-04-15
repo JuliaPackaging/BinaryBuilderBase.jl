@@ -544,7 +544,8 @@ consists of four shards, but that may not always be the case.
 """
 function choose_shards(p::AbstractPlatform;
             compilers::Vector{Symbol} = [:c],
-            rootfs_build::VersionNumber=v"2022.3.5",
+            # We always just use the latest Rootfs embedded within our Artifacts.toml
+            rootfs_build::VersionNumber=last(BinaryBuilderBase.get_available_builds("Rootfs")),
             ps_build::VersionNumber=v"2021.08.10",
             GCC_builds::Vector{GCCBuild}=available_gcc_builds,
             LLVM_builds::Vector{LLVMBuild}=available_llvm_builds,
