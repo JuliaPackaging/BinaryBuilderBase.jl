@@ -1,4 +1,6 @@
 using LibGit2
+using ProgressMeter
+const update! = ProgressMeter.update!
 
 export ArchiveSource, FileSource, GitSource, DirectorySource
 
@@ -142,10 +144,34 @@ function download_source(source::T; verbose::Bool = false, downloads_dir = stora
     return SetupSource{T}(src_path, source.hash, gettarget(source))
 end
 
+struct GitTransferProgress
+    total_objects::Cuint
+    indexed_objects::Cuint
+    received_objects::Cuint
+    local_objects::Cuint
+    total_deltas::Cuint
+    indexed_deltas::Cuint
+    received_bytes::Csize_t
+end
+
+function transfer_progress(progress::Ptr{GitTransferProgress}, p::Any)
+    progress = unsafe_load(progress)
+    p.n = progress.total_objects
+    if progress.total_deltas != 0
+        p.desc = "Resolving Deltas: "
+        p.n = progress.total_deltas
+        update!(p, Int(max(1, progress.indexed_deltas)))
+    else
+        update!(p, Int(max(1, progress.received_objects)))
+    end
+    return Cint(0)
+end
+
 function cached_git_clone(url::String;
                           hash_to_check::Union{Nothing, String} = nothing,
                           downloads_dir::String = storage_dir("downloads"),
                           verbose::Bool = false,
+                          progressbar::Bool = false,
                           )
     repo_path = joinpath(downloads_dir, "clones", string(basename(url), "-", bytes2hex(sha256(url))))
     if isdir(repo_path)
@@ -163,11 +189,29 @@ function cached_git_clone(url::String;
             end
         end
     else
+        # If there is no repo_path yet, clone it down into a bare repository
         if verbose
             @info("Cloning git repository", url, repo_path)
         end
-        # If there is no repo_path yet, clone it down into a bare repository
-        LibGit2.clone(url, repo_path; isbare=true)
+        if progressbar
+            # Clone with a progress bar
+            p = Progress(0, 1, "Cloning: ")
+            GC.@preserve p begin
+                callbacks = LibGit2.RemoteCallbacks(
+                    transfer_progress=@cfunction(
+                        transfer_progress,
+                        Cint,
+                        (Ptr{GitTransferProgress}, Any)
+                    ),
+                    payload = p
+                )
+                fetch_opts = LibGit2.FetchOptions(; callbacks)
+                clone_opts = LibGit2.CloneOptions(; fetch_opts, bare = Cint(true))
+                LibGit2.clone(url, repo_path, clone_opts)
+            end
+        else
+            LibGit2.clone(url, repo_path; isbare=true)
+        end
     end
     return repo_path
 end
