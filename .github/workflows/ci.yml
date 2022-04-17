@@ -50,6 +50,9 @@ jobs:
           version: ${{ matrix.julia-version }}
           arch: x64
       - uses: julia-actions/cache@v1
+        # For the time being cache artifacts only for squashfs, we need too much
+        # storage for the unpacked shards
+        if: ${{ matrix.squashfs == true }}
         with:
           # Reserve entire cache to artifacts
           cache-name: ${{ matrix.squashfs }}
