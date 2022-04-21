@@ -1238,7 +1238,7 @@ function runner_setup!(workspaces, mappings, workspace_root, verbose, kwargs, pl
     rust_version = length(rb) == 1 ? only(rb).version : nothing
 
     # Construct environment variables we'll use from here on out
-    platform::Platform = get_concrete_platform(platform; compilers..., extract_kwargs(kwargs, (:preferred_gcc_version,:preferred_llvm_version))...)
+    platform = get_concrete_platform(platform; compilers..., extract_kwargs(kwargs, (:preferred_gcc_version,:preferred_llvm_version))...)
     envs::Dict{String,String} = merge(platform_envs(platform, src_name; rust_version, verbose, compilers...), extra_env)
 
     get_target_platform(platform) = platform
