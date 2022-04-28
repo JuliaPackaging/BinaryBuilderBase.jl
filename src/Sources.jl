@@ -114,7 +114,7 @@ SetupSource{T}(path::String, hash::String, target::String) where {T} =
 function SetupSource(url::String, path::String, hash::String, target::String)
     if endswith(url, ".git")
         return SetupSource{GitSource}(path, hash, target)
-    elseif any(endswith(url, ext) for ext in archive_extensions)
+    elseif any(endswith(path, ext) for ext in archive_extensions)
         return SetupSource{ArchiveSource}(path, hash, target)
     else
         return SetupSource{FileSource}(path, hash, target)
