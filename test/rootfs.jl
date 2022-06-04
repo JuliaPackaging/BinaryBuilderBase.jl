@@ -170,7 +170,7 @@ end
         @test gcc_version(p, available_gcc_builds) == [v"7.1.0"]
 
         p = Platform("armv7l", "linux"; march="neonvfpv4")
-        @test gcc_version(p, available_gcc_builds) == [v"5.2.0", v"6.1.0", v"7.1.0", v"8.1.0", v"9.1.0", v"10.2.0", v"11.1.0", v"12.0.1-iains"]
+        @test gcc_version(p, available_gcc_builds) == [v"5.2.0", v"6.1.0", v"7.1.0", v"8.1.0", v"9.1.0", v"10.2.0", v"11.1.0", v"12.1.0", v"12.0.1-iains"]
 
         # When Rust is used on x86_64 Windows, we have to use at least binutils
         # 2.25, which we bundle with at least GCC 5.

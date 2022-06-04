@@ -396,6 +396,7 @@ const available_gcc_builds = [
     GCCBuild(v"9.1.0", (libgfortran_version = v"5", libstdcxx_version = v"3.4.26", cxxstring_abi = "cxx11")),
     GCCBuild(v"10.2.0", (libgfortran_version = v"5", libstdcxx_version = v"3.4.28", cxxstring_abi = "cxx11")),
     GCCBuild(v"11.1.0", (libgfortran_version = v"5", libstdcxx_version = v"3.4.29", cxxstring_abi = "cxx11")),
+    GCCBuild(v"12.1.0", (libgfortran_version = v"5", libstdcxx_version = v"3.4.30", cxxstring_abi = "cxx11")),
     ## v"11.0.0-iains" is a very old build with some ABI incompatibilities with new versions (for example `libgcc_s`
     ## soversion, see https://github.com/JuliaLang/julia/issues/44435), let's pretend it never existed.
     # GCCBuild(v"11.0.0-iains", (libgfortran_version = v"5", libstdcxx_version = v"3.4.28", cxxstring_abi = "cxx11")),
@@ -566,7 +567,7 @@ function choose_shards(p::AbstractPlatform;
         # with a version number different from any other platforms: match this shard with a
         # regular GCCBootstrap v11 for the host.
         if name == "GCCBootstrap" && version == v"12.0.1-iains" && target !== nothing && Sys.islinux(target)
-            version = v"11.1.0"
+            version = v"12.1.0"
         end
 
         for cs in all_compiler_shards()
