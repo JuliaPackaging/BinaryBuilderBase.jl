@@ -126,8 +126,6 @@ end
     # This tests only that compilers for all platforms can build and link simple C code
     @testset "Compilation - $(platform) - $(compiler)" for platform in platforms, compiler in ("cc", "gcc", "clang")
         mktempdir() do dir
-            # https://github.com/JuliaPackaging/BinaryBuilderBase.jl/issues/248
-            is_broken = compiler == "clang" && Sys.iswindows(platform)
             ur = preferred_runner()(dir; platform=platform)
             iobuff = IOBuffer()
             test_c = """
@@ -155,10 +153,10 @@ end
                 $(compiler) -Werror -o main main.c -L. -ltest
                 """
             cmd = `/bin/bash -c "$(test_script)"`
-            @test run(ur, cmd, iobuff; tee_stream=devnull) broken=is_broken
+            @test run(ur, cmd, iobuff; tee_stream=devnull)
             seekstart(iobuff)
             # Make sure `iobuff` contains only the input command, no other text
-            @test readchomp(iobuff) == string(cmd) broken=is_broken
+            @test readchomp(iobuff) == string(cmd)
         end
     end
 

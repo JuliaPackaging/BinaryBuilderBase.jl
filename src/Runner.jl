@@ -162,6 +162,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
                                      allow_unsafe_flags::Bool = false,
                                      lock_microarchitecture::Bool = true,
                                      bootstrap::Bool = !isempty(bootstrap_list),
+                                     gcc_version::Union{Nothing,VersionNumber}=nothing,
                                      )
     # Wipe that directory out, in case it already had compiler wrappers
     rm(bin_path; recursive=true, force=true)
@@ -326,6 +327,17 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
                 # Find GCC toolchain here (for things like libgcc_s)
                 "--gcc-toolchain=/opt/$(aatriplet(p))"
             ])
+            if Sys.iswindows(p) && !isnothing(gcc_version)
+                append!(flags, [
+                    # On Windows, detection of the GCC toolchain doesn't seem to work
+                    # correctly.  TODO: this is a horrible kludge, it's a sign we should do
+                    # better here, but at least this lets us keep going.
+                    "-I/opt/$(aatriplet(p))/$(aatriplet(p))/include/c++/$(gcc_version)"
+                    "-I/opt/$(aatriplet(p))/$(aatriplet(p))/include/c++/$(gcc_version)/$(aatriplet(p))"
+                    "-L/opt/$(aatriplet(p))/lib/gcc/$(aatriplet(p))/$(gcc_version)"
+                    "-L/opt/$(aatriplet(p))/$(aatriplet(p))/lib"
+                ])
+            end
         end
         return flags
     end
@@ -1271,13 +1283,16 @@ function runner_setup!(workspaces, mappings, workspace_root, verbose, kwargs, pl
     # Determine version of Rust toolchain
     rb = filter(s -> s.name == "RustBase", shards)
     rust_version = length(rb) == 1 ? only(rb).version : nothing
+    # Determine version of GCC toolchain.
+    gcc = filter(s -> s.name == "GCCBootstrap" && platforms_match(s.target, platform), shards)
+    gcc_version = length(gcc) == 1 ? only(gcc).version : nothing
 
     # Construct environment variables we'll use from here on out
     platform::Platform = get_concrete_platform(platform; compilers..., extract_kwargs(kwargs, (:preferred_gcc_version,:preferred_llvm_version))...)
     envs::Dict{String,String} = merge(platform_envs(platform, src_name; rust_version, verbose, compilers...), extra_env)
 
     # JIT out some compiler wrappers, add it to our mounts
-    generate_compiler_wrappers!(platform; bin_path=compiler_wrapper_path, compilers..., extract_kwargs(kwargs, (:allow_unsafe_flags,:lock_microarchitecture))...)
+    generate_compiler_wrappers!(platform; bin_path=compiler_wrapper_path, gcc_version, compilers..., extract_kwargs(kwargs, (:allow_unsafe_flags,:lock_microarchitecture))...)
     push!(workspaces, compiler_wrapper_path => "/opt/bin")
 
     if isempty(bootstrap_list)
