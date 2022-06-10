@@ -51,7 +51,22 @@ end
     @test getcompat(dep_compat) == "2, ~$(build_version)"
 
     # if build_version and compat don't match, an error should be thrown
-    @test_throws ArgumentError Dependency(PackageSpec(; name = name), build_version, compat = "2.0")
+    @test_throws ArgumentError Dependency(PackageSpec(; name = name), build_version; compat = "2.0")
+
+    run_dep = RuntimeDependency(PackageSpec(; name))
+    @test RuntimeDependency(name) == run_dep
+    @test !is_host_dependency(run_dep)
+    @test is_target_dependency(run_dep)
+    @test !is_build_dependency(run_dep)
+    @test is_runtime_dependency(run_dep)
+    @test getname(run_dep) == name
+    @test getname(PackageSpec(; name)) == name
+    @test getpkg(run_dep) == PackageSpec(; name)
+    # We should be able to convert a `Vector{RuntimeDependency}` to `Vector{Dependency}`
+    @test Dependency[RuntimeDependency(name; compat="~1.8", platforms=[Platform("aarch64", "macos"; cxxstring_abi="cxx03")])] ==
+        [Dependency(name; compat="~1.8", platforms=[Platform("aarch64", "macos"; cxxstring_abi="cxx03")])]
+    # If the version in the PackageSpec and the compat don't match, an error should be thrown
+    @test_throws ArgumentError RuntimeDependency(PackageSpec(; name, version=v"1.2.3"); compat = "2.0")
 
     build_name = "Foo_headers_jll"
     build_dep = BuildDependency(PackageSpec(; name = build_name))
@@ -84,6 +99,10 @@ end
         jdep = JSON.lower(dep)
         @test jdep == Dict("type" => "dependency", "name" => name, "uuid" => nothing, "compat" => "", "version-major" => 0x0, "version-minor" => 0x0, "version-patch" => 0x0, "platforms" => ["x86_64-apple-darwin", "aarch64-apple-darwin"])
         @test dependencify(jdep) == dep
+
+        jrun_dep = JSON.lower(run_dep)
+        @test jrun_dep == Dict("type" => "runtimedependency", "name" => name, "uuid" => nothing, "compat" => "", "version-major" => 0x0, "version-minor" => 0x0, "version-patch" => 0x0, "platforms" => ["any"])
+        @test dependencify(jrun_dep) == run_dep
 
         jdep_buildver = JSON.lower(dep_buildver)
         @test jdep_buildver == Dict("type" => "dependency", "name" => name, "uuid" => nothing, "compat" => "~1.2", "version-major" => 0x0, "version-minor" => 0x0, "version-patch" => 0x0, "platforms" => ["x86_64-linux-gnu-cxx11"])
