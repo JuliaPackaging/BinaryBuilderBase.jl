@@ -1,6 +1,6 @@
 using UUIDs
 
-export Dependency, BuildDependency, HostBuildDependency,
+export Dependency, RuntimeDependency, BuildDependency, HostBuildDependency,
     is_host_dependency, is_target_dependency, is_build_dependency, is_runtime_dependency,
     filter_platforms
 
@@ -18,11 +18,20 @@ Concrete subtypes of `AbstractDependency` are
 
 * [`Dependency`](@ref): a JLL package that is necessary for to build the package
   and to load the generated JLL package.
+* [`RuntimeDependency`](@ref): a JLL package that is necessary only at runtime.  Its
+  artifact will not be installed in the prefix during the build.
 * [`BuildDependency`](@ref): a JLL package that is necessary only to build the
   package.  This will not be a dependency of the generated JLL package.
 * [`HostBuildDependency`](@ref): similar to `BuildDependency`, but it will
   install the artifact for the host platform, instead of that for the target
   platform.
+
+Subtypes of `AbstractDependency` should define the following traits:
+
+* [`is_host_dependency`](@ref)
+* [`is_target_dependency`](@ref)
+* [`is_build_dependency`](@ref)
+* [`is_runtime_dependency`](@ref)
 """
 abstract type AbstractDependency end
 
@@ -81,7 +90,7 @@ struct Dependency <: AbstractDependency
     platforms::Vector{<:AbstractPlatform}
     function Dependency(pkg::PkgSpec, build_version = nothing; compat::String = "",
                         platforms::Vector{<:AbstractPlatform}=[AnyPlatform()])
-        if length(compat) > 0
+        if !isempty(compat)
             spec = PKG_VERSIONS.semver_spec(compat) # verify compat is valid
             if build_version === nothing
                 # Since we usually want to build against the oldest compatible
@@ -106,6 +115,44 @@ end
 is_host_dependency(::Dependency) = false
 is_build_dependency(::Dependency) = true
 is_runtime_dependency(::Dependency) = true
+
+"""
+    RuntimeDependency(dep::Union{PackageSpec,String}; compat::String, platforms::Vector{<:AbstractPlatform})
+
+Define a binary dependency that is only listed as dependency of the generated JLL package,
+but its artifact is not installed in the prefix during the build.  The `dep` argument can be
+either a string with the name of the JLL package or a `Pkg.PackageSpec`.
+
+The optional keyword argument `compat` can be used to specify a string for use
+in the `Project.toml` of the generated Julia package.
+
+The optional keyword argument `platforms` is a vector of `AbstractPlatform`s which indicates
+for which platforms the dependency should be used.  By default `platforms=[AnyPlatform()]`,
+to mean that the dependency is compatible with all platforms.
+"""
+struct RuntimeDependency <: AbstractDependency
+    pkg::PkgSpec
+    compat::String  # semver string for use in Project.toml of the JLL
+    platforms::Vector{<:AbstractPlatform}
+    function RuntimeDependency(pkg::PkgSpec; compat::String = "",
+                                platforms::Vector{<:AbstractPlatform}=[AnyPlatform()])
+        if !isempty(compat)
+            spec = PKG_VERSIONS.semver_spec(compat) # verify compat is valid
+            if pkg.version != PKG_VERSIONS.VersionSpec("*") && !(pkg.version in spec)
+                throw(ArgumentError("PackageSpec version and compat for $(pkg) are incompatible"))
+            end
+        end
+        return new(pkg, compat, platforms)
+    end
+end
+RuntimeDependency(name::AbstractString; compat::String = "", platforms::Vector{<:AbstractPlatform}=[AnyPlatform()]) =
+    RuntimeDependency(PackageSpec(; name); compat, platforms)
+is_host_dependency(::RuntimeDependency) = false
+is_build_dependency(::RuntimeDependency) = false
+is_runtime_dependency(::RuntimeDependency) = true
+# In some cases we may want to automatically convert a `RuntimeDependency` to a `Dependency`
+Base.convert(::Type{Dependency}, dep::RuntimeDependency) =
+    Dependency(dep.pkg; compat=dep.compat, platforms=dep.platforms)
 
 """
     BuildDependency(dep::Union{PackageSpec,String}; platforms)
@@ -250,7 +297,7 @@ version(d::Dependency) = __version(d.pkg.version)
 getcompat(d::AbstractDependency) = ""
 getcompat(d::Dependency) = d.compat
 
-for (type, type_descr) in ((Dependency, "dependency"), (BuildDependency, "builddependency"), (HostBuildDependency, "hostdependency"))
+for (type, type_descr) in ((Dependency, "dependency"), (RuntimeDependency, "runtimedependency"), (BuildDependency, "builddependency"), (HostBuildDependency, "hostdependency"))
     JSON.lower(d::type) = Dict("type" => type_descr,
                                "name" => d.pkg.name,
                                "uuid" => string_or_nothing(d.pkg.uuid),
@@ -266,7 +313,7 @@ end
 # dictionaries.  This function converts the dictionary back to the appropriate
 # AbstractDependency.
 function dependencify(d::Dict)
-    if d["type"] in ("dependency", "builddependency", "hostdependency")
+    if d["type"] in ("dependency", "runtimedependency", "builddependency", "hostdependency")
         uuid = isnothing(d["uuid"]) ? d["uuid"] : UUID(d["uuid"])
         compat = d["compat"]
         version = PKG_VERSIONS.VersionSpec(VersionNumber(d["version-major"], d["version-minor"], d["version-patch"]))
@@ -275,6 +322,8 @@ function dependencify(d::Dict)
         platforms = parse_platform.(d["platforms"])
         if d["type"] == "dependency"
             return Dependency(spec; compat, platforms)
+        elseif d["type"] == "runtimedependency"
+            return RuntimeDependency(spec; compat, platforms)
         elseif d["type"] == "builddependency"
             return BuildDependency(spec; platforms)
         elseif d["type"] == "hostdependency"
