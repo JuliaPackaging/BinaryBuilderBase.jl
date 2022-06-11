@@ -297,6 +297,9 @@ function setup(source::SetupSource{ArchiveSource}, targetdir, verbose; tar_flags
 end
 
 function setup(source::SetupSource{FileSource}, target, verbose)
+    if isdir(target)
+        target = joinpath(target, basename(source.path))
+    end
     if verbose
         @info "Copying $(basename(source.path)) in $(basename(target))..."
     end

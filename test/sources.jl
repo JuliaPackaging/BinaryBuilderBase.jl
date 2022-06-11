@@ -11,10 +11,10 @@ using JSON
     @test FileSource("https://curl.haxx.se/ca/cacert-2020-01-01.pem", "adf770dfd574a0d6026bfaa270cb6879b063957177a991d453ff1d302c02081f").filename == "cacert-2020-01-01.pem"
     @test FileSource("https://curl.haxx.se/ca/cacert-2020-01-01.pem", "adf770dfd574a0d6026bfaa270cb6879b063957177a991d453ff1d302c02081f"; filename="cacert.pem").filename == "cacert.pem"
 
-    @test SetupSource("https://ftp.gnu.org/gnu/wget/wget-1.20.3.tar.gz", "", "", "") isa SetupSource{ArchiveSource}
-    @test SetupSource("https://ftp.gnu.org/gnu/wget/wget-1.20.3.zip", "", "", "")    isa SetupSource{ArchiveSource}
-    @test SetupSource("https://github.com/jedisct1/libsodium.git", "", "", "")       isa SetupSource{GitSource}
-    @test SetupSource("https://curl.haxx.se/ca/cacert-2020-01-01.pem", "", "", "")   isa SetupSource{FileSource}
+    @test SetupSource("https://ftp.gnu.org/gnu/wget/wget-1.20.3.tar.gz", "wget-1.20.3.tar.gz", "", "") isa SetupSource{ArchiveSource}
+    @test SetupSource("https://ftp.gnu.org/gnu/wget/wget-1.20.3.zip", "wget-1.20.3.zip", "", "")    isa SetupSource{ArchiveSource}
+    @test SetupSource("https://github.com/jedisct1/libsodium.git", "libsodium.git", "", "")       isa SetupSource{GitSource}
+    @test SetupSource("https://curl.haxx.se/ca/cacert-2020-01-01.pem", "cacert-2020-01-01.pem", "", "")   isa SetupSource{FileSource}
 
     @testset "Download and setup" begin
         mktempdir() do dir
