@@ -602,8 +602,10 @@ function setup_dependencies(prefix::Prefix,
         outs = verbose ? stdout : devnull
         update_registry(outs)
 
-        # Add all dependencies
-        Pkg_add(ctx, dependencies; platform=platform, io=outs)
+        # Add all dependencies.  Note: Pkg.add(ctx, deps) modifies in-place `deps` without
+        # notice.  We need to `deepcopy` the argument to prevent it from modying our
+        # dependencies from under our feet: <https://github.com/JuliaLang/Pkg.jl/issues/3112>.
+        Pkg_add(ctx, deepcopy(dependencies); platform=platform, io=outs)
 
         # Ony Julia v1.6, `Pkg.add()` doesn't mutate `dependencies`, so we can't use the `UUID`
         # that was found during resolution there.  Instead, we'll make use of `ctx.env` to figure
