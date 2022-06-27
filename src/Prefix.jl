@@ -466,6 +466,8 @@ Given a JLL name and registered version, return a `PackageSpec` that, when passe
 """
 function get_addable_spec(name::AbstractString, version::VersionNumber;
                           ctx = Pkg.Types.Context(), verbose::Bool = false)
+    # Zeroth, update the registry
+    update_registry(verbose ? stdout : devnull)
     # First, resolve the UUID
     uuid = first(Pkg.Types.registry_resolve!(ctx.registries, Pkg.Types.PackageSpec(;name))).uuid
 
