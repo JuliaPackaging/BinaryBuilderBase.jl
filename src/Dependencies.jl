@@ -64,14 +64,18 @@ Return whether `dep` is a runtime dependency or not.
 is_runtime_dependency
 
 """
-    Dependency(dep::Union{PackageSpec,String}, build_version; compat, platforms)
+    Dependency(dep::Union{PackageSpec,String}, build_version::VersionNumber;
+               compat::String, platforms::Vector{<:AbstractPlatform})
 
 Define a binary dependency that is necessary to build the package and load the
 generated JLL package.  The argument can be either a string with the name of the
 JLL package or a `Pkg.PackageSpec`.
 
-The optional keyword argument `build_version` can be used to specify the version
-of the dependency to be installed when building it.
+The optional positional argument `build_version` can be used to specify the
+version of the dependency to be installed when building it.  If not specified,
+the latest version of the package compatible with the environment will be
+automatically chosen by the package resolver, unless `compat` is specified, see
+below.
 
 The optional keyword argument `compat` can be used to specify a string for use
 in the `Project.toml` of the generated Julia package.  If `compat` is non-empty
