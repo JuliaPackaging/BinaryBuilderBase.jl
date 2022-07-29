@@ -42,8 +42,15 @@ platform_exeext(p::AbstractPlatform) = Sys.iswindows(p) ? ".exe" : ""
 
 # Helper parsing function: it extends `parse(Platform, p)` by supporting
 # `AnyPlatform` as well.
-parse_platform(p::AbstractString) = p == "any" ? AnyPlatform() : parse(Platform, p; validate_strict=true)
-
+function parse_platform(p::AbstractString)
+    if p == "any"
+        AnyPlatform()
+    elseif p == "host"
+        HostPlatform()
+    else
+        parse(Platform, p; validate_strict=true)
+    end
+end
 
 # Recursively test for key presence in nested dicts
 function haskeys(d, keys...)
