@@ -2,7 +2,7 @@ using Test
 using Base.BinaryPlatforms
 using BinaryBuilderBase
 using BinaryBuilderBase: abi_agnostic, get_concrete_platform, march, platform_dlext, platform_exeext,
-                         nbits, proc_family, default_host_platform
+                         nbits, proc_family, default_host_platform, parse_platform
 
 @testset "Supported Platforms" begin
     all = supported_platforms()
@@ -110,4 +110,12 @@ using BinaryBuilderBase: get_march_flags, get_all_arch_names, get_all_march_name
     @test sort(get_all_arch_names()) == ["aarch64", "armv6l", "armv7l", "i686", "powerpc64le", "x86_64"]
     @test sort(get_all_march_names("x86_64")) == ["avx", "avx2", "avx512", "x86_64"]
     @test sort(get_all_march_names("armv7l")) == ["armv7l", "neonvfpv4"]
+end
+
+@testset "parse" begin
+    @test parse_platform("host") == HostPlatform()
+    @test parse_platform("any") == AnyPlatform()
+    @test parse_platform("x86_64-linux") == Platform("x86_64", "linux")
+    @test parse_platform("x86_64-linux-musl") == Platform("x86_64", "linux", libc="musl")
+    @test parse_platform("x86_64-linux-musl-gcc7") == Platform("x86_64", "linux", libc="musl", libgfortran_version=v"4.0.0")
 end
