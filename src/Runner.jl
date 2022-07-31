@@ -238,6 +238,16 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             println(io)
         end
 
+        # If we're given both -fsanitize= and -Wl,--no-undefined, then try turning
+        # the latter into a warning rather than an error.
+        if sanitize(platform) != nothing
+            println(io, """
+            if  [[ " \${ARGS[@]} " == *"-Wl,--no-undefined"* ]]; then
+                PRE_FLAGS+=("-Wl,--warn-unresolved-symbols")
+            fi
+            """)
+        end
+
         # Insert extra commands from the user (usually some kind of conditional setting
         # of PRE_FLAGS and POST_FLAGS)
         println(io)
@@ -348,6 +358,32 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         append!(flags, ["-isystem", raw"${includedir}"])
     end
 
+    function sanitize_compile_flags!(p::AbstractPlatform, flags::Vector{String})
+        san = sanitize(p)
+        if sanitize(p) !== nothing
+            if sanitize(p) == "memory"
+                append!(flags, ["-fsanitize=memory", "-fsanitize-memory-track-origins", "-fno-omit-frame-pointer"])
+            elseif sanitize(p) == "address"
+                append!(flags, ["-fsanitize=address"])
+            elseif sanitize(p) == "thread"
+                append!(flags, ["-fsanitize=thread"])
+            end
+        end
+    end
+
+    function sanitize_link_flags!(p::AbstractPlatform, flags::Vector{String})
+        san = sanitize(p)
+        if sanitize(p) !== nothing
+            if sanitize(p) == "memory"
+                append!(flags, ["-fsanitize=memory"])
+            elseif sanitize(p) == "address"
+                append!(flags, ["-fsanitize=address"])
+            elseif sanitize(p) == "thread"
+                append!(flags, ["-fsanitize=thread"])
+            end
+        end
+    end
+
     function clang_compile_flags!(p::AbstractPlatform, flags::Vector{String} = String[])
         if lock_microarchitecture
             append!(flags, get_march_flags(arch(p), march(p), "clang"))
@@ -368,6 +404,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
                 min_macos_version_flag(p),
             ])
         end
+        sanitize_compile_flags!(p, flags)
         if Sys.isfreebsd(p)
             add_system_includedir(flags)
         end
@@ -383,6 +420,8 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         # we want to use a particular linker with clang.  But we want to avoid warnings about unused
         # flags when just compiling, so we put it into "linker-only flags".
         push!(flags, "-fuse-ld=$(aatriplet(p))")
+
+        sanitize_link_flags!(p, flags)
 
         # On macos, we need to pass `-headerpad_max_install_names` so that we have lots of space
         # for `install_name_tool` shenanigans during audit fixups.
@@ -440,6 +479,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         if lock_microarchitecture
             append!(flags, get_march_flags(arch(p), march(p), "gcc"))
         end
+        sanitize_compile_flags!(p, flags)
         gcc_version, llvm_version = select_compiler_versions(p, compilers)
         if libc(platform) == "musl" && gcc_version in (v"4.8.5", v"5.2.0")
             add_system_includedir(flags)
@@ -459,6 +499,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         elseif Sys.isapple(p)
             push!(flags, "-headerpad_max_install_names")
         end
+        sanitize_link_flags!(p, flags)
         return flags
     end
 
@@ -505,16 +546,19 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     clang(io::IO, p::AbstractPlatform)    = clang_wrapper(io, "clang", p)
     clangxx(io::IO, p::AbstractPlatform)  = clang_wrapper(io, "clang++", p)
 
-    # Our general `cc`  points to `gcc` for most systems, but `clang` for MacOS and FreeBSD
+    # Our general `cc`  points to `gcc` for most systems, but `clang` for MacOS and FreeBSD,
+    # unless we're building for msan, which gcc does not support or asan, which gcc does
+    # support, but is claimed to be incompatbile with the LLVM version (that we use for our
+    # JIT-generated code)
     function cc(io::IO, p::AbstractPlatform)
-        if Sys.isbsd(p)
+        if Sys.isbsd(p) || sanitize(p) in ("memory", "address")
             return clang(io, p)
         else
             return gcc(io, p)
         end
     end
     function cxx(io::IO, p::AbstractPlatform)
-        if Sys.isbsd(p)
+        if Sys.isbsd(p) || sanitize(p) in ("memory", "address")
             return clangxx(io, p)
         else
             return gxx(io, p)

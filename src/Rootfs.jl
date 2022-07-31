@@ -469,6 +469,12 @@ function gcc_version(p::AbstractPlatform,GCC_builds::Vector{GCCBuild},
         GCC_builds = filter(b -> getversion(b) ≥ v"5", GCC_builds)
     end
 
+    # Msan uses clang, which emits R_X86_64_REX_GOTPCRELX, and thus requires
+    # binutils >= 2.26.
+    if sanitize(p) in ("memory", "address")
+        GCC_builds = filter(b -> getversion(b) ≥ v"6", GCC_builds)
+    end
+
     # Filter the possible GCC versions depending on the microarchitecture
     if march(p) in ("avx", "avx2", "neonvfpv4")
         # "sandybridge", "haswell", "cortex-a53" introduced in GCC v4.9.0:
