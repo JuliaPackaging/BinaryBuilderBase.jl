@@ -146,3 +146,4 @@ const ARCHITECTURE_FLAGS = Dict(
     ),
 )
 march(p::AbstractPlatform; default=nothing) = get(tags(p), "march", default)
+sanitize(p::AbstractPlatform; default=nothing) = get(tags(p), "sanitize", default)
