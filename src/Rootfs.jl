@@ -471,7 +471,7 @@ function gcc_version(p::AbstractPlatform,GCC_builds::Vector{GCCBuild},
 
     # Msan uses clang, which emits R_X86_64_REX_GOTPCRELX, and thus requires
     # binutils >= 2.26.
-    if sanitize(p) in ("memory", "address")
+    if sanitize(p) in ("memory", "memory_origins", "address")
         GCC_builds = filter(b -> getversion(b) ≥ v"6", GCC_builds)
     end
 

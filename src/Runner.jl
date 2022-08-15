@@ -362,6 +362,8 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         san = sanitize(p)
         if sanitize(p) !== nothing
             if sanitize(p) == "memory"
+                append!(flags, ["-fsanitize=memory"])
+            elseif sanitize(p) == "memory_origins"
                 append!(flags, ["-fsanitize=memory", "-fsanitize-memory-track-origins", "-fno-omit-frame-pointer"])
             elseif sanitize(p) == "address"
                 append!(flags, ["-fsanitize=address"])
@@ -376,6 +378,8 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         if sanitize(p) !== nothing
             if sanitize(p) == "memory"
                 append!(flags, ["-fsanitize=memory"])
+            elseif sanitize(p) == "memory_origins"
+                append!(flags, ["-fsanitize=memory", "-fsanitize-memory-track-origins", "-fno-omit-frame-pointer"])
             elseif sanitize(p) == "address"
                 append!(flags, ["-fsanitize=address"])
             elseif sanitize(p) == "thread"
@@ -551,14 +555,14 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     # support, but is claimed to be incompatbile with the LLVM version (that we use for our
     # JIT-generated code)
     function cc(io::IO, p::AbstractPlatform)
-        if Sys.isbsd(p) || sanitize(p) in ("memory", "address")
+        if Sys.isbsd(p) || sanitize(p) in ("memory", "memory_origins", "address")
             return clang(io, p)
         else
             return gcc(io, p)
         end
     end
     function cxx(io::IO, p::AbstractPlatform)
-        if Sys.isbsd(p) || sanitize(p) in ("memory", "address")
+        if Sys.isbsd(p) || sanitize(p) in ("memory", "memory_origins", "address")
             return clangxx(io, p)
         else
             return gxx(io, p)
