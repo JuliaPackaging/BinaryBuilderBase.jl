@@ -291,7 +291,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
 
         if allow_ccache
             write(io, """
-            if [ \${USE_CCACHE} == "true" ]; then
+            if [[ \${USE_CCACHE} == "true" ]]; then
                 CCACHE="ccache"
             fi
             """)
