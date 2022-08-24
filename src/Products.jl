@@ -222,7 +222,7 @@ function locate(lp::LibraryProduct, prefix::Prefix; platform::AbstractPlatform =
                     end
 
                     # If it does, try to `dlopen()` it if the current platform is good
-                    if (!lp.dont_dlopen && !skip_dlopen) && platforms_match(platform, HostPlatform()) && sanitize(platform) == sanitize(HostPlatform())
+                    if (!lp.dont_dlopen && !skip_dlopen) && platforms_match_with_sanitize(platform, HostPlatform())
                         if isolate
                             # Isolated dlopen is a lot slower, but safer
                             if success(`$(Base.julia_cmd()) --startup-file=no -e "import Libdl; Libdl.dlopen(\"$dl_path\")"`)

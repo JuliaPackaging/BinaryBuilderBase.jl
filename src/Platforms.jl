@@ -31,6 +31,25 @@ function abi_agnostic(p::Platform)
 end
 abi_agnostic(p::AnyPlatform) = p
 
+"""
+    abi_agnostic(p::AbstractPlatform)
+
+Like `abi_agnostic`, but keep the sanitizer ABI tags.
+"""
+function libabi_agnostic(p::Platform)
+    keeps = ("libc", "call_abi", "os_version", "sanitize")
+    filtered_tags = Dict{Symbol,String}(Symbol(k) => v for (k, v) in tags(p) if k ∈ keeps)
+    return Platform(arch(p)::String, os(p)::String; filtered_tags...)
+end
+
+platforms_match_with_sanitize(a::AbstractPlatform, b::AbstractPlatform) =
+    platforms_match(a, b) && sanitize(a) == sanitize(b)
+function platforms_match_with_sanitize(a::AbstractString, b::AbstractPlatform)
+    return platforms_match_with_sanitize(parse(Platform, a), b)
+end
+function platforms_match_with_sanitize(a::AbstractPlatform, b::AbstractString)
+    return platforms_match_with_sanitize(a, parse(Platform, b))
+end
 
 """
     platform_exeext(p::AbstractPlatform)
