@@ -16,6 +16,11 @@ function with_temp_project(f::Function)
     end
 end
 
+# We need to be able to install stdlib JLLs
+if VERSION ≥ v"1.8.0"
+    Pkg.respect_sysimage_versions(false)
+end
+
 @testset "Dependencies" begin
     name = "Foo_jll"
     dep = Dependency(PackageSpec(; name = name); platforms=supported_platforms(; experimental=true, exclude=!Sys.isapple))
@@ -152,7 +157,7 @@ end
             else
                 ["Zlib.log.gz"]
             end
-            zlib_log_dir = if VERSION ≥ v"1.9.0-"
+            zlib_log_dir = if VERSION ≥ v"1.8.0"
                 joinpath(destdir(dir, platform), "logs", "Zlib")
             else
                 joinpath(destdir(dir, platform), "logs")
@@ -162,10 +167,10 @@ end
             # Make sure the directories are emptied by `cleanup_dependencies`
             @test_nowarn cleanup_dependencies(prefix, ap, platform)
             @test readdir(joinpath(destdir(dir, platform), "include")) == []
-            # Since Julia v1.9 we use builds of Zlib which have logs in
+            # Since Julia v1.8 we use builds of Zlib which have logs in
             # subdirectories of `${prefix}/logs`, so those subdirectories are
             # left there empty, cannot be removed by `cleanup_dependencies`.
-            @test readdir(joinpath(destdir(dir, platform), "logs")) == [] broken=VERSION≥v"1.9.0-"
+            @test readdir(joinpath(destdir(dir, platform), "logs")) == [] broken=VERSION≥v"1.8.0"
         end
 
         # Setup a dependency of a JLL package which is also a standard library
@@ -184,11 +189,11 @@ end
             @test_nowarn cleanup_dependencies(prefix, ap, platform)
             # This shuld be empty, but the `curl/` directory is left here, empty
             @test readdir(joinpath(destdir(dir, platform), "include")) == [] broken=true
-            # Since Julia v1.9 we use builds of LibCURL and its dependencies which have logs
+            # Since Julia v1.8 we use builds of LibCURL and its dependencies which have logs
             # in subdirectories of `${prefix}/logs`, so we have the same problem as above:
             # those subdirectories are left there empty, cannot be removed by
             # `cleanup_dependencies`.
-            @test readdir(joinpath(destdir(dir, platform), "logs")) == [] broken=VERSION≥v"1.9.0-DEV"
+            @test readdir(joinpath(destdir(dir, platform), "logs")) == [] broken=VERSION≥v"1.8.0"
         end
 
         # Setup a dependency that doesn't have a mapping for the given platform

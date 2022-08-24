@@ -30,6 +30,10 @@ jobs:
 
           - runner: privileged
             squashfs: true
+            julia-version: "1.8"
+
+          - runner: privileged
+            squashfs: true
             julia-version: "nightly"
 
           # Add a job that uses the unprivileged builder with unpacked shards
