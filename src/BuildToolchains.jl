@@ -234,7 +234,7 @@ function generate_toolchain_files!(platform::AbstractPlatform, envs::Dict{String
         symlink_if_exists(target, link) = ispath(joinpath(dir, target)) && symlink(target, link)
 
         # On FreeBSD and MacOS we actually want to default to clang, otherwise gcc
-        if Sys.isbsd(p)
+        if Sys.isbsd(p) || sanitize(p) in ("memory", "address")
             symlink_if_exists("host_$(aatriplet(p))_clang.cmake", joinpath(dir, "host_$(aatriplet(p)).cmake"))
             symlink_if_exists("host_$(aatriplet(p))_clang.meson", joinpath(dir, "host_$(aatriplet(p)).meson"))
             symlink_if_exists("target_$(aatriplet(p))_clang.cmake", joinpath(dir, "target_$(aatriplet(p)).cmake"))
