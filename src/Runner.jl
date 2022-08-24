@@ -137,6 +137,10 @@ function macos_version(p::AbstractPlatform)
     return macos_version(version.major)
 end
 
+# Platforms for which Clang should be the default compiler.
+prefer_clang(p::AbstractPlatform) =
+    Sys.isbsd(p) || sanitize(p) in ("memory", "memory_origins", "address")
+
 """
     generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::AbstractString,
                                 host_platform::AbstractPlatform = $(repr(default_host_platform)),
@@ -555,14 +559,14 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     # support, but is claimed to be incompatbile with the LLVM version (that we use for our
     # JIT-generated code)
     function cc(io::IO, p::AbstractPlatform)
-        if Sys.isbsd(p) || sanitize(p) in ("memory", "memory_origins", "address")
+        if prefer_clang(p)
             return clang(io, p)
         else
             return gcc(io, p)
         end
     end
     function cxx(io::IO, p::AbstractPlatform)
-        if Sys.isbsd(p) || sanitize(p) in ("memory", "memory_origins", "address")
+        if prefer_clang(p)
             return clangxx(io, p)
         else
             return gxx(io, p)

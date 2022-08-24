@@ -1,6 +1,6 @@
 using Test
 using BinaryBuilderBase
-using BinaryBuilderBase: platform_dlext, platform_exeext
+using BinaryBuilderBase: platform_dlext, platform_exeext, prefer_clang
 using Pkg
 
 @testset "Wrappers utilities" begin
@@ -25,6 +25,12 @@ using Pkg
     @test platform_exeext(Platform("x86_64", "linux"; march="avx512")) == ""
 
     @test aatriplet(Platform("x86_64", "linux"; libc="glibc", libgfortran_version=v"4.0.0", march="avx", cuda="9.2")) == "x86_64-linux-gnu"
+
+    @test prefer_clang(Platform("x86_64", "freebsd"))
+    @test prefer_clang(Platform("aarch64", "macos"))
+    @test !prefer_clang(Platform("x86_64", "linux"))
+    @test prefer_clang(Platform("x86_64", "linux"; sanitize="memory"))
+    @test !prefer_clang(Platform("x86_64", "linux"; sanitize="thread"))
 end
 
 # Are we using docker? If so, test that the docker runner works...
