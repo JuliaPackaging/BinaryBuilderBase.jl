@@ -143,7 +143,7 @@ end
             @test run(ur, cmd, iobuff; tee_stream=devnull) broken=Sys.iswindows(platform)
             seekstart(iobuff)
             output = String(read(iobuff))
-            @test ("error" in output || "warning" in output) broken=Sys.iswindows(platform)
+            @test (occursin("error", output) || occursin("warning", output)) broken=Sys.iswindows(platform)
         end
     end
 
