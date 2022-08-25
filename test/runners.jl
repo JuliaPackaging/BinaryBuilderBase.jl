@@ -142,7 +142,8 @@ end
             cmd = `/bin/bash -c "$(test_script)"`
             @test run(ur, cmd, iobuff; tee_stream=devnull) broken=Sys.iswindows(platform)
             seekstart(iobuff)
-            @test split(String(read(iobuff)), "\n")[2] == "" broken=Sys.iswindows(platform)
+            output = String(read(iobuff))
+            @test ("error" in output || "warning" in output) broken=Sys.iswindows(platform)
         end
     end
 
