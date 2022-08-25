@@ -140,10 +140,10 @@ end
             clang -Werror -shared test.c -o test.\${dlext}
             """
             cmd = `/bin/bash -c "$(test_script)"`
-            @test run(ur, cmd, iobuff; tee_stream=devnull) broken=Sys.iswindows(platform)
+            @test run(ur, cmd, iobuff; tee_stream=devnull) broken=platform in [Platform("armv7l", "linux", "musl"), Platform("armv6l", "linux", "musl")]
             seekstart(iobuff)
             output = String(read(iobuff))
-            @test (occursin("error", output) || occursin("warning", output)) broken=Sys.iswindows(platform)
+            @test (occursin("error", output) || occursin("warning", output)) broken=platform in [Platform("armv7l", "linux", "musl"), Platform("armv6l", "linux", "musl")]
         end
     end
 
@@ -370,6 +370,3 @@ end
         end
     end
 end
-
-
-
