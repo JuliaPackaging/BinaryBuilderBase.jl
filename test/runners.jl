@@ -123,6 +123,29 @@ end
         end
     end
 
+    # Test that we get no warnings when compiling without linking and when building a shared lib with clang
+    @testset "Clang - $(platform)" for platform in platforms
+        mktempdir() do dir
+            ur = preferred_runner()(dir; platform=platform)
+            iobuff = IOBuffer()
+            test_c = """
+            int test(void) {
+                return 0;
+            }
+            """
+            test_script = """
+            set -e
+            echo '$(test_c)' > test.c
+            clang -Werror -c test.c
+            clang -Werror -shared test.c -o test.\${dlext}
+            """
+            cmd = `/bin/bash -c "$(test_script)"`
+            @test run(ur, cmd, iobuff; tee_stream=devnull) broken=Sys.iswindows(platform)
+            seekstart(iobuff)
+            @test split(String(read(iobuff)), "\n")[2] == "" broken=Sys.iswindows(platform)
+        end
+    end
+
     # This tests only that compilers for all platforms can build a simple C program
     # TODO: for the time being we only test `cc`, eventually we want to run `gcc` and `clang` separately
     @testset "Compilation - $(platform) - $(compiler)" for platform in platforms, compiler in ("cc",)
@@ -347,26 +370,5 @@ end
     end
 end
 
-# Test that we get no warnings when compiling without linking and when building a shared lib with clang
-@testset "Clang - $(platform)" for platform in platforms
-    mktempdir() do dir
-        ur = preferred_runner()(dir; platform=platform)
-        iobuff = IOBuffer()
-        test_c = """
-        int test(void) {
-            return 0;
-        }
-        """
-        test_script = """
-        set -e
-        echo '$(test_c)' > test.c
-        clang -Werror -c test.c
-        clang -Werror -shared test.c -o test.\${dlext}
-        """
-        cmd = `/bin/bash -c "$(test_script)"`
-        @test run(ur, cmd, iobuff; tee_stream=devnull) broken=Sys.iswindows(platform)
-        seekstart(iobuff)
-        @test split(String(read(iobuff)), "\n")[2] == "" broken=Sys.iswindows(platform)
-    end
-end
+
 
