@@ -346,3 +346,27 @@ end
         end
     end
 end
+
+# Test that we get no warnings when compiling without linking and when building a shared lib with clang
+@testset "Clang - $(platform)" for platform in platforms
+    mktempdir() do dir
+        ur = preferred_runner()(dir; platform=platform)
+        iobuff = IOBuffer()
+        test_c = """
+        int test(void) {
+            return 0;
+        }
+        """
+        test_script = """
+        set -e
+        echo '$(test_c)' > test.c
+        clang -Werror -c test.c
+        clang -Werror -shared test.c -o test.\${dlext}
+        """
+        cmd = `/bin/bash -c "$(test_script)"`
+        @test run(ur, cmd, iobuff; tee_stream=devnull)
+        seekstart(iobuff)
+        @test broken=Sys.iswindows(platform) split(String(read(iobuff)), "\n")[2] == "" #TODO: Windows ;-|
+    end
+end
+

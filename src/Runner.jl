@@ -331,10 +331,6 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             append!(flags, [
                 # Find GCC toolchain here (for things like libgcc_s)
                 "--gcc-toolchain=/opt/$(aatriplet(p))"
-                # Use libgcc as the C runtime library
-                "-rtlib=libgcc"
-                # Use libstdc++ as the C++ runtime library
-                "-stdlib=libstdc++"
             ])
         end
         return flags
@@ -424,7 +420,14 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         if Sys.isbsd(p)
             push!(flags, "-L/opt/$(aatriplet(p))/$(aatriplet(p))/lib")
         end
-
+        if !Sys.isbsd(p)
+            append!(flags, [
+                # Use libgcc as the C runtime library
+                "-rtlib=libgcc"
+                # Use libstdc++ as the C++ runtime library
+                "-stdlib=libstdc++"
+            ])
+        end
         # we want to use a particular linker with clang.  But we want to avoid warnings about unused
         # flags when just compiling, so we put it into "linker-only flags".
         push!(flags, "-fuse-ld=$(aatriplet(p))")
