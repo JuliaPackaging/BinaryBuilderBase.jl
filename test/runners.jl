@@ -126,6 +126,7 @@ end
     # Test that we get no warnings when compiling without linking and when building a shared lib with clang
     @testset "Clang - $(platform)" for platform in platforms
         mktempdir() do dir
+            is_broken = platform in [Platform("armv7l", "linux"; libc="musl"), Platform("armv6l", "linux"; libc="musl")]
             ur = preferred_runner()(dir; platform=platform)
             iobuff = IOBuffer()
             test_c = """
@@ -140,10 +141,10 @@ end
             clang -Werror -shared test.c -o test.\${dlext}
             """
             cmd = `/bin/bash -c "$(test_script)"`
-            @test run(ur, cmd, iobuff; tee_stream=devnull) broken=platform in [Platform("armv7l", "linux"; libc="musl"), Platform("armv6l", "linux"; libc="musl")]
+            @test run(ur, cmd, iobuff; tee_stream=devnull) broken=is_broken
             seekstart(iobuff)
             output = String(read(iobuff))
-            @test (occursin("error", output) || occursin("warning", output)) broken=platform in [Platform("armv7l", "linux", "musl"), Platform("armv6l", "linux", "musl")]
+            @test (occursin("error", output) || occursin("warning", output)) broken=is_broken
         end
     end
 
