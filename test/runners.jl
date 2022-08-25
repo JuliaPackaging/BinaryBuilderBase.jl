@@ -143,9 +143,6 @@ end
             """
             cmd = `/bin/bash -c "$(test_script)"`
             @test run(ur, cmd, iobuff; tee_stream=devnull) broken=is_broken
-            seekstart(iobuff)
-            output = String(read(iobuff))
-            @test (occursin("error", output) || occursin("warning", output)) skip=is_broken
         end
     end
 
