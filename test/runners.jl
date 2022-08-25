@@ -364,9 +364,9 @@ end
         clang -Werror -shared test.c -o test.\${dlext}
         """
         cmd = `/bin/bash -c "$(test_script)"`
-        @test run(ur, cmd, iobuff; tee_stream=devnull)
+        @test run(ur, cmd, iobuff; tee_stream=devnull) broken=Sys.iswindows(platform)
         seekstart(iobuff)
-        @test broken=Sys.iswindows(platform) split(String(read(iobuff)), "\n")[2] == "" #TODO: Windows ;-|
+        @test split(String(read(iobuff)), "\n")[2] == "" broken=Sys.iswindows(platform)
     end
 end
 
