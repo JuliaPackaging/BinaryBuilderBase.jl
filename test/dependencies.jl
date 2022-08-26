@@ -209,6 +209,11 @@ end
             @test "destdir" ∉ readdir(dirname(destdir(dir, platform)))
         end
 
+        # Some tests are broken on nightly because of
+        # https://github.com/JuliaLang/Pkg.jl/issues/3170 and
+        # https://github.com/JuliaLang/Pkg.jl/issues/3181
+        nightly_broken = VERSION ≥ v"1.9.0-DEV"
+
         # Test setup of dependencies that depend on the Julia version
         with_temp_project() do dir
             prefix = Prefix(dir)
@@ -216,8 +221,8 @@ end
             platform = Platform("x86_64", "linux"; julia_version=v"1.5")
 
             # Test that a particular version of GMP is installed
-            @test_logs setup_dependencies(prefix, getpkg.(dependencies), platform)
-            @test isfile(joinpath(destdir(dir, platform), "lib", "libgmp.so.10.3.2"))
+            @test !isempty(setup_dependencies(prefix, getpkg.(dependencies), platform)) broken=nightly_broken # restore @test_logs when not broken anymore
+            @test isfile(joinpath(destdir(dir, platform), "lib", "libgmp.so.10.3.2")) broken=nightly_broken
         end
 
         # Next, test on Julia v1.6
@@ -241,7 +246,7 @@ end
 
             # Test that this is not instantiatable with either Julia v1.5 or v1.6
             platform = Platform("x86_64", "linux"; julia_version=v"1.5")
-            @test_throws Pkg.Resolve.ResolverError setup_dependencies(prefix, getpkg.(dependencies), platform)
+            @test_throws (nightly_broken ? AssertionError : Pkg.Resolve.ResolverError) setup_dependencies(prefix, getpkg.(dependencies), platform)
             platform = Platform("x86_64", "linux"; julia_version=v"1.6")
             @test_throws Pkg.Resolve.ResolverError setup_dependencies(prefix, getpkg.(dependencies), platform)
 
