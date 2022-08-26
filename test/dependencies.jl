@@ -152,7 +152,7 @@ end
             else
                 ["Zlib.log.gz"]
             end
-            zlib_log_dir = if VERSION ≥ v"1.9.0-"
+            zlib_log_dir = if VERSION ≥ v"1.8.0"
                 joinpath(destdir(dir, platform), "logs", "Zlib")
             else
                 joinpath(destdir(dir, platform), "logs")
@@ -162,10 +162,10 @@ end
             # Make sure the directories are emptied by `cleanup_dependencies`
             @test_nowarn cleanup_dependencies(prefix, ap, platform)
             @test readdir(joinpath(destdir(dir, platform), "include")) == []
-            # Since Julia v1.9 we use builds of Zlib which have logs in
+            # Since Julia v1.8 we use builds of Zlib which have logs in
             # subdirectories of `${prefix}/logs`, so those subdirectories are
             # left there empty, cannot be removed by `cleanup_dependencies`.
-            @test readdir(joinpath(destdir(dir, platform), "logs")) == [] broken=VERSION≥v"1.9.0-"
+            @test readdir(joinpath(destdir(dir, platform), "logs")) == [] broken=VERSION≥v"1.8.0"
         end
 
         # Setup a dependency of a JLL package which is also a standard library
@@ -184,11 +184,11 @@ end
             @test_nowarn cleanup_dependencies(prefix, ap, platform)
             # This shuld be empty, but the `curl/` directory is left here, empty
             @test readdir(joinpath(destdir(dir, platform), "include")) == [] broken=true
-            # Since Julia v1.9 we use builds of LibCURL and its dependencies which have logs
+            # Since Julia v1.8 we use builds of LibCURL and its dependencies which have logs
             # in subdirectories of `${prefix}/logs`, so we have the same problem as above:
             # those subdirectories are left there empty, cannot be removed by
             # `cleanup_dependencies`.
-            @test readdir(joinpath(destdir(dir, platform), "logs")) == [] broken=VERSION≥v"1.9.0-DEV"
+            @test readdir(joinpath(destdir(dir, platform), "logs")) == [] broken=VERSION≥v"1.8.0"
         end
 
         # Setup a dependency that doesn't have a mapping for the given platform
@@ -204,6 +204,11 @@ end
             @test "destdir" ∉ readdir(dirname(destdir(dir, platform)))
         end
 
+        # Some tests are broken on nightly because of
+        # https://github.com/JuliaLang/Pkg.jl/issues/3170 and
+        # https://github.com/JuliaLang/Pkg.jl/issues/3181
+        nightly_broken = VERSION ≥ v"1.9.0-DEV"
+
         # Test setup of dependencies that depend on the Julia version
         with_temp_project() do dir
             prefix = Prefix(dir)
@@ -211,8 +216,8 @@ end
             platform = Platform("x86_64", "linux"; julia_version=v"1.5")
 
             # Test that a particular version of GMP is installed
-            @test_logs setup_dependencies(prefix, getpkg.(dependencies), platform)
-            @test isfile(joinpath(destdir(dir, platform), "lib", "libgmp.so.10.3.2"))
+            @test !isempty(setup_dependencies(prefix, getpkg.(dependencies), platform)) broken=nightly_broken # restore @test_logs when not broken anymore
+            @test isfile(joinpath(destdir(dir, platform), "lib", "libgmp.so.10.3.2")) broken=nightly_broken
         end
 
         # Next, test on Julia v1.6
@@ -236,7 +241,7 @@ end
 
             # Test that this is not instantiatable with either Julia v1.5 or v1.6
             platform = Platform("x86_64", "linux"; julia_version=v"1.5")
-            @test_throws Pkg.Resolve.ResolverError setup_dependencies(prefix, getpkg.(dependencies), platform)
+            @test_throws (nightly_broken ? AssertionError : Pkg.Resolve.ResolverError) setup_dependencies(prefix, getpkg.(dependencies), platform)
             platform = Platform("x86_64", "linux"; julia_version=v"1.6")
             @test_throws Pkg.Resolve.ResolverError setup_dependencies(prefix, getpkg.(dependencies), platform)
 
