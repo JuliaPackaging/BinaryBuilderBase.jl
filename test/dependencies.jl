@@ -16,11 +16,6 @@ function with_temp_project(f::Function)
     end
 end
 
-# We need to be able to install stdlib JLLs
-if VERSION ≥ v"1.8.0"
-    Pkg.respect_sysimage_versions(false)
-end
-
 @testset "Dependencies" begin
     name = "Foo_jll"
     dep = Dependency(PackageSpec(; name = name); platforms=supported_platforms(; experimental=true, exclude=!Sys.isapple))

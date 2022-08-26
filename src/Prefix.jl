@@ -542,9 +542,9 @@ function get_addable_spec(name::AbstractString, version::VersionNumber;
     )
 end
 
-# Helper function to install packages also in Julia v1.9
+# Helper function to install packages also in Julia v1.8
 function Pkg_add(args...; kwargs...)
-    if VERSION < v"1.9.0-DEV"
+    @static if VERSION < v"1.8.0"
         Pkg.add(args...; kwargs...)
     else
         try
