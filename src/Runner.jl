@@ -321,20 +321,10 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             # Set our sysroot to the platform-specific location, dropping compiler ABI annotations
             "--sysroot=/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root",
         ])
-        # For MacOS and FreeBSD, we don't set `-rtlib`, and FreeBSD is special-cased within the LLVM source tree
-        # to not allow for -gcc-toolchain, which means that we have to manually add the location of libgcc_s.  LE SIGH.
-        # We do that within `clang_linker_flags()`, so that we don't get "unused argument" warnings all over the place.
-        # https://github.com/llvm-mirror/clang/blob/f3b7928366f63b51ffc97e74f8afcff497c57e8d/lib/Driver/ToolChains/FreeBSD.cpp
-        # For everything else, we provide `-rtlib=libgcc` because clang-builtins are broken (pending Valentin-based-magic),
-        # and we also need to provide `-stdlib=libstdc++` to match Julia on these platforms.
         if !Sys.isbsd(p)
             append!(flags, [
                 # Find GCC toolchain here (for things like libgcc_s)
                 "--gcc-toolchain=/opt/$(aatriplet(p))"
-                # Use libgcc as the C runtime library
-                "-rtlib=libgcc"
-                # Use libstdc++ as the C++ runtime library
-                "-stdlib=libstdc++"
             ])
         end
         return flags
@@ -424,7 +414,20 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         if Sys.isbsd(p)
             push!(flags, "-L/opt/$(aatriplet(p))/$(aatriplet(p))/lib")
         end
-
+        # For MacOS and FreeBSD, we don't set `-rtlib`, and FreeBSD is special-cased within the LLVM source tree
+        # to not allow for -gcc-toolchain, which means that we have to manually add the location of libgcc_s.  LE SIGH.
+        # We do that here, so that we don't get "unused argument" warnings all over the place.
+        # https://github.com/llvm-mirror/clang/blob/f3b7928366f63b51ffc97e74f8afcff497c57e8d/lib/Driver/ToolChains/FreeBSD.cpp
+        # For everything else, we provide `-rtlib=libgcc` because clang-builtins are broken (pending Valentin-based-magic),
+        # and we also need to provide `-stdlib=libstdc++` to match Julia on these platforms.
+        if !Sys.isbsd(p)
+            append!(flags, [
+                # Use libgcc as the C runtime library
+                "-rtlib=libgcc"
+                # Use libstdc++ as the C++ runtime library
+                "-stdlib=libstdc++"
+            ])
+        end
         # we want to use a particular linker with clang.  But we want to avoid warnings about unused
         # flags when just compiling, so we put it into "linker-only flags".
         push!(flags, "-fuse-ld=$(aatriplet(p))")
