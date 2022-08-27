@@ -568,6 +568,16 @@ to modify the dependent artifact files, and (c) keeping a record of what files a
 dependencies as opposed to the package being built, in the form of symlinks to a specific artifacts
 directory.
 """
+# During installation of the artifacts we may want to enforce the platform has specific
+# properties, for example a non-empty "sanitize" tag.
+function normalize_platform(p::Platform)
+    new_p = deepcopy(p)
+    new_p["sanitize"] = get(new_p.tags, "sanitize", "none")
+    return new_p
+end
+# Fallback for other types, like `AnyPlatform`.
+normalize_platform(p::AbstractPlatform) = p
+
 function setup_dependencies(prefix::Prefix,
                             dependencies::Vector{PkgSpec},
                             platform::AbstractPlatform;
@@ -678,12 +688,13 @@ function setup_dependencies(prefix::Prefix,
 
             # If the artifact is available for the given platform, make sure it
             # is also installed.  It may not be the case for lazy artifacts or stdlibs.
-            meta = artifact_meta(name[1:end-4], artifacts_toml; platform=platform)
+            normalized_platform = normalize_platform(platform)
+            meta = artifact_meta(name[1:end-4], artifacts_toml; platform=normalized_platform)
             if meta === nothing
                 @warn("Dependency $(name) does not have a mapping for artifact $(name[1:end-4]) for platform $(triplet(platform))")
                 continue
             end
-            ensure_artifact_installed(name[1:end-4], meta, artifacts_toml; platform=platform)
+            ensure_artifact_installed(name[1:end-4], meta, artifacts_toml; platform=normalized_platform)
 
             # Copy the artifact from the global installation location into this build-specific artifacts collection
             src_path = Pkg.Artifacts.artifact_path(Base.SHA1(meta["git-tree-sha1"]))
