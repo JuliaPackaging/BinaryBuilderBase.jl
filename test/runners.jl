@@ -126,8 +126,8 @@ end
     # Test that we get no warnings when compiling without linking and when building a shared lib with clang
     @testset "Clang - $(platform)" for platform in platforms
         mktempdir() do dir
-            is_broken = platform in [Platform("armv7l", "linux"; libc="musl"), Platform("armv6l", "linux"; libc="musl"),#https://github.com/JuliaPackaging/BinaryBuilderBase.jl/issues/262
-                                     Platform("i686", "windows"), Platform("x86_64", "windows")]#https://github.com/JuliaPackaging/BinaryBuilderBase.jl/issues/248
+            #https://github.com/JuliaPackaging/BinaryBuilderBase.jl/issues/248
+            is_broken = Sys.iswindows(platform)
             ur = preferred_runner()(dir; platform=platform)
             iobuff = IOBuffer()
             test_c = """
