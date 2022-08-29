@@ -4,6 +4,7 @@ using BinaryBuilderBase
 using BinaryBuilderBase: getname, getpkg, dependencify, destdir, PKG_VERSIONS, get_addable_spec, cached_git_clone
 using JSON
 using LibGit2
+using ObjectFile
 
 # Define equality between dependencies, in order to carry out the tests below
 Base.:(==)(a::AbstractDependency, b::AbstractDependency) = getpkg(a) == getpkg(b)
@@ -287,6 +288,40 @@ end
             platform = Platform("x86_64", "linux"; libc="glibc")
             @test_logs setup_dependencies(prefix, dependencies, platform)
             @test readdir(joinpath(destdir(dir, platform), "bin")) == ["hello_world"]
+        end
+
+        @testset "Sanitize" begin
+            with_temp_project() do dir
+                prefix = Prefix(dir)
+                dependencies = [
+                    get_addable_spec("Zlib_jll", v"1.2.12+4")
+                ]
+                platform = Platform("x86_64", "linux")
+                @test_logs setup_dependencies(prefix, dependencies, platform)
+                readmeta(joinpath(destdir(dir, platform), "lib", "libz.so")) do oh
+                    symbols = symbol_name.(Symbols(oh))
+                    # The platform didn't specify the sanitizer, the library shouldn't contain
+                    # "asan", "msan", or "tsan" symbols
+                    @test !any(contains("asan_"), symbols)
+                    @test !any(contains("msan_"), symbols)
+                    @test !any(contains("tsan_"), symbols)
+                end
+            end
+            with_temp_project() do dir
+                prefix = Prefix(dir)
+                dependencies = [
+                    get_addable_spec("Zlib_jll", v"1.2.12+4")
+                ]
+                platform = Platform("x86_64", "linux"; sanitize="memory")
+                @test_logs setup_dependencies(prefix, dependencies, platform)
+                readmeta(joinpath(destdir(dir, platform), "lib", "libz.so")) do oh
+                    symbols = symbol_name.(Symbols(oh))
+                    # Make sure the library contains only "msan" symbols
+                    @test !any(contains("asan_"), symbols)
+                    @test any(contains("msan_"), symbols)
+                    @test !any(contains("tsan_"), symbols)
+                end
+            end
         end
     end
 end

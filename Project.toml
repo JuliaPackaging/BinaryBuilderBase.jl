@@ -38,7 +38,8 @@ Tar = "1.7"
 julia = "1.7"
 
 [extras]
+ObjectFile = "d8793406-e978-5875-9003-1fc021f44a92"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test"]
+test = ["ObjectFile", "Test"]
