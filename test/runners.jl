@@ -123,38 +123,42 @@ end
         end
     end
 
-    # Test that we get no warnings when compiling without linking and when building a shared lib with clang
-    @testset "Clang - $(platform)" for platform in platforms
+    # This tests only that compilers for all platforms can build and link simple C code
+    @testset "Compilation - $(platform) - $(compiler)" for platform in platforms, compiler in ("cc", "gcc", "clang")
         mktempdir() do dir
-            #https://github.com/JuliaPackaging/BinaryBuilderBase.jl/issues/248
-            is_broken = Sys.iswindows(platform)
+            # https://github.com/JuliaPackaging/BinaryBuilderBase.jl/issues/248
+            is_broken = compiler == "clang" && Sys.iswindows(platform)
             ur = preferred_runner()(dir; platform=platform)
             iobuff = IOBuffer()
             test_c = """
-            int test(void) {
-                return 0;
+                int test(void) {
+                    return 0;
+                }
+                """
+            main_c = """
+            int test(void);
+            int main(void) {
+                return test();
             }
             """
             test_script = """
-            set -e
-            echo '$(test_c)' > test.c
-            clang -Werror -c test.c
-            clang -Werror -shared test.c -o test.\${dlext}
-            """
+                set -e
+                echo '$(test_c)' > test.c
+                echo '$(main_c)' > main.c
+                # Build object file
+                $(compiler) -Werror -c test.c -o test.o
+                # Build shared library
+                $(compiler) -Werror -shared test.c -o libtest.\${dlext}
+                # Build and link program with object file
+                $(compiler) -Werror -o main main.c test.o
+                # Build and link program with shared library
+                $(compiler) -Werror -o main main.c -L. -ltest
+                """
             cmd = `/bin/bash -c "$(test_script)"`
             @test run(ur, cmd, iobuff; tee_stream=devnull) broken=is_broken
-        end
-    end
-
-    # This tests only that compilers for all platforms can build a simple C program
-    # TODO: for the time being we only test `cc`, eventually we want to run `gcc` and `clang` separately
-    @testset "Compilation - $(platform) - $(compiler)" for platform in platforms, compiler in ("cc",)
-        mktempdir() do dir
-            ur = preferred_runner()(dir; platform=platform)
-            iobuff = IOBuffer()
-            @test run(ur, `/bin/bash -c "echo 'int main() {return 0;}' | $(compiler) -x c -"`, iobuff; tee_stream=devnull)
             seekstart(iobuff)
-            @test split(String(read(iobuff)), "\n")[2] == ""
+            # Make sure `iobuff` contains only the input command, no other text
+            @test readchomp(iobuff) == string(cmd) broken=is_broken
         end
     end
 
