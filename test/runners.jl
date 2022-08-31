@@ -162,6 +162,48 @@ end
         end
     end
 
+    # This tests only that compilers for all platforms can build and link simple C++ code
+    @testset "Compilation - $(platform) - $(compiler)" for platform in platforms, compiler in ("c++", "g++", "clang++")
+        mktempdir() do dir
+            # https://github.com/JuliaPackaging/BinaryBuilderBase.jl/issues/248
+            is_broken = compiler == "clang++" && Sys.iswindows(platform)
+            ur = preferred_runner()(dir; platform=platform)
+            iobuff = IOBuffer()
+            test_cpp = """
+                #include <complex>
+                std::complex<double> add(std::complex<double> a, std::complex<double> b) {
+                    return a + b;
+                }
+                """
+            main_cpp = """
+                #include <complex>
+                std::complex<double> add(std::complex<double> a, std::complex<double> b);
+                int main(void) {
+                    std::complex<double> z3 = add(std::complex<double>(1.,2.),std::complex<double>(4.,2.));
+                    return 0;
+                }
+            """
+            test_script = """
+                set -e
+                echo '$(test_cpp)' > test.cpp
+                echo '$(main_cpp)' > main.cpp
+                # Build object file
+                $(compiler) -Werror -c test.cpp -o test.o
+                # Build shared library
+                $(compiler) -Werror -shared test.cpp -o libtest.\${dlext}
+                # Build and link program with object file
+                $(compiler) -Werror -o main main.cpp test.o
+                # Build and link program with shared library
+                $(compiler)
+                """
+            cmd = `/bin/bash -c "$(test_script)"`
+            @test run(ur, cmd, iobuff; tee_stream=devnull) broken=is_broken
+            seekstart(iobuff)
+            # Make sure `iobuff` contains only the input command, no other text
+            @test readchomp(iobuff) == string(cmd) broken=is_broken
+        end
+    end
+
     # This tests that compilers for all Intel Linux platforms can build simple
     # C, C++, Fortran programs that we can also run
     @testset "Compilation and running" begin

@@ -313,7 +313,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     # Should probably be fixed upstream, but will do for now
     clang_target_triplet(p::AbstractPlatform) = replace(aatriplet(p), "aarch64" => "arm64")
 
-    function clang_flags!(p::AbstractPlatform, flags::Vector{String} = String[])
+    function clang_flags!(p::AbstractPlatform, flags::Vector{String} = String[]; iscxx::Bool = false)
         # Focus the clang targeting laser
         append!(flags, [
             # Set the `target` for `clang` so it generates the right kind of code
@@ -325,6 +325,11 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             append!(flags, [
                 # Find GCC toolchain here (for things like libgcc_s)
                 "--gcc-toolchain=/opt/$(aatriplet(p))"
+            ])
+            if iscxx
+                append!(flags, [
+                # Link with libstdc++ when compiling c++ on non-BSDs
+                "-stdlib=libstdc++"
             ])
         end
         return flags
@@ -424,8 +429,6 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             append!(flags, [
                 # Use libgcc as the C runtime library
                 "-rtlib=libgcc"
-                # Use libstdc++ as the C++ runtime library
-                "-stdlib=libstdc++"
             ])
         end
         # we want to use a particular linker with clang.  But we want to avoid warnings about unused
@@ -536,8 +539,8 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         )
     end
 
-    function clang_wrapper(io::IO, tool::String, p::AbstractPlatform)
-        flags = clang_flags!(p)
+    function clang_wrapper(io::IO, tool::String, p::AbstractPlatform, iscxx::Bool)
+        flags = clang_flags!(p, iscxx=iscxx)
         return wrapper(io,
             "/opt/$(host_target)/bin/$(tool)";
             flags=flags,
@@ -554,8 +557,8 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     gxx(io::IO, p::AbstractPlatform)      = gcc_wrapper(io, "g++", p)
     gfortran(io::IO, p::AbstractPlatform) = gcc_wrapper(io, "gfortran", p, false)
 
-    clang(io::IO, p::AbstractPlatform)    = clang_wrapper(io, "clang", p)
-    clangxx(io::IO, p::AbstractPlatform)  = clang_wrapper(io, "clang++", p)
+    clang(io::IO, p::AbstractPlatform)    = clang_wrapper(io, "clang", p, false)
+    clangxx(io::IO, p::AbstractPlatform)  = clang_wrapper(io, "clang++", p, true)
 
     # Our general `cc`  points to `gcc` for most systems, but `clang` for MacOS and FreeBSD,
     # unless we're building for msan, which gcc does not support or asan, which gcc does
