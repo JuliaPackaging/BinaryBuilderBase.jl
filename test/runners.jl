@@ -194,7 +194,7 @@ end
                 # Build and link program with object file
                 $(compiler) -Werror -o main main.cpp test.o
                 # Build and link program with shared library
-                $(compiler)
+                $(compiler) -Werror -o main main.cpp -L. -ltest
                 """
             cmd = `/bin/bash -c "$(test_script)"`
             @test run(ur, cmd, iobuff; tee_stream=devnull) broken=is_broken
