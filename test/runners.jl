@@ -169,6 +169,7 @@ end
             is_broken = compiler == "clang++" && Sys.iswindows(platform)
             ur = preferred_runner()(dir; platform=platform)
             iobuff = IOBuffer()
+            needfpic = Sys.iswindows(platform) ? "" : "-fPIC"
             test_cpp = """
                 #include <complex>
                 std::complex<double> add(std::complex<double> a, std::complex<double> b) {
@@ -190,7 +191,7 @@ end
                 # Build object file
                 $(compiler) -Werror -std=c++11 -c test.cpp -o test.o
                 # Build shared library
-                $(compiler) -Werror -std=c++11 -fPIC -shared test.cpp -o libtest.\${dlext}
+                $(compiler) -Werror -std=c++11 $(needfpic) -shared test.cpp -o libtest.\${dlext}
                 # Build and link program with object file
                 $(compiler) -Werror -std=c++11 -o main main.cpp test.o
                 # Build and link program with shared library
