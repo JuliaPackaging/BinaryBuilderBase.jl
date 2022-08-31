@@ -190,7 +190,7 @@ end
                 # Build object file
                 $(compiler) -Werror -std=c++11 -c test.cpp -o test.o
                 # Build shared library
-                $(compiler) -Werror -std=c++11 -shared test.cpp -o libtest.\${dlext}
+                $(compiler) -Werror -std=c++11 -fPIC -shared test.cpp -o libtest.\${dlext}
                 # Build and link program with object file
                 $(compiler) -Werror -std=c++11 -o main main.cpp test.o
                 # Build and link program with shared library
