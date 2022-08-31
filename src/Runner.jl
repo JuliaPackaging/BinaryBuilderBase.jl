@@ -328,7 +328,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             ])
             if iscxx
                 append!(flags, [
-                # Link with libstdc++ when compiling c++ on non-BSDs
+                    # Link with libstdc++ when compiling c++ on non-BSDs
                     "-stdlib=libstdc++"
             ])
             end

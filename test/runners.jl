@@ -201,6 +201,7 @@ end
             @test run(ur, cmd, iobuff; tee_stream=devnull) broken=is_broken
             seekstart(iobuff)
             # Make sure `iobuff` contains only the input command, no other text
+            is_broken = is_broken || (compiler == "g++" && Sys.isapple(platform) && arch(platform) == "x86_64")
             @test readchomp(iobuff) == string(cmd) broken=is_broken
         end
     end
