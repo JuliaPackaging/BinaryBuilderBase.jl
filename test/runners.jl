@@ -188,13 +188,13 @@ end
                 echo '$(test_cpp)' > test.cpp
                 echo '$(main_cpp)' > main.cpp
                 # Build object file
-                $(compiler) -Werror -c test.cpp -o test.o
+                $(compiler) -Werror -std=c++11 -c test.cpp -o test.o
                 # Build shared library
-                $(compiler) -Werror -shared test.cpp -o libtest.\${dlext}
+                $(compiler) -Werror -std=c++11 -shared test.cpp -o libtest.\${dlext}
                 # Build and link program with object file
-                $(compiler) -Werror -o main main.cpp test.o
+                $(compiler) -Werror -std=c++11 -o main main.cpp test.o
                 # Build and link program with shared library
-                $(compiler) -Werror -o main main.cpp -L. -ltest
+                $(compiler) -Werror -std=c++11 -o main main.cpp -L. -ltest
                 """
             cmd = `/bin/bash -c "$(test_script)"`
             @test run(ur, cmd, iobuff; tee_stream=devnull) broken=is_broken
