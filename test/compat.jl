@@ -30,7 +30,13 @@ using UUIDs: UUID
         # Fascinating, different versions of Julia have different opinions about GMP_jll in v1.7
         if VERSION ≥ v"1.8-DEV"
             @test stdlib_version(gmp_jll, v"1.7") == v"6.2.1+1"
-            @test stdlib_version(gmp_jll, v"1.8") == v"6.2.1+2"
+            # Pkg in Julia v1.8.1 believes that GMP_jll was retroactively
+            # downgraded: https://github.com/JuliaLang/Pkg.jl/issues/3203
+            if VERSION == v"1.8.1"
+                @test stdlib_version(gmp_jll, v"1.8") == v"6.2.1+1"
+            else
+                @test stdlib_version(gmp_jll, v"1.8") == v"6.2.1+2"
+            end
             @test stdlib_version(llvmlibwnwind_jll, v"1.8") == v"12.0.1+0"
         else
             @test stdlib_version(gmp_jll, v"1.7") == v"6.2.1+0"
