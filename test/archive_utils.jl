@@ -1,5 +1,6 @@
-using BinaryBuilderBase: archive_artifact, package, list_tarball_files
+using BinaryBuilderBase: Prefix, archive_artifact, package, list_tarball_files
 using Pkg.Artifacts: create_artifact, remove_artifact, with_artifacts_directory
+using Test
 
 @testset "Archive Utils" begin
     @testset "package" begin
@@ -37,6 +38,46 @@ using Pkg.Artifacts: create_artifact, remove_artifact, with_artifacts_directory
                 end
             end
         end
+
+        @testset "Filtering" begin
+            lib = "libfoo"
+            mktempdir() do src_dir
+                # Create the files lib/libfoo.so and logs/libfoo.gz
+                libname = joinpath("lib", lib * ".so")
+                logname = joinpath("logs", lib * ".gz")
+                mkpath(dirname(joinpath(src_dir, libname)))
+                mkpath(dirname(joinpath(src_dir, logname)))
+                touch(joinpath(src_dir, libname))
+                touch(joinpath(src_dir, logname))
+
+                # Create an artifact containing the full source directory
+                mktempdir() do output_dir
+                    mktempdir() do cd_dir
+                        cd(cd_dir) do
+                            tarball, _, tree_hash = package(Prefix(src_dir), lib, v"1.2.3")
+                            @test tree_hash == Base.SHA1("b316cc5e582cbd503b2da34bd1b79aaf3941ad80")
+                            contents = list_tarball_files(tarball)
+                            @test libname ∈ contents
+                            @test logname ∈ contents
+                        end
+                    end
+                end
+
+                # Create an artifact containing *only* the log file logs/libfoo.gz
+                mktempdir() do output_dir
+                    mktempdir() do cd_dir
+                        cd(cd_dir) do
+                            tarball, _, tree_hash = package(Prefix(src_dir), lib, v"1.2.3"; filter=(_, f) -> f == "logs")
+                            @test tree_hash == Base.SHA1("3a3ccf24312676bdd8c2ec769232dbd3bd1b9857")
+                            contents = list_tarball_files(tarball)
+                            @test libname ∉ contents
+                            @test logname ∈ contents
+                        end
+                    end
+                end
+            end
+        end
+
     end
 
     @testset "Artifact archival" begin
