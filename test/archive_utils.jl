@@ -52,28 +52,20 @@ using Test
 
                 # Create an artifact containing the full source directory
                 mktempdir() do output_dir
-                    mktempdir() do cd_dir
-                        cd(cd_dir) do
-                            tarball, _, tree_hash = package(Prefix(src_dir), lib, v"1.2.3")
-                            @test tree_hash == Base.SHA1("b316cc5e582cbd503b2da34bd1b79aaf3941ad80")
-                            contents = list_tarball_files(tarball)
-                            @test libname ∈ contents
-                            @test logname ∈ contents
-                        end
-                    end
+                    tarball, _, tree_hash = package(Prefix(src_dir), joinpath(output_dir, lib), v"1.2.3")
+                    @test tree_hash == Base.SHA1("b316cc5e582cbd503b2da34bd1b79aaf3941ad80")
+                    contents = list_tarball_files(tarball)
+                    @test libname ∈ contents
+                    @test logname ∈ contents
                 end
 
                 # Create an artifact containing *only* the log file logs/libfoo.gz
                 mktempdir() do output_dir
-                    mktempdir() do cd_dir
-                        cd(cd_dir) do
-                            tarball, _, tree_hash = package(Prefix(src_dir), lib, v"1.2.3"; filter=(_, f) -> f == "logs")
-                            @test tree_hash == Base.SHA1("3a3ccf24312676bdd8c2ec769232dbd3bd1b9857")
-                            contents = list_tarball_files(tarball)
-                            @test libname ∉ contents
-                            @test logname ∈ contents
-                        end
-                    end
+                    tarball, _, tree_hash = package(Prefix(src_dir), joinpath(output_dir, lib), v"1.2.3"; filter=(_, f) -> f == "logs")
+                    @test tree_hash == Base.SHA1("3a3ccf24312676bdd8c2ec769232dbd3bd1b9857")
+                    contents = list_tarball_files(tarball)
+                    @test libname ∉ contents
+                    @test logname ∈ contents
                 end
             end
         end
