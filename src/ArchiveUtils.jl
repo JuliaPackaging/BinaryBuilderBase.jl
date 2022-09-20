@@ -169,7 +169,7 @@ function package(src_dir::AbstractString, tarball_path::AbstractString;
     # Note: For compressing gzip files we use pigz since it uses threading where as p7zip
     # does not.
     compress_cmd = if format == "gzip"
-        pipeline(`$(pigz()) --no-time -9`, stdout=tarball_path)
+        pipeline(`$(pigz()) --no-time --no-name -9`, stdout=tarball_path)
     else
         pipeline(`$(p7zip()) a -si -t$format -mx9 $tarball_path`, stdout=devnull)
     end
