@@ -750,7 +750,7 @@ function expand_gfortran_versions(platform::AbstractPlatform)
     end
 
     if sanitize(platform) == "memory"
-        return platform #MSAN can't use libgfortran
+        return platform #MSAN doesn't use libgfortran, it uses libflang
     end
 
     # If this is an platform that has limited GCC support (such as aarch64-apple-darwin),
