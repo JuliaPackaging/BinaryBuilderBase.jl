@@ -750,7 +750,7 @@ function expand_gfortran_versions(platform::AbstractPlatform)
     end
 
     if sanitize(platform) == "memory"
-        return platform #MSAN doesn't use libgfortran, it uses libflang
+        return [platform] #MSAN doesn't use libgfortran, it uses libflang
     end
 
     # If this is an platform that has limited GCC support (such as aarch64-apple-darwin),
@@ -796,7 +796,7 @@ function expand_cxxstring_abis(platform::AbstractPlatform; skip=Sys.isbsd)
     if sanitize(platform) == "memory"
         p = deepcopy(platform)
         p["cxxstring_abi"] = "cxx11" #Clang only seems to generate cxx11 abi
-        return p
+        return [p]
     end
                                                                                                                                  
     # Otherwise, generate new versions!
