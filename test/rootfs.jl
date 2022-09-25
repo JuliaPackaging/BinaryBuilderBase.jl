@@ -25,6 +25,8 @@ using BinaryBuilderBase
         Platform("x86_64",  "macos"; libgfortran_version=v"5"),
         Platform("aarch64", "macos"; libgfortran_version=v"5"),
     ]
+    @test expand_gfortran_versions([Platform("x86_64", "linux"; sanitize="memory")]) ==
+        [Platform("x86_64", "linux"; sanitize="memory")]
 
     # expand_cxxstring_abis
     @test expand_cxxstring_abis(Platform("x86_64", "linux"; libc="musl")) == [
@@ -48,7 +50,9 @@ using BinaryBuilderBase
     ]
     @test expand_cxxstring_abis([Platform("i686", "linux"; cxxstring_abi="cxx11")]) ==
         [Platform("i686", "linux"; cxxstring_abi="cxx11")]
-
+    @test expand_cxxstring_abis([Platform("x86_64", "linux"; sanitize="memory")]) ==
+        [Platform("x86_64", "linux"; sanitize="memory", cxxstring_abi="cxx11")]
+    
     # expand_microarchitectures
     @test expand_microarchitectures([AnyPlatform()]) == [AnyPlatform()]
     @test sort(expand_microarchitectures(Platform("x86_64", "linux"; cuda="10.1")), by=triplet) == [
