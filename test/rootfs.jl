@@ -27,6 +27,7 @@ using BinaryBuilderBase
     ]
     @test expand_gfortran_versions([Platform("x86_64", "linux"; sanitize="memory")]) ==
         [Platform("x86_64", "linux"; sanitize="memory")]
+    @test expand_gfortran_versions(Platform[]) isa Vector{Platform}
 
     # expand_cxxstring_abis
     @test expand_cxxstring_abis(Platform("x86_64", "linux"; libc="musl")) == [
@@ -52,7 +53,8 @@ using BinaryBuilderBase
         [Platform("i686", "linux"; cxxstring_abi="cxx11")]
     @test expand_cxxstring_abis([Platform("x86_64", "linux"; sanitize="memory")]) ==
         [Platform("x86_64", "linux"; sanitize="memory", cxxstring_abi="cxx11")]
-    
+    @test expand_cxxstring_abis(Platform[]) isa Vector{Platform}
+
     # expand_microarchitectures
     @test expand_microarchitectures([AnyPlatform()]) == [AnyPlatform()]
     @test sort(expand_microarchitectures(Platform("x86_64", "linux"; cuda="10.1")), by=triplet) == [

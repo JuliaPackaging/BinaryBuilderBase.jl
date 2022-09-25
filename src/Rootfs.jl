@@ -769,8 +769,8 @@ function expand_gfortran_versions(platform::AbstractPlatform)
         return p
     end
 end
-function expand_gfortran_versions(ps::Vector{<:Platform})
-    return collect(Iterators.flatten(expand_gfortran_versions.(ps)))
+function expand_gfortran_versions(ps::Vector{T}) where {T<:AbstractPlatform}
+    return collect(T,Iterators.flatten(expand_gfortran_versions.(ps)))
 end
 
 """
@@ -806,8 +806,8 @@ function expand_cxxstring_abis(platform::AbstractPlatform; skip=Sys.isbsd)
         return p
     end
 end
-function expand_cxxstring_abis(ps::Vector{<:AbstractPlatform}; kwargs...)
-    return collect(Iterators.flatten(expand_cxxstring_abis.(ps; kwargs...)))
+function expand_cxxstring_abis(ps::Vector{T}; kwargs...) where {T<:AbstractPlatform}
+    return collect(T,Iterators.flatten(expand_cxxstring_abis.(ps; kwargs...)))
 end
 
 """
