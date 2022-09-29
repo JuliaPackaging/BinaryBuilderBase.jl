@@ -25,6 +25,7 @@ end
     @test is_target_dependency(dep)
     @test is_build_dependency(dep)
     @test is_runtime_dependency(dep)
+    @test !is_top_level_dependency(dep)
     @test getname(dep) == name
     @test getname(PackageSpec(; name = name)) == name
     @test getpkg(dep) == PackageSpec(; name = name)
@@ -60,6 +61,7 @@ end
     @test is_target_dependency(run_dep)
     @test !is_build_dependency(run_dep)
     @test is_runtime_dependency(run_dep)
+    @test !is_top_level_dependency(run_dep)
     @test getname(run_dep) == name
     @test getname(PackageSpec(; name)) == name
     @test getpkg(run_dep) == PackageSpec(; name)
@@ -76,6 +78,7 @@ end
     @test is_target_dependency(build_dep)
     @test is_build_dependency(build_dep)
     @test !is_runtime_dependency(build_dep)
+    @test !is_top_level_dependency(build_dep)
     @test getname(build_dep) == build_name
     @test getname(PackageSpec(; name = build_name)) == build_name
     @test getpkg(build_dep) == PackageSpec(; name = build_name)
@@ -87,9 +90,17 @@ end
     @test !is_target_dependency(host_dep)
     @test is_build_dependency(host_dep)
     @test !is_runtime_dependency(host_dep)
+    @test !is_top_level_dependency(host_dep)
     @test getname(host_dep) == host_name
     @test getname(PackageSpec(; name = host_name)) == host_name
     @test getpkg(host_dep) == PackageSpec(; name = host_name)
+
+    top_level_name = "MPIPreferences"
+    @test_throws ArgumentError Dependency(PackageSpec(; name = top_level_name); platforms=supported_platforms(; experimental=true, exclude=!Sys.isapple),
+    top_level=true)
+
+    top_level_dep = Dependency(PackageSpec(; name = top_level_name); top_level=true)
+    @test is_top_level_dependency(top_level_dep)
 
     @testset "Filter dependencies by platform" begin
         @test filter_platforms([dep, dep_buildver, dep_compat], Platform("x86_64", "linux"; cxxstring_abi="cxx03")) == [dep_compat]
@@ -98,31 +109,35 @@ end
 
     @testset "JSON (de)serialization" begin
         jdep = JSON.lower(dep)
-        @test jdep == Dict("type" => "dependency", "name" => name, "uuid" => nothing, "compat" => "", "version-major" => 0x0, "version-minor" => 0x0, "version-patch" => 0x0, "platforms" => ["x86_64-apple-darwin", "aarch64-apple-darwin"])
+        @test jdep == Dict("type" => "dependency", "name" => name, "uuid" => nothing, "compat" => "", "version-major" => 0x0, "version-minor" => 0x0, "version-patch" => 0x0, "platforms" => ["x86_64-apple-darwin", "aarch64-apple-darwin"], "top_level" => false)
         @test dependencify(jdep) == dep
 
         jrun_dep = JSON.lower(run_dep)
-        @test jrun_dep == Dict("type" => "runtimedependency", "name" => name, "uuid" => nothing, "compat" => "", "version-major" => 0x0, "version-minor" => 0x0, "version-patch" => 0x0, "platforms" => ["any"])
+        @test jrun_dep == Dict("type" => "runtimedependency", "name" => name, "uuid" => nothing, "compat" => "", "version-major" => 0x0, "version-minor" => 0x0, "version-patch" => 0x0, "platforms" => ["any"], "top_level" => false)
         @test dependencify(jrun_dep) == run_dep
 
         jdep_buildver = JSON.lower(dep_buildver)
-        @test jdep_buildver == Dict("type" => "dependency", "name" => name, "uuid" => nothing, "compat" => "~1.2", "version-major" => 0x0, "version-minor" => 0x0, "version-patch" => 0x0, "platforms" => ["x86_64-linux-gnu-cxx11"])
+        @test jdep_buildver == Dict("type" => "dependency", "name" => name, "uuid" => nothing, "compat" => "~1.2", "version-major" => 0x0, "version-minor" => 0x0, "version-patch" => 0x0, "platforms" => ["x86_64-linux-gnu-cxx11"], "top_level" => false)
         # the build_version is currently not serialized, so the following test fails
         @test dependencify(jdep_buildver) == dep_buildver broken=true
 
         jbuild_dep = JSON.lower(build_dep)
-        @test jbuild_dep == Dict("type" => "builddependency", "name" => build_name, "uuid" => nothing, "compat" => "", "version-major" => 0x0, "version-minor" => 0x0, "version-patch" => 0x0, "platforms" => ["any"])
+        @test jbuild_dep == Dict("type" => "builddependency", "name" => build_name, "uuid" => nothing, "compat" => "", "version-major" => 0x0, "version-minor" => 0x0, "version-patch" => 0x0, "platforms" => ["any"], "top_level" => false)
         @test dependencify(jbuild_dep) == build_dep
 
         jhost_dep = JSON.lower(host_dep)
-        @test jhost_dep == Dict("type" => "hostdependency", "name" => host_name, "uuid" => nothing, "compat" => "", "version-major" => 0x0, "version-minor" => 0x0, "version-patch" => 0x0, "platforms" => ["any"])
+        @test jhost_dep == Dict("type" => "hostdependency", "name" => host_name, "uuid" => nothing, "compat" => "", "version-major" => 0x0, "version-minor" => 0x0, "version-patch" => 0x0, "platforms" => ["any"], "top_level" => false)
         @test dependencify(jhost_dep) == host_dep
 
         full_dep = Dependency(PackageSpec(; name = "Baz_jll", uuid = "00000000-1111-2222-3333-444444444444", version = PKG_VERSIONS.VersionSpec("3.1.4")))
         jfull_dep = JSON.lower(full_dep)
-        @test jfull_dep == Dict("type" => "dependency", "name" => "Baz_jll", "uuid" => "00000000-1111-2222-3333-444444444444", "compat" => "", "version-major" => 0x3, "version-minor" => 0x1, "version-patch" => 0x4, "platforms" => ["any"])
+        @test jfull_dep == Dict("type" => "dependency", "name" => "Baz_jll", "uuid" => "00000000-1111-2222-3333-444444444444", "compat" => "", "version-major" => 0x3, "version-minor" => 0x1, "version-patch" => 0x4, "platforms" => ["any"], "top_level" => false)
         @test dependencify(jfull_dep) == full_dep
         @test_throws ErrorException dependencify(Dict("type" => "git"))
+
+        jtop_level_dep = JSON.lower(top_level_dep)
+        @test jtop_level_dep == Dict("type" => "dependency", "name" => "MPIPreferences", "uuid" => nothing, "compat" => "", "version-major" => 0x0, "version-minor" => 0x0, "version-patch" => 0x0, "platforms" => ["any"], "top_level" => true)
+        @test dependencify(jtop_level_dep) == top_level_dep
     end
 
     @testset "Setup" begin
