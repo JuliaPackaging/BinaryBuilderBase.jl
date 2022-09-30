@@ -1,7 +1,7 @@
 using UUIDs
 
 export Dependency, RuntimeDependency, BuildDependency, HostBuildDependency,
-    is_host_dependency, is_target_dependency, is_build_dependency, is_runtime_dependency,
+    is_host_dependency, is_target_dependency, is_build_dependency, is_runtime_dependency, is_top_level_dependency,
     filter_platforms
 
 
@@ -32,6 +32,7 @@ Subtypes of `AbstractDependency` should define the following traits:
 * [`is_target_dependency`](@ref)
 * [`is_build_dependency`](@ref)
 * [`is_runtime_dependency`](@ref)
+* [`is_top_level_dependency`][@ref]
 """
 abstract type AbstractDependency end
 
@@ -64,6 +65,13 @@ Return whether `dep` is a runtime dependency or not.
 is_runtime_dependency
 
 """
+    is_top_level_dependency(dep::AbstractDependency) ->
+
+Return wheter `dep` is a top-level dependency or not.
+"""
+is_top_level_dependency(dep::AbstractDependency) = false
+
+"""
     Dependency(dep::Union{PackageSpec,String}, build_version::VersionNumber;
                compat::String, platforms::Vector{<:AbstractPlatform})
 
@@ -86,14 +94,24 @@ The optional keyword argument `platforms` is a vector of `AbstractPlatform`s
 which indicates for which platforms the dependency should be used.  By default
 `platforms=[AnyPlatform()]`, to mean that the dependency is compatible with all
 platforms.
+
+The optional keyword argument `top_level` denotates that this dependency is
+platform independent. It implies that the `platforms` keyword argument is set
+to `[AnyPlatform()]`. The primary use-case is for packages that hold information
+about the platform selection using `Preferences`. Platform selection is cached
+and in the case that no platform is available we need to be able to invalidate
+said cache. Invalidation occurs through the package that owns the `Preferences`
+data.
 """
 struct Dependency <: AbstractDependency
     pkg::PkgSpec
     build_version::Union{VersionNumber,Nothing}
     compat::String  # semver string for use in Project.toml of the JLL
     platforms::Vector{<:AbstractPlatform}
+    top_level::Bool
     function Dependency(pkg::PkgSpec, build_version = nothing; compat::String = "",
-                        platforms::Vector{<:AbstractPlatform}=[AnyPlatform()])
+                        platforms::Vector{<:AbstractPlatform}=[AnyPlatform()],
+                        top_level=false)
         if !isempty(compat)
             spec = PKG_VERSIONS.semver_spec(compat) # verify compat is valid
             if build_version === nothing
@@ -109,16 +127,24 @@ struct Dependency <: AbstractDependency
                 throw(ArgumentError("PackageSpec version and compat for $(pkg) are incompatible"))
             end
         end
-        new(pkg, build_version, compat, platforms)
+        if top_level
+            if !(isempty(platforms) || all(p->p==AnyPlatform(), platforms))
+                throw(ArgumentError("A top-level dependency can't be restricted to platforms."))
+            end
+        end
+        new(pkg, build_version, compat, platforms, top_level)
     end
 end
 function Dependency(dep::AbstractString, build_version = nothing;
-                    compat::String = "", platforms::Vector{<:AbstractPlatform}=[AnyPlatform()])
-    return Dependency(PackageSpec(; name = dep), build_version; compat, platforms)
+                    compat::String = "",
+                    platforms::Vector{<:AbstractPlatform} = [AnyPlatform()],
+                    top_level = false)
+    return Dependency(PackageSpec(; name = dep), build_version; compat, platforms, top_level)
 end
 is_host_dependency(::Dependency) = false
 is_build_dependency(::Dependency) = true
 is_runtime_dependency(::Dependency) = true
+is_top_level_dependency(dep::Dependency) = dep.top_level
 
 """
     RuntimeDependency(dep::Union{PackageSpec,String}; compat::String, platforms::Vector{<:AbstractPlatform})
@@ -310,6 +336,7 @@ for (type, type_descr) in ((Dependency, "dependency"), (RuntimeDependency, "runt
                                "version-minor" => minor(version(d)),
                                "version-patch" => patch(version(d)),
                                "platforms" => triplet.(d.platforms),
+                               "top_level" => is_top_level_dependency(d),
                                )
 end
 
@@ -324,8 +351,9 @@ function dependencify(d::Dict)
         version = version == PKG_VERSIONS.VersionSpec(v"0") ? PKG_VERSIONS.VersionSpec() : version
         spec = PackageSpec(; name = d["name"], uuid = uuid, version = version)
         platforms = parse_platform.(d["platforms"])
+        top_level = d["top_level"]::Bool
         if d["type"] == "dependency"
-            return Dependency(spec; compat, platforms)
+            return Dependency(spec; compat, platforms, top_level)
         elseif d["type"] == "runtimedependency"
             return RuntimeDependency(spec; compat, platforms)
         elseif d["type"] == "builddependency"
