@@ -32,7 +32,7 @@ using UUIDs: UUID
             @test stdlib_version(gmp_jll, v"1.7") == v"6.2.1+1"
             # Pkg in Julia v1.8.1 believes that GMP_jll was retroactively
             # downgraded: https://github.com/JuliaLang/Pkg.jl/issues/3203
-            if VERSION == v"1.8.1"
+            if v"1.8.1" <= VERSION < v"1.9.0-DEV"
                 @test stdlib_version(gmp_jll, v"1.8") == v"6.2.1+1"
             else
                 @test stdlib_version(gmp_jll, v"1.8") == v"6.2.1+2"
