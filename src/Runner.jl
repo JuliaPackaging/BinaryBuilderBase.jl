@@ -513,6 +513,10 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             ])
         elseif Sys.isapple(p)
             push!(flags, "-headerpad_max_install_names")
+        elseif Sys.iswindows(p) && gcc_version ≥ v"5"
+            # Do not embed timestamps, for reproducibility:
+            # https://github.com/JuliaPackaging/BinaryBuilder.jl/issues/1232
+            push!(flags, "-Wl,--no-insert-timestamp")
         end
         sanitize_link_flags!(p, flags)
         return flags
