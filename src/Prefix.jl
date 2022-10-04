@@ -594,6 +594,11 @@ end
 # Fallback for other types, like `AnyPlatform`.
 normalize_platform(p::AbstractPlatform) = p
 
+# Dependencies which are allow to not have an `Artifacts.toml` file.
+const NO_ARTIFACTS_ALLOW_LIST = [
+    "MPIPreferences",
+]
+
 function setup_dependencies(prefix::Prefix,
                             dependencies::Vector{PkgSpec},
                             platform::AbstractPlatform;
@@ -707,7 +712,10 @@ function setup_dependencies(prefix::Prefix,
             normalized_platform = normalize_platform(platform)
             meta = artifact_meta(name[1:end-4], artifacts_toml; platform=normalized_platform)
             if meta === nothing
-                @warn("Dependency $(name) does not have a mapping for artifact $(name[1:end-4]) for platform $(triplet(platform))")
+                if name ∉ NO_ARTIFACTS_ALLOW_LIST
+                    # Issue warning only if dependency isn't in our allow list.
+                    @warn("Dependency $(name) does not have a mapping for artifact $(name[1:end-4]) for platform $(triplet(platform))")
+                end
                 continue
             end
             ensure_artifact_installed(name[1:end-4], meta, artifacts_toml; platform=normalized_platform)
