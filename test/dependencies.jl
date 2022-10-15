@@ -96,10 +96,12 @@ end
     @test getpkg(host_dep) == PackageSpec(; name = host_name)
 
     top_level_name = "MPIPreferences"
-    @test_throws ArgumentError Dependency(PackageSpec(; name = top_level_name); platforms=supported_platforms(; experimental=true, exclude=!Sys.isapple),
-    top_level=true)
+    @test_logs (:warn, r"deprecated") @test_throws ArgumentError Dependency(PackageSpec(; name=top_level_name); platforms=supported_platforms(; exclude=!Sys.isapple), top_level=true)
+    @test_throws ArgumentError RuntimeDependency(PackageSpec(; name=top_level_name); platforms=supported_platforms(; exclude=!Sys.isapple), top_level=true)
 
-    top_level_dep = Dependency(PackageSpec(; name = top_level_name); top_level=true)
+    top_level_dep = @test_logs (:warn, r"deprecated") Dependency(PackageSpec(; name = top_level_name); top_level=true)
+    @test is_top_level_dependency(top_level_dep)
+    top_level_dep = RuntimeDependency(PackageSpec(; name = top_level_name); top_level=true)
     @test is_top_level_dependency(top_level_dep)
 
     @testset "Filter dependencies by platform" begin
@@ -136,7 +138,7 @@ end
         @test_throws ErrorException dependencify(Dict("type" => "git"))
 
         jtop_level_dep = JSON.lower(top_level_dep)
-        @test jtop_level_dep == Dict("type" => "dependency", "name" => "MPIPreferences", "uuid" => nothing, "compat" => "", "version-major" => 0x0, "version-minor" => 0x0, "version-patch" => 0x0, "platforms" => ["any"], "top_level" => true)
+        @test jtop_level_dep == Dict("type" => "runtimedependency", "name" => "MPIPreferences", "uuid" => nothing, "compat" => "", "version-major" => 0x0, "version-minor" => 0x0, "version-patch" => 0x0, "platforms" => ["any"], "top_level" => true)
         @test dependencify(jtop_level_dep) == top_level_dep
     end
 
