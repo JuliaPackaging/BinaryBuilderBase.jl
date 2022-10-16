@@ -14,6 +14,7 @@ using JSON
     @test SetupSource("https://ftp.gnu.org/gnu/wget/wget-1.20.3.tar.gz", "wget-1.20.3.tar.gz", "", "") isa SetupSource{ArchiveSource}
     @test SetupSource("https://ftp.gnu.org/gnu/wget/wget-1.20.3.zip", "wget-1.20.3.zip", "", "")    isa SetupSource{ArchiveSource}
     @test SetupSource("https://github.com/jedisct1/libsodium.git", "libsodium.git", "", "")       isa SetupSource{GitSource}
+    @test SetupSource("git://developer.intra2net.com/libftdi", "libftdi", "", "") isa SetupSource{GitSource}
     @test SetupSource("https://curl.haxx.se/ca/cacert-2020-01-01.pem", "cacert-2020-01-01.pem", "", "")   isa SetupSource{FileSource}
 
     @testset "Download and setup" begin

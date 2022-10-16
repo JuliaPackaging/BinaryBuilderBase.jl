@@ -98,6 +98,9 @@ end
 DirectorySource(path::String; target::String = "", follow_symlinks::Bool=false) =
     DirectorySource(path, target, follow_symlinks)
 
+# Try to guess if a URL is a Git repository
+isgitrepo(url::AbstractString) = endswith(url, ".git") || startswith(url, "git://")
+
 # This is not meant to be used as source in the `build_tarballs.jl` scripts but
 # only to set up the source in the workspace.
 struct SetupSource{T<:AbstractSource}
@@ -112,7 +115,7 @@ SetupSource{T}(path::String, hash::String, target::String) where {T} =
 # This is used in wizard/obtain_source.jl to automatically guess the parameter
 # of SetupSource from the URL
 function SetupSource(url::String, path::String, hash::String, target::String)
-    if endswith(url, ".git")
+    if isgitrepo(url)
         return SetupSource{GitSource}(path, hash, target)
     elseif any(endswith(path, ext) for ext in archive_extensions)
         return SetupSource{ArchiveSource}(path, hash, target)
