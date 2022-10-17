@@ -65,7 +65,7 @@ Return whether `dep` is a runtime dependency or not.
 is_runtime_dependency
 
 """
-    is_top_level_dependency(dep::AbstractDependency) ->
+    is_top_level_dependency(dep::AbstractDependency) -> Bool
 
 Return wheter `dep` is a top-level dependency or not.
 """
@@ -128,6 +128,7 @@ struct Dependency <: AbstractDependency
             end
         end
         if top_level
+            @warn("Dependency(\"$(getname(pkg))\") was defined as top-level but this is deprecated, use `RuntimeDependency` instead")
             if !(isempty(platforms) || all(p->p==AnyPlatform(), platforms))
                 throw(ArgumentError("A top-level dependency can't be restricted to platforms."))
             end
@@ -147,7 +148,7 @@ is_runtime_dependency(::Dependency) = true
 is_top_level_dependency(dep::Dependency) = dep.top_level
 
 """
-    RuntimeDependency(dep::Union{PackageSpec,String}; compat::String, platforms::Vector{<:AbstractPlatform})
+    RuntimeDependency(dep::Union{PackageSpec,String}; compat::String, platforms::Vector{<:AbstractPlatform}, top_level::Bool=false)
 
 Define a binary dependency that is only listed as dependency of the generated JLL package,
 but its artifact is not installed in the prefix during the build.  The `dep` argument can be
@@ -159,27 +160,40 @@ in the `Project.toml` of the generated Julia package.
 The optional keyword argument `platforms` is a vector of `AbstractPlatform`s which indicates
 for which platforms the dependency should be used.  By default `platforms=[AnyPlatform()]`,
 to mean that the dependency is compatible with all platforms.
+
+The optional keyword argument `top_level` specifies whether the dependency should be use
+only at the top-level of the generated JLL package, instead of inside each platform-specific
+wrapper.  Using `top_level=true` is useful for packages needed for platform augmentation
+(e.g. `MPIPreferences.jl`).
 """
 struct RuntimeDependency <: AbstractDependency
     pkg::PkgSpec
     compat::String  # semver string for use in Project.toml of the JLL
     platforms::Vector{<:AbstractPlatform}
+    top_level::Bool
     function RuntimeDependency(pkg::PkgSpec; compat::String = "",
-                                platforms::Vector{<:AbstractPlatform}=[AnyPlatform()])
+                               platforms::Vector{<:AbstractPlatform}=[AnyPlatform()],
+                               top_level::Bool=false)
         if !isempty(compat)
             spec = PKG_VERSIONS.semver_spec(compat) # verify compat is valid
             if pkg.version != PKG_VERSIONS.VersionSpec("*") && !(pkg.version in spec)
                 throw(ArgumentError("PackageSpec version and compat for $(pkg) are incompatible"))
             end
         end
-        return new(pkg, compat, platforms)
+        if top_level
+            if !(isempty(platforms) || all(==(AnyPlatform()), platforms))
+                throw(ArgumentError("A top-level dependency can't be restricted to platforms."))
+            end
+        end
+        return new(pkg, compat, platforms, top_level)
     end
 end
-RuntimeDependency(name::AbstractString; compat::String = "", platforms::Vector{<:AbstractPlatform}=[AnyPlatform()]) =
-    RuntimeDependency(PackageSpec(; name); compat, platforms)
+RuntimeDependency(name::AbstractString; compat::String = "", platforms::Vector{<:AbstractPlatform}=[AnyPlatform()], top_level::Bool=false) =
+    RuntimeDependency(PackageSpec(; name); compat, platforms, top_level)
 is_host_dependency(::RuntimeDependency) = false
 is_build_dependency(::RuntimeDependency) = false
 is_runtime_dependency(::RuntimeDependency) = true
+is_top_level_dependency(dep::RuntimeDependency) = dep.top_level
 # In some cases we may want to automatically convert a `RuntimeDependency` to a `Dependency`
 Base.convert(::Type{Dependency}, dep::RuntimeDependency) =
     Dependency(dep.pkg; compat=dep.compat, platforms=dep.platforms)
@@ -355,7 +369,7 @@ function dependencify(d::Dict)
         if d["type"] == "dependency"
             return Dependency(spec; compat, platforms, top_level)
         elseif d["type"] == "runtimedependency"
-            return RuntimeDependency(spec; compat, platforms)
+            return RuntimeDependency(spec; compat, platforms, top_level)
         elseif d["type"] == "builddependency"
             return BuildDependency(spec; platforms)
         elseif d["type"] == "hostdependency"
