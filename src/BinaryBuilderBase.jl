@@ -221,7 +221,7 @@ function __init__()
         use_ccache[] = true
     end
 
-    # Populate `Pkg.STDLIBS_BY_VERSION`
+    # Populate `Pkg.Types.STDLIBS_BY_VERSION`
     append!(empty!(Pkg.Types.STDLIBS_BY_VERSION), HistoricalStdlibVersions.STDLIBS_BY_VERSION)
 end
 
