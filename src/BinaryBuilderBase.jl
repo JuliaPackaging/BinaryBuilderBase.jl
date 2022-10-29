@@ -222,7 +222,7 @@ function __init__()
     end
 
     # Populate `Pkg.STDLIBS_BY_VERSION`
-    append!(empty!(Pkg.STDLIBS_BY_VERSION), HistoricalStdlibVersions.STDLIBS_BY_VERSION)
+    append!(empty!(Pkg.Types.STDLIBS_BY_VERSION), HistoricalStdlibVersions.STDLIBS_BY_VERSION)
 end
 
 
