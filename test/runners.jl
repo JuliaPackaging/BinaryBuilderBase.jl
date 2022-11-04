@@ -398,6 +398,30 @@ end
             @test split(String(read(iobuff)), "\n")[2] == ""
         end
     end
+
+    @testset "macOS SDK setting" begin
+        mktempdir() do dir
+            platform = Platform("x86_64", "macos")
+            test_script = """
+            set -e
+            echo 'int main(void) { return 0; }' | clang -x c - -o test-clang
+            otool -lV test-clang | grep sdk
+            echo 'int main(void) { return 0; }' | gcc -x c - -o test-gcc
+            otool -lV test-gcc | grep sdk
+            """
+            cmd = `/bin/bash -c "$(test_script)"`
+            ur = preferred_runner()(dir; platform=platform, allow_unsafe_flags=false)
+            iobuff = IOBuffer()
+            @test run(ur, cmd, iobuff; tee_stream=devnull)
+            seekstart(iobuff)
+            lines = readlines(iobuff)
+            # Make sure the SDK for this platform is set to 10.10 instead of
+            # other wrong values.
+            sdk = r"^ +sdk 10\.10$"
+            @test contains(lines[end - 1], sdk)
+            @test contains(lines[end], sdk)
+        end
+    end
 end
 
 @testset "Shards" begin
