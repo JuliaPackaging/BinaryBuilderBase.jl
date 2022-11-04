@@ -165,25 +165,28 @@ end
             @test "libz." * platform_dlext(platform) in readdir(last(libdirs(Prefix(destdir(dir, platform)))))
             @test sort!(readdir(joinpath(destdir(dir, platform), "include"))) == ["zconf.h", "zlib.h"]
 
-            zlib_log_files = if os(platform) == "macos"
-                ["Zlib.log.gz", "fix_identity_mismatch_libz.1.2.11.dylib.log.gz", "ldid_libz.1.2.11.dylib.log.gz"]
-            else
-                ["Zlib.log.gz"]
+            # Since Julia v1.9 Zlib_jll doesn't have logs directory at all
+            @static if VERSION < v"1.9-DEV"
+                zlib_log_files = if os(platform) == "macos"
+                    ["Zlib.log.gz", "fix_identity_mismatch_libz.1.2.11.dylib.log.gz", "ldid_libz.1.2.11.dylib.log.gz"]
+                else
+                    ["Zlib.log.gz"]
+                end
+                zlib_log_dir = @static if VERSION ≥ v"1.7.3"
+                    joinpath(destdir(dir, platform), "logs", "Zlib")
+                else
+                    joinpath(destdir(dir, platform), "logs")
+                end
+                @test sort!(readdir(zlib_log_dir)) == zlib_log_files
             end
-            zlib_log_dir = if VERSION ≥ v"1.8.0"
-                joinpath(destdir(dir, platform), "logs", "Zlib")
-            else
-                joinpath(destdir(dir, platform), "logs")
-            end
-            @test sort!(readdir(zlib_log_dir)) == zlib_log_files
 
             # Make sure the directories are emptied by `cleanup_dependencies`
             @test_nowarn cleanup_dependencies(prefix, ap, platform)
             @test readdir(joinpath(destdir(dir, platform), "include")) == []
-            # Since Julia v1.8 we use builds of Zlib which have logs in
+            # Since Julia v1.7.3 we use builds of Zlib which have logs in
             # subdirectories of `${prefix}/logs`, so those subdirectories are
             # left there empty, cannot be removed by `cleanup_dependencies`.
-            @test readdir(joinpath(destdir(dir, platform), "logs")) == [] broken=VERSION≥v"1.8.0"
+            @test readdir(joinpath(destdir(dir, platform), "logs")) == [] broken=VERSION≥v"1.7.3"
         end
 
         # Setup a dependency of a JLL package which is also a standard library
@@ -202,11 +205,11 @@ end
             @test_nowarn cleanup_dependencies(prefix, ap, platform)
             # This shuld be empty, but the `curl/` directory is left here, empty
             @test readdir(joinpath(destdir(dir, platform), "include")) == [] broken=true
-            # Since Julia v1.8 we use builds of LibCURL and its dependencies which have logs
+            # Since Julia v1.7.3 we use builds of LibCURL and its dependencies which have logs
             # in subdirectories of `${prefix}/logs`, so we have the same problem as above:
             # those subdirectories are left there empty, cannot be removed by
             # `cleanup_dependencies`.
-            @test readdir(joinpath(destdir(dir, platform), "logs")) == [] broken=VERSION≥v"1.8.0"
+            @test readdir(joinpath(destdir(dir, platform), "logs")) == [] broken=VERSION≥v"1.7.3"
         end
 
         # Setup a dependency that doesn't have a mapping for the given platform

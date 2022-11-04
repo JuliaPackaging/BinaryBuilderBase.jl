@@ -26,23 +26,10 @@ using UUIDs: UUID
     llvmlibwnwind_jll = UUID("47c5dbc3-30ba-59ef-96a6-123e260183d9")
     @test stdlib_version(gmp_jll, v"1.6") == v"6.2.0+5"
     @test stdlib_version(llvmlibwnwind_jll, v"1.6") === nothing
-    if VERSION ≥ v"1.7-DEV"
-        # Fascinating, different versions of Julia have different opinions about GMP_jll in v1.7
-        if VERSION ≥ v"1.8-DEV"
-            @test stdlib_version(gmp_jll, v"1.7") == v"6.2.1+1"
-            # Pkg in Julia v1.8.1 believes that GMP_jll was retroactively
-            # downgraded: https://github.com/JuliaLang/Pkg.jl/issues/3203
-            if v"1.8.1" <= VERSION < v"1.9.0-DEV"
-                @test stdlib_version(gmp_jll, v"1.8") == v"6.2.1+1"
-            else
-                @test stdlib_version(gmp_jll, v"1.8") == v"6.2.1+2"
-            end
-            @test stdlib_version(llvmlibwnwind_jll, v"1.8") == v"12.0.1+0"
-        else
-            @test stdlib_version(gmp_jll, v"1.7") == v"6.2.1+0"
-            @test stdlib_version(llvmlibwnwind_jll, v"1.7") == v"11.0.1+1"
-        end
-    end
+    @test stdlib_version(gmp_jll, v"1.7") == v"6.2.1+1"
+    @test stdlib_version(gmp_jll, v"1.8") == v"6.2.1+2"
+    @test stdlib_version(llvmlibwnwind_jll, v"1.7") == v"11.0.1+1"
+    @test stdlib_version(llvmlibwnwind_jll, v"1.8") == v"12.0.1+0"
 end
 
 using BinaryBuilderBase: download_verify, list_tarball_files
