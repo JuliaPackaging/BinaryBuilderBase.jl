@@ -336,10 +336,9 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         return flags
     end
 
-    function min_macos_version_flags(p::AbstractPlatform)
-        ver = macos_version(p)
+    function min_macos_version_flags()
         # Ask compilers to compile for a minimum macOS version, targeting that SDK.
-        return ("-mmacosx-version-min=$(ver)", "-Wl,-sdk_version,$(ver)")
+        return ("-mmacosx-version-min=\${MACOSX_DEPLOYMENT_TARGET}", "-Wl,-sdk_version,\${MACOSX_DEPLOYMENT_TARGET}")
     end
 
     function add_system_includedir(flags::Vector{String})
@@ -406,7 +405,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
                 # `clang` as a linker (and we have no real way to detect that in the wrapper), which will
                 # cause `clang` to complain about compiler flags being passed in.
                 "-Wno-unused-command-line-argument",
-                min_macos_version_flags(p)...,
+                min_macos_version_flags()...,
             ])
         end
         sanitize_compile_flags!(p, flags)
@@ -455,7 +454,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         if gcc_version.major in (4, 5)
             push!(flags, "-Wl,-syslibroot,/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root")
         end
-        append!(flags, min_macos_version_flags(p))
+        append!(flags, min_macos_version_flags())
         return flags
     end
 
