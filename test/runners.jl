@@ -398,6 +398,32 @@ end
             @test split(String(read(iobuff)), "\n")[2] == ""
         end
     end
+
+    @testset "macOS SDK setting" begin
+        mktempdir() do dir
+            platform = Platform("x86_64", "macos")
+            test_script = raw"""
+            set -e
+            prog='int main(void) { return 0; }'
+            echo "${prog}" | clang -x c - -o test-clang
+            otool -lV test-clang | grep sdk
+            # Set `MACOSX_DEPLOYMENT_TARGET` to override the value of the SDK
+            export MACOSX_DEPLOYMENT_TARGET=10.14
+            echo "${prog}" | gcc -x c - -o test-gcc
+            otool -lV test-gcc | grep sdk
+            """
+            cmd = `/bin/bash -c "$(test_script)"`
+            ur = preferred_runner()(dir; platform=platform, allow_unsafe_flags=false)
+            iobuff = IOBuffer()
+            @test run(ur, cmd, iobuff; tee_stream=devnull)
+            seekstart(iobuff)
+            lines = readlines(iobuff)
+            # Make sure the SDK for this platform is set to 10.10, instead of other wrong
+            # values, and that we can set `MACOSX_DEPLOYMENT_TARGET` to control the value.
+            @test contains(lines[end - 1], r"^ +sdk 10\.10$")
+            @test contains(lines[end], r"^ +sdk 10\.14$")
+        end
+    end
 end
 
 @testset "Shards" begin
