@@ -29,8 +29,8 @@ pigz_jll = "1bc43ea1-30af-5bc8-a9d4-c018457e6e3e"
 
 [compat]
 CodecZlib = "0.5, 0.6, 0.7"
+HistoricalStdlibVersions = "0.1, 1"
 JSON = "0.21"
-HistoricalStdlibVersions = "0.1"
 OrderedCollections = "1.4.1"
 OutputCollectors = "0.1"
 ProgressMeter = "1"
