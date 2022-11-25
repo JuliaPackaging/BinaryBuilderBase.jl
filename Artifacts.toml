@@ -3322,25 +3322,25 @@ os = "linux"
 
 [["RustBase.v1.65.0.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
-git-tree-sha1 = "dac38317c5687f5fa8bcfa6eb9a3971b5b92dd07"
+git-tree-sha1 = "6def113ce27a1c154a818e8c000b80497e67cbc9"
 lazy = true
 libc = "musl"
 os = "linux"
 
     [["RustBase.v1.65.0.x86_64-linux-musl.squashfs".download]]
-    sha256 = "5726a559fd9f00f7bf70db329ed8b454694267b9dd4efd9d8c0817218c59992a"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustBase-v1.65.0/RustBase.v1.65.0.x86_64-linux-musl.squashfs.tar.gz"
+    sha256 = "87d380481d1dccf899975abea2e1c692f64eede6e5cdfd5fdf11a6adcf0e8882"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustBase-v1.65.0+0/RustBase.v1.65.0.x86_64-linux-musl.squashfs.tar.gz"
 
 [["RustBase.v1.65.0.x86_64-linux-musl.unpacked"]]
 arch = "x86_64"
-git-tree-sha1 = "8698f56f764dfa94994a11349c08f3bd24de9066"
+git-tree-sha1 = "582156be24b41ecbbea1d49c38cea3af6de76a58"
 lazy = true
 libc = "musl"
 os = "linux"
 
     [["RustBase.v1.65.0.x86_64-linux-musl.unpacked".download]]
-    sha256 = "08209bd2fb96b5ed5356095c93abe42884cdccd32684538aa48e3d0c3bb72288"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustBase-v1.65.0/RustBase.v1.65.0.x86_64-linux-musl.unpacked.tar.gz"
+    sha256 = "79dec1be5abf4026c8f66c203e5e2cc2865c2289166441177b5f1edb9c8da26d"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustBase-v1.65.0+0/RustBase.v1.65.0.x86_64-linux-musl.unpacked.tar.gz"
 
 [["RustToolchain-aarch64-apple-darwin.v1.57.0.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"

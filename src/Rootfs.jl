@@ -406,10 +406,7 @@ const available_llvm_builds = LLVMBuild.(get_available_builds("LLVMBootstrap."))
 
 const available_go_builds = GoBuild.(get_available_builds("Go."))
 
-# We can't use newer versions of the Rust toolchain because it appears to be broken in our
-# environment.  More specifically, the wrong linker is picked up by cargo, despite the fact
-# we set the target platform with the environment variable `CARGO_BUILD_TARGET`.
-const available_rust_builds = RustBuild.(filter!(≤(v"1.61.0"), get_available_builds("RustBase.")))
+const available_rust_builds = RustBuild.(get_available_builds("RustBase."))
 
 """
     gcc_version(p::AbstractPlatform, GCC_builds::Vector{GCCBuild},
