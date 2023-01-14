@@ -76,15 +76,14 @@ build configuration.
 
 ---
 
-    LibraryProduct(libname, varname::Symbol; dir_paths=String[],
-                                             dont_dlopen=false,
-                                             dlopen_flags=Symbol[])
+    LibraryProduct(libname, varname::Symbol, dir_paths=String[];
+                   dont_dlopen=false, dlopen_flags=Symbol[])
 
 Declares a `LibraryProduct` that points to a library located within the prefix.
 `libname` specifies the basename of the library, `varname` is the name of the
 variable in the JLL package that can be used to call into the library.  By
 default, the library is searched in the `libdir`, but you can add other
-directories within the prefix to the `dir_paths` keyword argument.  You can
+directories within the prefix to the `dir_paths` argument.  You can
 specify the flags to pass to `dlopen` as a vector of `Symbols` with the
 `dlopen_flags` keyword argument.  If the library should not be dlopen'ed
 automatically by the JLL package, set `dont_dlopen=true`.
