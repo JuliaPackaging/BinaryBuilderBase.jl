@@ -3,6 +3,8 @@
 #  environment variables must be updated to, etc...
 import Base: convert, joinpath, show
 using SHA, CodecZlib, TOML, LibGit2_jll
+import Bzip2_jll, Gzip_jll, Tar_jll, XZ_jll, Zstd_jll
+using JLLWrappers: pathsep, LIBPATH_env
 
 export Prefix, bindir, libdirs, includedir, logdir, temp_prefix, package
 
@@ -300,7 +302,34 @@ function setup(source::SetupSource{ArchiveSource}, targetdir, verbose; tar_flags
             if verbose
                 @info "Extracting tarball $(basename(source.path))..."
             end
-            run(`tar -$(tar_flags) $(source.path)`)
+            tar = Tar_jll.is_available() ? Tar_jll.tar() : `tar`
+            # Add gzip, bzip2 & Co. to PATH.
+            path = split(get(ENV, "PATH", ""), pathsep)
+            libpath = split(get(ENV, LIBPATH_env, ""), pathsep)
+            if Tar_jll.is_available()
+                libpath = vcat(Tar_jll.LIBPATH_list, libpath)
+            end
+            if Bzip2_jll.is_available()
+                path = vcat(joinpath(Bzip2_jll.artifact_dir, "bin"), path)
+                libpath = vcat(Bzip2_jll.LIBPATH_list, libpath)
+            end
+            if Gzip_jll.is_available()
+                path = vcat(dirname(Gzip_jll.gzip_path), path)
+                libpath = vcat(Gzip_jll.LIBPATH_list, libpath)
+            end
+            if XZ_jll.is_available()
+                path = vcat(dirname(XZ_jll.xz_path), path)
+                libpath = vcat(XZ_jll.LIBPATH_list, libpath)
+            end
+            if Zstd_jll.is_available()
+                path = vcat(dirname(Zstd_jll.zstd_path), path)
+                libpath = vcat(XZ_jll.LIBPATH_list, libpath)
+            end
+            unique!(filter!(!isempty, path))
+            unique!(filter!(!isempty, libpath))
+            tar = addenv(tar, "PATH" => join(path, pathsep), LIBPATH_env => join(libpath, pathsep))
+            # Unpack the tarball
+            run(`$(tar) -$(tar_flags) $(source.path)`)
         elseif endswith(source.path, ".zip")
             if verbose
                 @info "Extracting zipball $(basename(source.path))..."
