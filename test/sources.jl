@@ -12,9 +12,9 @@ using JSON
     @test FileSource("https://curl.haxx.se/ca/cacert-2020-01-01.pem", "adf770dfd574a0d6026bfaa270cb6879b063957177a991d453ff1d302c02081f"; filename="cacert.pem").filename == "cacert.pem"
     # GitHub-generated archives are banned
     @test_throws ArgumentError ArchiveSource("https://github.com/ralna/ARCHDefs/archive/v2.0.3x.tar.gz", "6583e27f84338447767bbdf4335514c8836ae4ad54f5e66280307e8b57189cff")
-    @test_throws ArgumentError ArchiveSource("https://github.com/ralna/ARCHDefs/archive/refs/tag/v2.0.3x.tar.gz", "6583e27f84338447767bbdf4335514c8836ae4ad54f5e66280307e8b57189cff")    
+    @test_throws ArgumentError ArchiveSource("https://github.com/ralna/ARCHDefs/archive/refs/tags/v2.0.3x.tar.gz", "6583e27f84338447767bbdf4335514c8836ae4ad54f5e66280307e8b57189cff")
     @test_throws ArgumentError FileSource("https://github.com/ralna/ARCHDefs/archive/v2.0.3x.tar.gz", "6583e27f84338447767bbdf4335514c8836ae4ad54f5e66280307e8b57189cff")
-    @test_throws ArgumentError FileSource("https://github.com/ralna/ARCHDefs/archive/refs/tag/v2.0.3x.tar.gz", "6583e27f84338447767bbdf4335514c8836ae4ad54f5e66280307e8b57189cff")    
+    @test_throws ArgumentError FileSource("https://github.com/ralna/ARCHDefs/archive/refs/tags/v2.0.3x.tar.gz", "6583e27f84338447767bbdf4335514c8836ae4ad54f5e66280307e8b57189cff")
 
     @test SetupSource("https://ftp.gnu.org/gnu/wget/wget-1.20.3.tar.gz", "wget-1.20.3.tar.gz", "", "") isa SetupSource{ArchiveSource}
     @test SetupSource("https://ftp.gnu.org/gnu/wget/wget-1.20.3.zip", "wget-1.20.3.zip", "", "")    isa SetupSource{ArchiveSource}
