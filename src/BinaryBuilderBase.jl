@@ -50,7 +50,7 @@ function storage_dir(args::AbstractString...)
     mkpath(dirname(dir))
     return dir
 end
-ccache_dir() = storage_dir("ccache")
+ccache_dir() = get(ENV, "BINARYBUILDER_CCACHE_DIR", storage_dir("ccache"))
 
 """
     enable_apple_file()
