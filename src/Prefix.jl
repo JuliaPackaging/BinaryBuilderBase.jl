@@ -344,7 +344,7 @@ function setup(source::SetupSource{ArchiveSource}, targetdir, verbose; tar_flags
             # The .conda file contains an archive called pkg-*.tar.zst
             # Replace initial hash with pkg, and change the file extension to obtain the name
             pkg_name = replace(basename(source.path), r"^[a-z0-9]{64}-" => "pkg-", ".conda" => ".tar.zst")
-            pkg_source = SetupSource{ArchiveSource}(joinpath(targetdir, pkg_name), "", targetdir)
+            pkg_source = SetupSource{ArchiveSource}(joinpath(targetdir, pkg_name), source.hash, source.target)
             # Run setup again to untar the pkg binaries
             setup(pkg_source, targetdir, verbose; tar_flags = tar_flags)
         else
