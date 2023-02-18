@@ -6,8 +6,8 @@ using JSON
 @testset "Sources" begin
     @test ArchiveSource("https://ftp.gnu.org/gnu/wget/wget-1.20.3.tar.gz", "31cccfc6630528db1c8e3a06f6decf2a370060b982841cfab2b8677400a5092e").unpack_target == ""
     @test ArchiveSource("https://ftp.gnu.org/gnu/wget/wget-1.20.3.tar.gz", "31cccfc6630528db1c8e3a06f6decf2a370060b982841cfab2b8677400a5092e"; unpack_target = "wget").unpack_target == "wget"
-    @test ArchiveSource("https://anaconda.org/conda-forge/hdf5/1.14.0/download/linux-64/hdf5-1.14.0-nompi_h5231ba7_102.conda",
-                        "d64e2e691205920a0d0f15876d4bcade18f98ef126959d21316a297516476c7c";
+    @test ArchiveSource("https://anaconda.org/conda-forge/versionparsing.jl/1.3.0/download/noarch/versionparsing.jl-1.3.0-ha770c72_0.conda",
+                        "89156426aacf3e3230644b2d00aa029984da77d36b54b1b9dc022f1e94aa9bf0";
                         unpack_target="x86_64-linux-gnu").unpack_target == "x86_64-linux-gnu"
     @test GitSource("https://github.com/jedisct1/libsodium.git", "5b2ea7d73d3ffef2fb93b82b9f112f009d54c6e6").unpack_target == ""
     @test GitSource("https://github.com/jedisct1/libsodium.git", "5b2ea7d73d3ffef2fb93b82b9f112f009d54c6e6"; unpack_target = "libs").unpack_target == "libs"
