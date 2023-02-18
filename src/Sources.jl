@@ -65,7 +65,7 @@ ArchiveSource(url::String, hash::String; unpack_target::String = "") =
 const tar_extensions = [".tar", ".tar.gz", ".tgz", ".tar.bz", ".tar.bz2",
                         ".tar.xz", ".tar.Z", ".txz", ".tar.zst"]
 # List of general archives that we know about
-const archive_extensions = vcat(tar_extensions, ".zip")
+const archive_extensions = vcat(tar_extensions, ".zip", ".conda")
 
 """
     FileSource(url::String, hash::String; filename::String = basename(url))
