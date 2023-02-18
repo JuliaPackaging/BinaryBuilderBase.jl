@@ -6,6 +6,9 @@ using JSON
 @testset "Sources" begin
     @test ArchiveSource("https://ftp.gnu.org/gnu/wget/wget-1.20.3.tar.gz", "31cccfc6630528db1c8e3a06f6decf2a370060b982841cfab2b8677400a5092e").unpack_target == ""
     @test ArchiveSource("https://ftp.gnu.org/gnu/wget/wget-1.20.3.tar.gz", "31cccfc6630528db1c8e3a06f6decf2a370060b982841cfab2b8677400a5092e"; unpack_target = "wget").unpack_target == "wget"
+    @test ArchiveSource("https://anaconda.org/conda-forge/hdf5/1.14.0/download/linux-64/hdf5-1.14.0-nompi_h5231ba7_102.conda",
+                        "d64e2e691205920a0d0f15876d4bcade18f98ef126959d21316a297516476c7c";
+                        unpack_target="x86_64-linux-gnu").unpack_target == "x86_64-linux-gnu"
     @test GitSource("https://github.com/jedisct1/libsodium.git", "5b2ea7d73d3ffef2fb93b82b9f112f009d54c6e6").unpack_target == ""
     @test GitSource("https://github.com/jedisct1/libsodium.git", "5b2ea7d73d3ffef2fb93b82b9f112f009d54c6e6"; unpack_target = "libs").unpack_target == "libs"
     @test FileSource("https://curl.haxx.se/ca/cacert-2020-01-01.pem", "adf770dfd574a0d6026bfaa270cb6879b063957177a991d453ff1d302c02081f").filename == "cacert-2020-01-01.pem"
@@ -30,6 +33,14 @@ using JSON
                 sas = @test_logs (:info, r"Downloading .* to.*") download_source(as; verbose = true, downloads_dir = dir)
                 # Check that the cache is found
                 @test @test_logs (:info, r"Cached file found in .*") download_source(as; verbose = true, downloads_dir = dir) == sas
+                # Conda archive source
+                cas = ArchiveSource("https://anaconda.org/conda-forge/hdf5/1.14.0/download/linux-64/hdf5-1.14.0-nompi_h5231ba7_102.conda",
+                                    "d64e2e691205920a0d0f15876d4bcade18f98ef126959d21316a297516476c7c";
+                                    unpack_target="x86_64-linux-gnu")
+                # Download the source
+                scas = @test_logs (:info, r"Downloading .* to.*") download_source(cas; verbose = true, downloads_dir = dir)
+                # Check that the cache is found
+                @test @test_logs (:info, r"Cached file found in .*") download_source(cas; verbose = true, downloads_dir = dir) == scas
                 fs = FileSource("https://github.com/JuliaBinaryWrappers/libcellml_jll.jl/releases/download/libcellml-v0.4.0%2B0/libcellml-logs.v0.4.0.x86_64-w64-mingw32-cxx03.tar.gz", "237013b20851355c4c1d22ceac7e73207b44d989d38b6874187d333adfc79c77"; filename = "file-source.tar.gz")
                 # Re-fetch the same tarball, as a `FileSource` this time
                 sfs = @test_logs (:info, r"Cached file found in .*") download_source(fs; verbose = true, downloads_dir = dir)
@@ -73,6 +84,9 @@ using JSON
                 target = joinpath(srcdir, as.unpack_target)
                 @test_logs (:info, r"^Extracting tarball") setup(sas, target, true; tar_flags = "xof")
                 @test isdir(target)
+                target = joinpath(srcdir, cas.unpack_target)
+                @test_logs (:info, r"^Extracting conda package") (:info, r"^Extracting tarball") setup(scas, target, true; tar_flags = "xof")
+                @test isdir(target)
                 target = joinpath(srcdir, fs.filename)
                 @test_logs (:info, r"^Copying") setup(sfs, target, true)
                 @test isfile(target)
@@ -95,7 +109,7 @@ using JSON
                 @test islink(joinpath(target, "link.patch"))
 
                 # Make sure in srcdir there are all files and directories we expect
-                @test Set(readdir(srcdir)) == Set(["ARCHDefs", "logs", fs.filename, "patches_follow", "patches_nofollow"])
+                @test Set(readdir(srcdir)) == Set(["ARCHDefs", "logs", "x86_64-linux-gnu", fs.filename, "patches_follow", "patches_nofollow"])
 
                 # Setup the sources with `setup_workspace`
                 workspace = joinpath(dir, "workspace")
