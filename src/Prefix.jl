@@ -335,6 +335,19 @@ function setup(source::SetupSource{ArchiveSource}, targetdir, verbose; tar_flags
                 @info "Extracting zipball $(basename(source.path))..."
             end
             run(`unzip -q $(source.path)`)
+        elseif endswith(source.path, ".conda")
+            if verbose
+                @info "Extracting conda package $(basename(source.path))..."
+            end
+            # The .conda file contains an archive called pkg-*.tar.zst
+            # Replace initial hash with pkg, and change the file extension to obtain the name
+            pkg_name = replace(basename(source.path), r"^[a-z0-9]{64}-" => "pkg-", ".conda" => ".tar.zst")
+            # First unzip the pkg tarball from .conda file
+            run(`unzip -q $(source.path) $pkg_name`)
+            # Second untar the pkg tarball
+            pkg_source = SetupSource{ArchiveSource}(joinpath(targetdir, pkg_name), source.hash, source.target)
+            # Run setup again to untar the pkg binaries
+            setup(pkg_source, targetdir, verbose; tar_flags = tar_flags)
         else
             error("Unknown archive format")
         end
