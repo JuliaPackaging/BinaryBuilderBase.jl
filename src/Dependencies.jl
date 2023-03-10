@@ -339,7 +339,7 @@ version(d::Dependency) = __version(d.pkg.version)
 
 
 getcompat(d::AbstractDependency) = ""
-getcompat(d::Dependency) = d.compat
+getcompat(d::Union{Dependency,RuntimeDependency}) = d.compat
 
 for (type, type_descr) in ((Dependency, "dependency"), (RuntimeDependency, "runtimedependency"), (BuildDependency, "builddependency"), (HostBuildDependency, "hostdependency"))
     JSON.lower(d::type) = Dict("type" => type_descr,
