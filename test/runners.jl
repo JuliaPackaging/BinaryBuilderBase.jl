@@ -245,9 +245,10 @@ end
                 # Install `MPICH_jll` in the `${prefix}` to make sure we can link to
                 # libquadmath without problems, see
                 # https://github.com/JuliaPackaging/BinaryBuilderBase.jl/pull/157#issuecomment-879263820
+                version = VERSION≥v"1.9.0-" ? v"3.4.2+0" : v"3.4.2" # From Julia v1.9, JLLs need to specify the build number
                 artifact_paths =
                     setup_dependencies(prefix,
-                                       [PackageSpec(; name="MPICH_jll", version=v"3.4.2")],
+                                       [PackageSpec(; name="MPICH_jll", version)],
                                        concrete_platform, verbose=false)
                 ur = preferred_runner()(prefix.path;
                                         platform=concrete_platform,
@@ -297,9 +298,10 @@ end
                 # Install `CompilerSupportLibraries_jll` v0.5.0 in the `${prefix}` to make
                 # sure it doesn't break compilation of the program for i686-linux-gnu, see
                 # https://github.com/JuliaPackaging/BinaryBuilderBase.jl/issues/163
+                version = VERSION≥v"1.9.0-" ? v"0.5.0+0" : v"0.5.0" # From Julia v1.9, JLLs need to specify the build number
                 artifact_paths =
                     setup_dependencies(prefix,
-                                       [PackageSpec(; name="CompilerSupportLibraries_jll", version=v"0.5.0")],
+                                       [PackageSpec(; name="CompilerSupportLibraries_jll", version)],
                                        concrete_platform, verbose=false)
                 ur = preferred_runner()(prefix.path;
                                         platform=concrete_platform,
