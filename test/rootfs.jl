@@ -160,8 +160,9 @@ end
         # Adding `"cxx11"` eliminates `v"4.X"`:
         p = Platform("x86_64", "linux"; libgfortran_version=v"3", cxxstring_abi="cxx11")
         @test gcc_version(p, available_gcc_builds) == [v"5.2.0", v"6.1.0"]
-        p["march"] = "avx512"
-        @test gcc_version(p, available_gcc_builds) == [v"6.1.0"]
+        # AVX-512 requires GCC 7
+        p = Platform("x86_64", "linux"; cxxstring_abi="cxx11", march = "avx512")
+        @test first(sort!(gcc_version(p, available_gcc_builds))) == v"7.1.0"
 
         # Just libgfortran v3 allows GCC 6 as well though
         p = Platform("x86_64", "linux"; libgfortran_version=v"3")
