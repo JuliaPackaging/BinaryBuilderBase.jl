@@ -480,13 +480,17 @@ function gcc_version(p::AbstractPlatform,GCC_builds::Vector{GCCBuild},
         # "sandybridge", "haswell", "cortex-a53" introduced in GCC v4.9.0:
         # https://www.gnu.org/software/gcc/gcc-4.9/changes.html
         GCC_builds = filter(b -> getversion(b) >= v"4.9", GCC_builds)
-    elseif march(p) in ("avx512", "power9")
-        # "skylake-avx512" and "power9" introduced in GCC v6.1:
+    elseif march(p) in ("power9",)
+        # "power9" introduced in GCC v6.1:
         # https://www.gnu.org/software/gcc/gcc-6/changes.html
         GCC_builds = filter(b -> getversion(b) >= v"6.1", GCC_builds)
-    elseif march(p) in ("armv8_1",)
+    elseif march(p) in ("avx512", "armv8_1")
         # "thunderx2t99" introduced in GCC v7.1:
-        # https://www.gnu.org/software/gcc/gcc-7/changes.html
+        # <https://www.gnu.org/software/gcc/gcc-7/changes.html>.
+        # "skylake-avx512" introduced in GCC v6.1, but header files were broken
+        # in that release:
+        # <https://github.com/JuliaPackaging/Yggdrasil/pull/4485#issuecomment-1048226993>
+        # <https://github.com/JuliaPackaging/Yggdrasil/pull/6392#discussion_r1138808437>.
         GCC_builds = filter(b -> getversion(b) >= v"7.1", GCC_builds)
     elseif march(p) in ("armv8_2_crypto",)
         # `cortex-a76` target introduced in GCC v9.1:
