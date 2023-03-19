@@ -1141,8 +1141,9 @@ function manage_shards(; sort_by=:name, rev=false)
     end
 
     # Prompt user
+    ts = @sprintf("%5.3f", sum(totalsizes) / 2^30)
     manage_shards_menu = TerminalMenus.request(
-        "Which compiler shards should be removed?",
+        "Which compiler shards should be removed (total size on disk: $ts GiB)?",
         TerminalMenus.MultiSelectMenu(menuitems, pagesize = 10; charset=:ascii)
     )
 
