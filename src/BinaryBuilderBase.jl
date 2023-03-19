@@ -22,7 +22,8 @@ export AbstractSource, AbstractDependency, SetupSource, PatchSource,
     nbits, proc_family, storage_dir, extract_kwargs, extract_fields,
     download_source, setup_workspace, setup_dependencies, update_registry,
     getname, cleanup_dependencies, compress_dir, prepare_for_deletion,
-    run_interactive, sourcify, dependencify, with_logfile, get_concrete_platform
+    run_interactive, sourcify, dependencify, with_logfile, get_concrete_platform,
+    manage_shards
 
 include("compat.jl")
 
