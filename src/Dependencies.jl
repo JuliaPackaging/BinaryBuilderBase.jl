@@ -196,7 +196,7 @@ is_runtime_dependency(::RuntimeDependency) = true
 is_top_level_dependency(dep::RuntimeDependency) = dep.top_level
 # In some cases we may want to automatically convert a `RuntimeDependency` to a `Dependency`
 Base.convert(::Type{Dependency}, dep::RuntimeDependency) =
-    Dependency(dep.pkg; compat=dep.compat, platforms=dep.platforms)
+    Dependency(dep.pkg; compat=dep.compat, platforms=dep.platforms, top_level=dep.top_level)
 
 """
     BuildDependency(dep::Union{PackageSpec,String}; platforms)

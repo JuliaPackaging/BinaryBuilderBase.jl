@@ -5,9 +5,12 @@ using BinaryBuilderBase: getname, getpkg, dependencify, destdir, PKG_VERSIONS, g
 using JSON
 using LibGit2
 using ObjectFile
+using ConstructionBase
 
-# Define equality between dependencies, in order to carry out the tests below
-Base.:(==)(a::AbstractDependency, b::AbstractDependency) = getpkg(a) == getpkg(b)
+# Define equality between dependencies, in order to carry out the tests below.
+# In some cases we want to test that only the PackageSpec match, instead of the full struct.
+Base.:(==)(a::D, b::D) where {D<:AbstractDependency} = getproperties(a) == getproperties(b)
+Base.isapprox(a::D, b::D)  where {D<:AbstractDependency} = getpkg(a) == getpkg(b)
 
 function with_temp_project(f::Function)
     mktempdir() do dir
@@ -20,7 +23,7 @@ end
 @testset "Dependencies" begin
     name = "Foo_jll"
     dep = Dependency(PackageSpec(; name = name); platforms=supported_platforms(; experimental=true, exclude=!Sys.isapple))
-    @test Dependency(name) == dep
+    @test Dependency(name) ≈ dep
     @test !is_host_dependency(dep)
     @test is_target_dependency(dep)
     @test is_build_dependency(dep)
@@ -40,14 +43,14 @@ end
 
     # the same but with compat info
     dep_buildver = Dependency(PackageSpec(; name = name), build_version; compat = "~1.2", platforms=[Platform("x86_64", "linux"; cxxstring_abi="cxx11")])
-    @test Dependency(name, build_version) == dep_buildver
+    @test Dependency(name, build_version) ≈ dep_buildver
     @test getname(dep_buildver) == name
     @test getpkg(dep_buildver) == PackageSpec(; name = name, version = PKG_VERSIONS.VersionSpec(build_version))
     @test getcompat(dep_buildver) == "~1.2"
 
     # the same but only with compat specifier
     dep_compat = Dependency(PackageSpec(; name); compat = "2, ~$(build_version)")
-    @test Dependency(name, build_version) == dep_compat
+    @test Dependency(name, build_version) ≈ dep_compat
     @test getname(dep_compat) == name
     @test getpkg(dep_compat) == PackageSpec(; name, version = PKG_VERSIONS.VersionSpec(build_version))
     @test getcompat(dep_compat) == "2, ~$(build_version)"
@@ -56,7 +59,7 @@ end
     @test_throws ArgumentError Dependency(PackageSpec(; name = name), build_version; compat = "2.0")
 
     run_dep = RuntimeDependency(PackageSpec(; name); compat="3.14")
-    @test RuntimeDependency(name) == run_dep
+    @test RuntimeDependency(name) ≈ run_dep
     @test !is_host_dependency(run_dep)
     @test is_target_dependency(run_dep)
     @test !is_build_dependency(run_dep)
@@ -69,6 +72,8 @@ end
     # We should be able to convert a `Vector{RuntimeDependency}` to `Vector{Dependency}`
     @test Dependency[RuntimeDependency(name; compat="~1.8", platforms=[Platform("aarch64", "macos"; cxxstring_abi="cxx03")])] ==
         [Dependency(name; compat="~1.8", platforms=[Platform("aarch64", "macos"; cxxstring_abi="cxx03")])]
+    @test @test_logs((:warn, r"was defined as top-level"), Dependency[RuntimeDependency(name; top_level=true)]) ==
+        [@test_logs((:warn, r"was defined as top-level"), Dependency(name; top_level=true))]
     # If the version in the PackageSpec and the compat don't match, an error should be thrown
     @test_throws ArgumentError RuntimeDependency(PackageSpec(; name, version=v"1.2.3"); compat = "2.0")
 
