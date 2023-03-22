@@ -254,16 +254,21 @@ function cargo_config_file!(dir::AbstractString, platform::AbstractPlatform;
     # Generate "${CARGO_HOME}/config.toml" file for Cargo where we give it the linkers for
     # the host and target platforms.
     open(joinpath(dir, "config.toml"), "w") do io
-        write(io, """
+        print(io, """
         # Configuration file for `cargo`
         """)
         for p in unique(abi_agnostic.((platform, host_platform)))
             # Use `aatriplet` for the linker to match how the wrappers are written in
             # https://github.com/JuliaPackaging/BinaryBuilderBase.jl/blob/30d056ef68f81dca9cb91ededcce6b68c6466b37/src/Runner.jl#L599.
-            write(io, """
+            print(io, """
             [target.$(map_rust_target(p))]
             linker = "$(aatriplet(p))-cc"
             """)
         end
+        print(io, """
+                  # Use sparse registry for quick updates
+                  [registries.crates-io]
+                  protocol = 'sparse'
+                  """)
     end
 end

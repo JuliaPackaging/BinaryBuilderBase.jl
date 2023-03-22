@@ -1125,12 +1125,6 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
             merge!(mapping, Dict(
                 "RUSTUP_TOOLCHAIN" => "$(rust_version)-$(map_rust_target(host_platform))",
             ))
-            if rust_version ≥ v"1.68.0"
-                merge!(mapping, Dict(
-                    # Use sparse crates.io registry for quicker updates
-                    "REGISTRIES_CRATES_IO_PROTOCOL" => "sparse",
-                ))
-            end
         end
     end
 
