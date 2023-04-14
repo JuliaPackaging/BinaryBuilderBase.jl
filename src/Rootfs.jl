@@ -1172,7 +1172,7 @@ end
 
 # Return total size on a disk of a file or directory
 function totalsize(path)
-  if isfile(path)
+  if !isdir(path)
       return filesize(path)
   end
 
