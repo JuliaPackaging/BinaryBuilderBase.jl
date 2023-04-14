@@ -1125,9 +1125,9 @@ function manage_shards(; sort_by=:name, rev=false)
 
     # Sort shards and totalsizes
     if sort_by === :name
-        perm = sortperm(shards, rev=rev)
+        perm = sortperm(shards; rev)
     elseif sort_by == :size
-        perm = sortperm(totalsizes, rev=rev)
+        perm = sortperm(totalsizes; rev)
     else
       error("unsupported sort value: :$sort_by (allowed: :name, :size)")
     end
@@ -1136,7 +1136,7 @@ function manage_shards(; sort_by=:name, rev=false)
 
     # Build menu items
     menuitems = similar(shards, String)
-    for i in 1:length(shards)
+    for i in eachindex(shards, totalsizes)
         menuitems[i] = @sprintf("(%5.3f GiB) %s", totalsizes[i] / 2^30, shards[i])
     end
 
@@ -1144,7 +1144,7 @@ function manage_shards(; sort_by=:name, rev=false)
     ts = @sprintf("%5.3f", sum(totalsizes) / 2^30)
     manage_shards_menu = TerminalMenus.request(
         "Which compiler shards should be removed (total size on disk: $ts GiB)?",
-        TerminalMenus.MultiSelectMenu(menuitems, pagesize = 10; charset=:ascii)
+        TerminalMenus.MultiSelectMenu(menuitems; pagesize = 10, charset=:ascii)
     )
 
     # Handle no selection
