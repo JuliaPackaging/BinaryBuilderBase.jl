@@ -59,11 +59,6 @@ function Base.:(==)(a::CompilerShard, b::CompilerShard)
            a.archive_type == b.archive_type
 end
 
-function Base.isless(a::CompilerShard, b::CompilerShard)
-    return isless((a.name, a.version, string(a.target), a.host, a.archive_type),
-                  (b.name, b.version, string(b.target), b.host, b.archive_type))
-end
-
 """
     artifact_name(cs::CompilerShard)
 
@@ -1125,7 +1120,12 @@ function manage_shards(; sort_by=:name, rev=false)
 
     # Sort shards and totalsizes
     if sort_by === :name
-        perm = sortperm(shards; rev)
+        function isless_shards(a::CompilerShard, b::CompilerShard)
+            return isless((a.name, a.version, string(a.target), a.host, a.archive_type),
+                          (b.name, b.version, string(b.target), b.host, b.archive_type))
+        end
+
+        perm = sortperm(shards; rev, lt=isless_shards)
     elseif sort_by == :size
         perm = sortperm(totalsizes; rev)
     else
