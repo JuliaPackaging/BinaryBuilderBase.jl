@@ -333,6 +333,14 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             ])
             end
         end
+        if Sys.iswindows(p)
+            # Declare that we are Windows 10 (0x0A00)
+            # https://learn.microsoft.com/en-us/cpp/porting/modifying-winver-and-win32-winnt?view=msvc-170
+            append!(flags, [
+                "-DWINVER=0x0A00",
+                "-D_WIN32_WINNT=0x0A00",
+            ])
+        end
         return flags
     end
 
@@ -478,6 +486,16 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         if Sys.isapple(p)
             macos_gcc_flags!(p, flags)
         end
+
+        if Sys.iswindows(p)
+            # Declare that we are Windows 10 (0x0A00)
+            # https://learn.microsoft.com/en-us/cpp/porting/modifying-winver-and-win32-winnt?view=msvc-170
+            append!(flags, [
+                "-DWINVER=0x0A00",
+                "-D_WIN32_WINNT=0x0A00",
+            ])
+        end
+
         return flags
     end
 
