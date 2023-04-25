@@ -1,7 +1,9 @@
 export supported_platforms, expand_gfortran_versions, expand_cxxstring_abis, expand_microarchitectures
 
-using Pkg.Artifacts: load_artifacts_toml, ensure_all_artifacts_installed
+using Pkg.Artifacts: load_artifacts_toml, ensure_all_artifacts_installed, artifact_path
 using Base.BinaryPlatforms: set_compare_strategy!, compare_version_cap
+using REPL.TerminalMenus
+using Printf: @sprintf
 
 # This is a type that encompasses a shard; it makes it easy to pass it around,
 # get its download url, extraction url, mounting url, etc...
@@ -1099,4 +1101,89 @@ function installed_shards()
     idx = artifact_exists.(shard_source_artifact_hash.(all_compiler_shards()))
 
     return all_compiler_shards()[idx]
+end
+
+"""
+    manage_shards(; sort_by=:name, rev=false)
+
+Open a prompt allowing a user to selectively remove downloaded compiler shards.
+By default, the shards are sorted by name, alternatively you can sort them by
+file size on disk by specifying `sort_by=:size`. With `rev=true` you can
+reverse the sort order.
+"""
+function manage_shards(; sort_by=:name, rev=false)
+    # Get all installed shards
+    shards = installed_shards()
+
+    # Obtain directory sizes for the artifacts
+    totalsizes = totalsize.(Artifacts.artifact_path.(shard_source_artifact_hash.(shards)))
+
+    # Sort shards and totalsizes
+    if sort_by === :name
+        function isless_shards(a::CompilerShard, b::CompilerShard)
+            return isless((a.name, a.version, string(a.target), a.host, a.archive_type),
+                          (b.name, b.version, string(b.target), b.host, b.archive_type))
+        end
+
+        perm = sortperm(shards; rev, lt=isless_shards)
+    elseif sort_by == :size
+        perm = sortperm(totalsizes; rev)
+    else
+      error("unsupported sort value: :$sort_by (allowed: :name, :size)")
+    end
+    shards .= shards[perm]
+    totalsizes .= totalsizes[perm]
+
+    # Build menu items
+    menuitems = similar(shards, String)
+    for i in eachindex(shards, totalsizes)
+        menuitems[i] = @sprintf("(%5.3f GiB) %s", totalsizes[i] / 2^30, shards[i])
+    end
+
+    # Prompt user
+    ts = @sprintf("%5.3f", sum(totalsizes) / 2^30)
+    manage_shards_menu = TerminalMenus.request(
+        "Which compiler shards should be removed (total size on disk: $ts GiB)?",
+        TerminalMenus.MultiSelectMenu(menuitems; pagesize = 10, charset=:ascii)
+    )
+
+    # Handle no selection
+    if isempty(manage_shards_menu)
+        println("Removed 0 compiler shards.")
+        return nothing
+    end
+
+    # Otherwise prompt for confirmation
+    println("\nThe following shards have been marked for removal:\n")
+    for item in menuitems[sort(Int.(manage_shards_menu))]
+        println("  ", item)
+    end
+    print("\nAre you sure that these should be removed? [Y/n]: ")
+    answer = lowercase(strip(readline()))
+
+    # If removal is confirmed, deleting the relevant artifacts
+    if isempty(answer) || answer == "yes" || answer == "y"
+        Pkg.remove_artifact.(shard_source_artifact_hash.(shards[Int.(manage_shards_menu)]))
+        println("Removed ", length(manage_shards_menu), " compiler shards.")
+    else
+        println("Removed 0 compiler shards.")
+    end
+end
+
+# Return total size on a disk of a file or directory
+function totalsize(path)
+  if !isdir(path)
+      return filesize(path)
+  end
+
+  total = 0
+  for (root, dirs, files) in walkdir(path)
+    total += filesize(root)
+
+    for file in files
+      total += filesize(joinpath(root, file))
+    end
+  end
+
+  return total
 end
