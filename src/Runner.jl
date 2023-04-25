@@ -333,6 +333,9 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             ])
             end
         end
+        if Sys.iswindows(p)
+            windows_cflags!(p, flags)
+        end
         return flags
     end
 
@@ -458,6 +461,16 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         return flags
     end
 
+    function windows_cflags!(p::AbstractPlatform, flags::Vector{String} = String[])
+        # Declare that we are Windows 10 (0x0A00)
+        # https://learn.microsoft.com/en-us/cpp/porting/modifying-winver-and-win32-winnt?view=msvc-170
+        append!(flags, [
+            "-DWINVER=0x0A00",
+            "-D_WIN32_WINNT=0x0A00",
+        ])
+        return flags
+    end
+
     function gcc_flags!(p::AbstractPlatform, flags::Vector{String} = String[])
         # Force proper cxx11 string ABI usage w00t w00t!
         if cxxstring_abi(p) == "cxx11"
@@ -478,6 +491,11 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         if Sys.isapple(p)
             macos_gcc_flags!(p, flags)
         end
+
+        if Sys.iswindows(p)
+            windows_cflags!(p, flags)
+        end
+
         return flags
     end
 
