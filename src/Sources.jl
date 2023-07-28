@@ -222,6 +222,10 @@ function cached_git_clone(url::String;
         end
     else
         # If there is no repo_path yet, clone it down into a bare repository
+        # If parent directory for repo_path doesn't exist, create it
+        if ! isdir(dirname(repo_path))
+            mkpath(dirname(repo_path))
+        end
         if verbose
             @info("Cloning git repository", url, repo_path)
         end
