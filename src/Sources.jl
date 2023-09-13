@@ -154,7 +154,8 @@ struct GitTransferProgress
     received_bytes::Csize_t
 end
 
-function transfer_progress(progress::Ptr{GitTransferProgress}, p::Any)
+function transfer_progress(progress::Ptr{GitTransferProgress}, payloads::Dict)
+    p = payloads[:transfer_progress]
     progress = unsafe_load(progress)
     p.n = progress.total_objects
     if progress.total_deltas != 0
@@ -193,25 +194,19 @@ function cached_git_clone(url::String;
         if verbose
             @info("Cloning git repository", url, repo_path)
         end
+        callbacks = LibGit2.Callbacks()
+        p = Progress(0, 1, "Cloning: ")
         if progressbar
-            # Clone with a progress bar
-            p = Progress(0, 1, "Cloning: ")
-            GC.@preserve p begin
-                callbacks = LibGit2.RemoteCallbacks(
-                    transfer_progress=@cfunction(
+            callbacks[:transfer_progress] = (
+                @cfunction(
                         transfer_progress,
                         Cint,
                         (Ptr{GitTransferProgress}, Any)
                     ),
-                    payload = p
-                )
-                fetch_opts = LibGit2.FetchOptions(; callbacks)
-                clone_opts = LibGit2.CloneOptions(; fetch_opts, bare = Cint(true))
-                LibGit2.clone(url, repo_path, clone_opts)
-            end
-        else
-            LibGit2.clone(url, repo_path; isbare=true)
+                p
+            )
         end
+        LibGit2.clone(url, repo_path; isbare=true, callbacks)
     end
     return repo_path
 end
