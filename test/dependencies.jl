@@ -252,24 +252,26 @@ end
             "https://github.com/JuliaBinaryWrappers/HelloWorldC_jll.jl",
             "ssh://git@github.com/JuliaBinaryWrappers/HelloWorldC_jll.jl"
         )
-            with_temp_project() do dir
-                mktempdir() do pkgdir
-                    prefix = Prefix(dir)
-                    # Clone if necessary the remote repository and check out its
-                    # working directory in a temporary space.
-                    cache_dir = cached_git_clone(remote_url)
-                    LibGit2.with(LibGit2.clone(cache_dir, pkgdir)) do repo
-                        LibGit2.checkout!(repo, "c7f2e95d9c04e218931c14954ecd31ebde72cca5")
+            for progressbar in (true, false)
+                with_temp_project() do dir
+                    mktempdir() do pkgdir
+                        prefix = Prefix(dir)
+                        # Clone if necessary the remote repository and check out its
+                        # working directory in a temporary space.
+                        cache_dir = cached_git_clone(remote_url; progressbar)
+                        LibGit2.with(LibGit2.clone(cache_dir, pkgdir)) do repo
+                            LibGit2.checkout!(repo, "c7f2e95d9c04e218931c14954ecd31ebde72cca5")
+                        end
+                        dependencies = [
+                            PackageSpec(
+                                name="HelloWorldC_jll",
+                                path=pkgdir,
+                            ),
+                        ]
+                        platform = Platform("x86_64", "linux"; libc="glibc")
+                        @test_logs setup_dependencies(prefix, dependencies, platform)
+                        @test readdir(joinpath(destdir(dir, platform), "bin")) == ["hello_world"]
                     end
-                    dependencies = [
-                        PackageSpec(
-                            name="HelloWorldC_jll",
-                            path=pkgdir,
-                        ),
-                    ]
-                    platform = Platform("x86_64", "linux"; libc="glibc")
-                    @test_logs setup_dependencies(prefix, dependencies, platform)
-                    @test readdir(joinpath(destdir(dir, platform), "bin")) == ["hello_world"]
                 end
             end
         end

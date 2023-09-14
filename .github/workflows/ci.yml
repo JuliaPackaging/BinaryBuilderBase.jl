@@ -62,6 +62,8 @@ jobs:
       - uses: julia-actions/julia-buildpkg@latest
       - name: System info
         run: julia --project=. --color=yes -e "using BinaryBuilderBase; BinaryBuilderBase.versioninfo()"
+      - name: Setup temporary SSH keys
+        run: ssh-keygen -q -N ""
       - name: Run tests
         run: |
           julia --check-bounds=yes --color=yes --depwarn=yes --inline=yes --project=@. -e 'using Pkg; Pkg.instantiate(); Pkg.test(coverage=true)'

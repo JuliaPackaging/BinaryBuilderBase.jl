@@ -195,7 +195,7 @@ function cached_git_clone(url::String;
             @info("Cloning git repository", url, repo_path)
         end
         callbacks = LibGit2.Callbacks()
-        p = Progress(0, 1, "Cloning: ")
+        p = Progress(0, dt=1, desc="Cloning: ")
         if progressbar
             callbacks[:transfer_progress] = (
                 @cfunction(
