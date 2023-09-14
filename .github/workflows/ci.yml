@@ -64,6 +64,8 @@ jobs:
         run: julia --project=. --color=yes -e "using BinaryBuilderBase; BinaryBuilderBase.versioninfo()"
       - name: Setup temporary SSH keys
         run: ssh-keygen -f /home/runner/.ssh/id_rsa -q -N ""
+      - name: Start SSH agent
+        run: eval `ssh-agent`
       - name: Add SSH key to agent
         run: ssh-add /home/runner/.ssh/id_rsa
       - name: Run tests
