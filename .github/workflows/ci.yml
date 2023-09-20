@@ -66,6 +66,7 @@ jobs:
         run: |
           eval `ssh-agent`
           chmod 0600 test/id_rsa_deploy_helloworld_c_jll_read_only
+          mkdir -p ~/.ssh
           touch ~/.ssh/known_hosts
           ssh-keyscan github.com >> ~/.ssh/known_hosts
           ssh-add test/id_rsa_deploy_helloworld_c_jll_read_only
