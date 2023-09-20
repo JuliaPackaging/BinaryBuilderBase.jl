@@ -54,7 +54,7 @@ jobs:
           swap-size-mb: 1024
           remove-dotnet: 'true'
           remove-android: 'true'
-          build-mount-path: /home/runner
+          build-mount-path: /home/runner/.julia
       - run: sudo rm -rf /opt/*
       - uses: actions/checkout@v3
       - uses: julia-actions/setup-julia@v1
