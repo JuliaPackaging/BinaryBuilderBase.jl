@@ -10,6 +10,7 @@ on:
 env:
   BINARYBUILDER_FULL_SHARD_TEST: true
   BINARYBUILDER_AUTOMATIC_APPLE: true
+  JULIA_DEBUG: all
 
 jobs:
   test:
