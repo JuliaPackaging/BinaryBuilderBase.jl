@@ -47,6 +47,13 @@ jobs:
             julia-version: "1.7"
 
     steps:
+      - name: Maximize build space
+        uses: easimon/maximize-build-space@master
+        with:
+          root-reserve-mb: 512
+          swap-size-mb: 1024
+          remove-dotnet: 'true'
+          remove-android: 'true'
       - run: sudo rm -rf /opt/*
       - uses: actions/checkout@v3
       - uses: julia-actions/setup-julia@v1
