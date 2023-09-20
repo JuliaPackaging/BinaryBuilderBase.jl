@@ -66,7 +66,7 @@ jobs:
         run: |
           eval `ssh-agent`
           chmod 0600 test/id_rsa_deploy_helloworld_c_jll_read_only
-          ssh-keyscan github.com
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
           ssh-add test/id_rsa_deploy_helloworld_c_jll_read_only
           julia --check-bounds=yes --color=yes --depwarn=yes --inline=yes --project=@. -e 'using Pkg; Pkg.instantiate(); Pkg.test(coverage=true)'
       - uses: julia-actions/julia-uploadcodecov@v0.1
