@@ -8,7 +8,6 @@ on:
   release:
 
 env:
-  BINARYBUILDER_FULL_SHARD_TEST: true
   BINARYBUILDER_AUTOMATIC_APPLE: true
 
 jobs:
@@ -19,6 +18,9 @@ jobs:
     env:
       BINARYBUILDER_RUNNER: ${{ matrix.runner }}
       BINARYBUILDER_USE_SQUASHFS: ${{ matrix.squashfs }}
+      # Run full tests only when we use the packed shards, because we constantly
+      # run out of disk on the free GitHub-hosted runners.
+      BINARYBUILDER_FULL_SHARD_TEST: ${{ matrix.squashfs }}
     strategy:
       fail-fast: false
       matrix:
