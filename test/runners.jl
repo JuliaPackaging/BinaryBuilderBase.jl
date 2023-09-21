@@ -199,7 +199,7 @@ end
             seekstart(iobuff)
             # Make sure `iobuff` contains only the input command, no other text
             is_broken = (compiler == "g++" && Sys.isapple(platform) && arch(platform) == "x86_64") # This gets fixed by using GCC7 or up
-            @test readchomp(iobuff) == string(cmd)
+            @test readchomp(iobuff) == string(cmd) broken=is_broken
         end
     end
 
