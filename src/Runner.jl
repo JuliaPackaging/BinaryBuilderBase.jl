@@ -322,16 +322,17 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             "--sysroot=/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root",
         ])
         if !Sys.isbsd(p)
-            append!(flags, [
-                # Find GCC toolchain here (for things like libgcc_s)
-                "--gcc-toolchain=/opt/$(aatriplet(p))"
-            ])
             if iscxx
                 append!(flags, [
                     # Link with libstdc++ when compiling c++ on non-BSDs
                     "-stdlib=libstdc++"
             ])
+            push!(flags, "-nobuiltininc")
             end
+        end
+        if Sys.islinux(p)
+            gcc_version, llvm_version = select_compiler_versions(p, compilers)
+            append!(flags, ["--gcc-install-dir=/opt/$(aatriplet(p))/lib/gcc/$(aatriplet(p))/$(gcc_version)"])
         end
         if Sys.iswindows(p)
             windows_cflags!(p, flags)
@@ -415,6 +416,18 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         if Sys.isfreebsd(p)
             add_system_includedir(flags)
         end
+
+        if !Sys.isbsd(p)
+            gcc_version, llvm_version = select_compiler_versions(p, compilers)
+            append!(flags, String["-I/opt/$(aatriplet(p))/$(aatriplet(p))/include/c++/$(gcc_version)",
+                                  "-I/opt/$(aatriplet(p))/$(aatriplet(p))/include/c++/$(gcc_version)/$(aatriplet(p))",
+                                  "-I/opt/$(aatriplet(p))/$(aatriplet(p))/include/c++/$(gcc_version)/backward",
+                                  "-I/opt/$(aatriplet(p))/lib/gcc/$(aatriplet(p))/$(gcc_version)/include",
+                                  "-I/opt/$(aatriplet(p))/lib/gcc/$(aatriplet(p))/$(gcc_version)/include-fixed",
+                                  "-I/opt/$(aatriplet(p))/$(aatriplet(p))/include",
+                                  "-I/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root/include"])
+        end
+
         return flags
     end
 
@@ -434,6 +447,11 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
                 # Use libgcc as the C runtime library
                 "-rtlib=libgcc"
             ])
+            gcc_version, llvm_version = select_compiler_versions(p, compilers)
+            append!(flags, String["-L/opt/$(aatriplet(p))/lib/gcc/opt/$(aatriplet(p))/lib/gcc",
+                                  "-L/opt/$(aatriplet(p))/$(aatriplet(p))/lib",
+                                  "-L/opt/$(aatriplet(p))/lib/gcc/$(aatriplet(p))/$(gcc_version)",
+                                  "-L/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root/lib",])
         end
         # we want to use a particular linker with clang.  But we want to avoid warnings about unused
         # flags when just compiling, so we put it into "linker-only flags".
