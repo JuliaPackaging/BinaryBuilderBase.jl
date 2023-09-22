@@ -3,6 +3,8 @@ using BinaryBuilderBase
 using BinaryBuilderBase: platform_dlext, platform_exeext, prefer_clang
 using Pkg
 
+const debug_stream = stderr
+
 @testset "Wrappers utilities" begin
     @test nbits(Platform("i686", "linux")) == 32
     @test nbits(Platform("x86_64", "linux"; march="avx")) == 64
@@ -119,7 +121,7 @@ end
             # Building for the host uses C++11 string ABI
             echo 'int main() {return 0;}' | SUPER_VERBOSE=1 ${HOSTCC} -x c - 2>&1 | grep -v -- "-D_GLIBCXX_USE_CXX11_ABI=0"
             """
-            @test run(ur, `/bin/bash -c "$(test_script)"`, iobuff; tee_stream=devnull)
+            @test run(ur, `/bin/bash -c "$(test_script)"`, iobuff; tee_stream=debug_stream)
         end
     end
 
@@ -155,7 +157,7 @@ end
                 $(compiler) -Werror -o main main.c -L. -ltest
                 """
             cmd = `/bin/bash -c "$(test_script)"`
-            @test run(ur, cmd, iobuff; tee_stream=devnull) broken=is_broken
+            @test run(ur, cmd, iobuff; tee_stream=debug_stream) broken=is_broken
             seekstart(iobuff)
             # Make sure `iobuff` contains only the input command, no other text
             @test readchomp(iobuff) == string(cmd) broken=is_broken
@@ -198,7 +200,7 @@ end
                 $(compiler) -Werror -std=c++11 -o main main.cpp -L. -ltest
                 """
             cmd = `/bin/bash -c "$(test_script)"`
-            @test run(ur, cmd, iobuff; tee_stream=devnull) broken=is_broken
+            @test run(ur, cmd, iobuff; tee_stream=debug_stream) broken=is_broken
             seekstart(iobuff)
             # Make sure `iobuff` contains only the input command, no other text
             is_broken = is_broken || (compiler == "g++" && Sys.isapple(platform) && arch(platform) == "x86_64")
@@ -223,7 +225,7 @@ end
                 }
                 """
                 cmd = `/bin/bash -c "echo '$(test_c)' > test.c && cc -o test test.c && ./test"`
-                @test run(ur, cmd, iobuff; tee_stream=devnull)
+                @test run(ur, cmd, iobuff; tee_stream=debug_stream)
                 seekstart(iobuff)
                 # Test that we get the output we expect
                 @test endswith(readchomp(iobuff), "Hello World!")
@@ -272,9 +274,9 @@ end
                 cmd = `/bin/bash -c "$(test_script)"`
                 if arch(platform) == "i686" && libc(platform) == "musl"
                     # We can't run this program for this platform
-                    @test_broken run(ur, cmd, iobuff; tee_stream=devnull)
+                    @test_broken run(ur, cmd, iobuff; tee_stream=debug_stream)
                 else
-                    @test run(ur, cmd, iobuff; tee_stream=devnull)
+                    @test run(ur, cmd, iobuff; tee_stream=debug_stream)
                     seekstart(iobuff)
                     # Test that we get the output we expect
                     @test endswith(readchomp(iobuff), "Hello World!")
@@ -327,9 +329,9 @@ end
                 cmd = `/bin/bash -c "$(test_script)"`
                 if arch(platform) == "i686" && libc(platform) == "musl"
                     # We can't run C++ programs for this platform
-                    @test_broken run(ur, cmd, iobuff; tee_stream=devnull)
+                    @test_broken run(ur, cmd, iobuff; tee_stream=debug_stream)
                 else
-                    @test run(ur, cmd, iobuff; tee_stream=devnull)
+                    @test run(ur, cmd, iobuff; tee_stream=debug_stream)
                     seekstart(iobuff)
                     # Test that we get the output we expect
                     @test endswith(readchomp(iobuff), "Hello World!")
@@ -352,9 +354,9 @@ end
                 cmd = `/bin/bash -c "echo '$(test_f)' > test.f && gfortran -o test test.f && ./test"`
                 if arch(platform) == "i686" && libc(platform) == "musl"
                     # We can't run Fortran programs for this platform
-                    @test_broken run(ur, cmd, iobuff; tee_stream=devnull)
+                    @test_broken run(ur, cmd, iobuff; tee_stream=debug_stream)
                 else
-                    @test run(ur, cmd, iobuff; tee_stream=devnull)
+                    @test run(ur, cmd, iobuff; tee_stream=debug_stream)
                     seekstart(iobuff)
                     # Test that we get the output we expect
                     @test endswith(readchomp(iobuff), "Hello World!")
@@ -369,13 +371,13 @@ end
             cmd = `/bin/bash -c "echo 'int main() {return 0;}' | cc -x c -march=native -"`
             ur = preferred_runner()(dir; platform=platform, lock_microarchitecture=true)
             iobuff = IOBuffer()
-            @test !run(ur, cmd, iobuff; tee_stream=devnull)
+            @test !run(ur, cmd, iobuff; tee_stream=debug_stream)
             seekstart(iobuff)
             @test readlines(iobuff)[2] == "BinaryBuilder: Cannot force an architecture via -march"
 
             ur = preferred_runner()(dir; platform=platform, lock_microarchitecture=false)
             iobuff = IOBuffer()
-            @test run(ur, cmd, iobuff; tee_stream=devnull)
+            @test run(ur, cmd, iobuff; tee_stream=debug_stream)
             seekstart(iobuff)
             @test split(String(read(iobuff)), "\n")[2] == ""
         end
@@ -387,7 +389,7 @@ end
             cmd = `/bin/bash -c "echo 'int main() {return 0;}' | cc -x c -Ofast -"`
             ur = preferred_runner()(dir; platform=platform, allow_unsafe_flags=false)
             iobuff = IOBuffer()
-            @test !run(ur, cmd, iobuff; tee_stream=devnull)
+            @test !run(ur, cmd, iobuff; tee_stream=debug_stream)
             seekstart(iobuff)
             lines = readlines(iobuff)
             @test lines[2] == "BinaryBuilder: You used one or more of the unsafe flags: -Ofast, -ffast-math, -funsafe-math-optimizations"
@@ -395,7 +397,7 @@ end
 
             ur = preferred_runner()(dir; platform=platform, allow_unsafe_flags=true)
             iobuff = IOBuffer()
-            @test run(ur, cmd, iobuff; tee_stream=devnull)
+            @test run(ur, cmd, iobuff; tee_stream=debug_stream)
             seekstart(iobuff)
             @test split(String(read(iobuff)), "\n")[2] == ""
         end
@@ -417,7 +419,7 @@ end
             cmd = `/bin/bash -c "$(test_script)"`
             ur = preferred_runner()(dir; platform=platform, allow_unsafe_flags=false)
             iobuff = IOBuffer()
-            @test run(ur, cmd, iobuff; tee_stream=devnull)
+            @test run(ur, cmd, iobuff; tee_stream=debug_stream)
             seekstart(iobuff)
             lines = readlines(iobuff)
             # Make sure the SDK for this platform is set to 10.10, instead of other wrong
@@ -441,7 +443,7 @@ end
             set -e
             make -j${nproc} -sC /usr/share/testsuite install
             """
-            @test run(ur, `/bin/bash -c "$(test_script)"`, iobuff; tee_stream=devnull)
+            @test run(ur, `/bin/bash -c "$(test_script)"`, iobuff; tee_stream=debug_stream)
         end
     end
 end
