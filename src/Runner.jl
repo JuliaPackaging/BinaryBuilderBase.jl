@@ -322,6 +322,11 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             "--sysroot=/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root",
         ])
         if !Sys.isbsd(p)
+            if cxxstring_abi(p) == "cxx11"
+                push!(flags, "-D_GLIBCXX_USE_CXX11_ABI=1")
+            elseif cxxstring_abi(p) == "cxx03"
+                push!(flags, "-D_GLIBCXX_USE_CXX11_ABI=0")
+            end
             if iscxx
                 append!(flags, [
                     # Link with libstdc++ when compiling c++ on non-BSDs
