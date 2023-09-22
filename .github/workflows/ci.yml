@@ -24,26 +24,26 @@ jobs:
       matrix:
         include:
           # Add a job that uses the privileged builder with squashfs shards
-          - runner: privileged
-            squashfs: true
-            julia-version: "1.7"
+          # - runner: privileged
+          #   squashfs: true
+          #   julia-version: "1.7"
 
-          - runner: privileged
-            squashfs: true
-            julia-version: "1.8"
+          # - runner: privileged
+          #   squashfs: true
+          #   julia-version: "1.8"
 
-          - runner: privileged
-            squashfs: true
-            julia-version: "nightly"
+          # - runner: privileged
+          #   squashfs: true
+          #   julia-version: "nightly"
 
           # Add a job that uses the unprivileged builder with unpacked shards
           - runner: unprivileged
-            squashfs: false
+            squashfs: true
             julia-version: "1.7"
 
           # Add a job that uses the docker builder with unpacked shards
           - runner: docker
-            squashfs: false
+            squashfs: true
             julia-version: "1.7"
 
     steps:
