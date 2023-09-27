@@ -141,6 +141,15 @@ end
 prefer_clang(p::AbstractPlatform) =
     Sys.isbsd(p) || sanitize(p) in ("memory", "memory_origins", "address")
 
+# Add the string ABI define
+function add_cxx_abi(p::AbstractPlatform, flags::Vector{String})
+    if cxxstring_abi(p) == "cxx11"
+        push!(flags, "-D_GLIBCXX_USE_CXX11_ABI=1")
+    elseif cxxstring_abi(p) == "cxx03"
+        push!(flags, "-D_GLIBCXX_USE_CXX11_ABI=0")
+    end
+end
+
 """
     generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::AbstractString,
                                 host_platform::AbstractPlatform = $(repr(default_host_platform)),
@@ -162,6 +171,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
                                      allow_unsafe_flags::Bool = false,
                                      lock_microarchitecture::Bool = true,
                                      bootstrap::Bool = !isempty(bootstrap_list),
+                                     gcc_version::Union{Nothing,VersionNumber}=nothing,
                                      )
     # Wipe that directory out, in case it already had compiler wrappers
     rm(bin_path; recursive=true, force=true)
@@ -322,21 +332,15 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             "--sysroot=/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root",
         ])
         if !Sys.isbsd(p)
-            if cxxstring_abi(p) == "cxx11"
-                push!(flags, "-D_GLIBCXX_USE_CXX11_ABI=1")
-            elseif cxxstring_abi(p) == "cxx03"
-                push!(flags, "-D_GLIBCXX_USE_CXX11_ABI=0")
-            end
+            add_cxx_abi(p, flags)
             if iscxx
                 append!(flags, [
                     # Link with libstdc++ when compiling c++ on non-BSDs
                     "-stdlib=libstdc++"
             ])
-            push!(flags, "-nobuiltininc")
             end
         end
-        if Sys.islinux(p)
-            gcc_version, llvm_version = select_compiler_versions(p, compilers)
+        if Sys.islinux(p) && !isnothing(gcc_version)
             append!(flags, ["--gcc-install-dir=/opt/$(aatriplet(p))/lib/gcc/$(aatriplet(p))/$(gcc_version)"])
         end
         if Sys.iswindows(p)
@@ -422,15 +426,12 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             add_system_includedir(flags)
         end
 
-        if !Sys.isbsd(p)
-            gcc_version, llvm_version = select_compiler_versions(p, compilers)
-            append!(flags, String["-I/opt/$(aatriplet(p))/$(aatriplet(p))/include/c++/$(gcc_version)",
-                                  "-I/opt/$(aatriplet(p))/$(aatriplet(p))/include/c++/$(gcc_version)/$(aatriplet(p))",
-                                  "-I/opt/$(aatriplet(p))/$(aatriplet(p))/include/c++/$(gcc_version)/backward",
-                                  "-I/opt/$(aatriplet(p))/lib/gcc/$(aatriplet(p))/$(gcc_version)/include",
-                                  "-I/opt/$(aatriplet(p))/lib/gcc/$(aatriplet(p))/$(gcc_version)/include-fixed",
-                                  "-I/opt/$(aatriplet(p))/$(aatriplet(p))/include",
-                                  "-I/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root/include"])
+        if !Sys.isbsd(p) && !isnothing(gcc_version)
+            append!(flags, String["-isystem /opt/$(aatriplet(p))/$(aatriplet(p))/include/c++/$(gcc_version)",
+                                  "-isystem /opt/$(aatriplet(p))/$(aatriplet(p))/include/c++/$(gcc_version)/$(aatriplet(p))",
+                                  "-isystem /opt/$(aatriplet(p))/$(aatriplet(p))/include/c++/$(gcc_version)/backward",
+                                  "-isystem /opt/$(aatriplet(p))/$(aatriplet(p))/include",
+                                  "-isystem /opt/$(aatriplet(p))/$(aatriplet(p))/sys-root/include"])
         end
 
         return flags
@@ -452,11 +453,12 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
                 # Use libgcc as the C runtime library
                 "-rtlib=libgcc"
             ])
-            gcc_version, llvm_version = select_compiler_versions(p, compilers)
-            append!(flags, String["-L/opt/$(aatriplet(p))/lib/gcc/opt/$(aatriplet(p))/lib/gcc",
-                                  "-L/opt/$(aatriplet(p))/$(aatriplet(p))/lib",
-                                  "-L/opt/$(aatriplet(p))/lib/gcc/$(aatriplet(p))/$(gcc_version)",
-                                  "-L/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root/lib",])
+            if !isnothing(gcc_version)
+                append!(flags, String["-L/opt/$(aatriplet(p))/lib/gcc/opt/$(aatriplet(p))/lib/gcc",
+                                    "-L/opt/$(aatriplet(p))/$(aatriplet(p))/lib",
+                                    "-L/opt/$(aatriplet(p))/lib/gcc/$(aatriplet(p))/$(gcc_version)",
+                                    "-L/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root/lib",])
+            end
         end
         # we want to use a particular linker with clang.  But we want to avoid warnings about unused
         # flags when just compiling, so we put it into "linker-only flags".
@@ -476,7 +478,6 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     function macos_gcc_flags!(p::AbstractPlatform, flags::Vector{String} = String[])
         # On macOS, if we're on an old GCC, the default -syslibroot that gets
         # passed to the linker isn't calculated correctly, so we have to manually set it.
-        gcc_version, llvm_version = select_compiler_versions(p, compilers)
         if gcc_version.major in (4, 5)
             push!(flags, "-Wl,-syslibroot,/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root")
         end
@@ -496,11 +497,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
 
     function gcc_flags!(p::AbstractPlatform, flags::Vector{String} = String[])
         # Force proper cxx11 string ABI usage w00t w00t!
-        if cxxstring_abi(p) == "cxx11"
-            push!(flags, "-D_GLIBCXX_USE_CXX11_ABI=1")
-        elseif cxxstring_abi(p) == "cxx03"
-            push!(flags, "-D_GLIBCXX_USE_CXX11_ABI=0")
-        end
+        add_cxx_abi(p, flags)
 
         # Simulate some of the `__OSX_AVAILABLE()` macro usage that is broken in GCC
         if Sys.isapple(p) && something(os_version(p), v"14") < v"16"
@@ -536,7 +533,6 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             append!(flags, get_march_flags(arch(p), march(p), "gcc"))
         end
         sanitize_compile_flags!(p, flags)
-        gcc_version, llvm_version = select_compiler_versions(p, compilers)
         if libc(platform) == "musl" && gcc_version in (v"4.8.5", v"5.2.0")
             add_system_includedir(flags)
         end
@@ -546,7 +542,6 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     function gcc_link_flags!(p::AbstractPlatform, flags::Vector{String} = String[])
         # Yes, it does seem that the inclusion of `/lib64` on `powerpc64le` was fixed
         # in GCC 6, broken again in GCC 7, and then fixed again for GCC 8 and 9
-        gcc_version, llvm_version = select_compiler_versions(p, compilers)
         if arch(p) == "powerpc64le" && Sys.islinux(p) && gcc_version.major in (4, 5, 7)
             append!(flags, String[
                 "-L/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root/lib64",
@@ -1321,12 +1316,15 @@ function runner_setup!(workspaces, mappings, workspace_root, verbose, kwargs, pl
     rb = filter(s -> s.name == "RustBase", shards)
     rust_version = length(rb) == 1 ? only(rb).version : nothing
 
+    # Determine version of GCC toolchain.
+    gcc = filter(s -> s.name == "GCCBootstrap" && platforms_match(s.target, platform), shards)
+    gcc_version = length(gcc) == 1 ? only(gcc).version : nothing
     # Construct environment variables we'll use from here on out
     platform::Platform = get_concrete_platform(platform; compilers..., extract_kwargs(kwargs, (:preferred_gcc_version,:preferred_llvm_version))...)
     envs::Dict{String,String} = merge(platform_envs(platform, src_name; rust_version, verbose, compilers...), extra_env)
 
     # JIT out some compiler wrappers, add it to our mounts
-    generate_compiler_wrappers!(platform; bin_path=compiler_wrapper_path, compilers..., extract_kwargs(kwargs, (:allow_unsafe_flags,:lock_microarchitecture))...)
+    generate_compiler_wrappers!(platform; bin_path=compiler_wrapper_path, gcc_version, compilers..., extract_kwargs(kwargs, (:allow_unsafe_flags,:lock_microarchitecture))...)
     push!(workspaces, compiler_wrapper_path => "/opt/bin")
 
     if isempty(bootstrap_list)
