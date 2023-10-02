@@ -399,6 +399,7 @@ const available_gcc_builds = [
     GCCBuild(v"10.2.0", (libgfortran_version = v"5", libstdcxx_version = v"3.4.28", cxxstring_abi = "cxx11")),
     GCCBuild(v"11.1.0", (libgfortran_version = v"5", libstdcxx_version = v"3.4.29", cxxstring_abi = "cxx11")),
     GCCBuild(v"12.1.0", (libgfortran_version = v"5", libstdcxx_version = v"3.4.30", cxxstring_abi = "cxx11")),
+    GCCBuild(v"13.2.0", (libgfortran_version = v"5", libstdcxx_version = v"3.4.32", cxxstring_abi = "cxx11")),
     ## v"11.0.0-iains" is a very old build with some ABI incompatibilities with new versions (for example `libgcc_s`
     ## soversion, see https://github.com/JuliaLang/julia/issues/44435), let's pretend it never existed.
     # GCCBuild(v"11.0.0-iains", (libgfortran_version = v"5", libstdcxx_version = v"3.4.28", cxxstring_abi = "cxx11")),
