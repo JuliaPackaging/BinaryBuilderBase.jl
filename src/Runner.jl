@@ -433,7 +433,9 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
                                   "-isystem /opt/$(aatriplet(p))/$(aatriplet(p))/include",
                                   "-isystem /opt/$(aatriplet(p))/$(aatriplet(p))/sys-root/include"])
         end
-
+        if Sys.iswindows(p) && nbits(p) == 32
+            push!(flags, "-fsjlj-exceptions")
+        end
         return flags
     end
 
