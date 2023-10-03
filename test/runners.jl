@@ -126,11 +126,10 @@ end
     # This tests only that compilers for all platforms can build and link simple C code
     @testset "Compilation - $(platform) - $(compiler)" for platform in platforms, compiler in ("cc", "gcc", "clang")
         mktempdir() do dir
-            # https://github.com/JuliaPackaging/BinaryBuilderBase.jl/issues/248
-            is_broken = compiler == "clang" && Sys.iswindows(platform)
             ur = preferred_runner()(dir; platform=platform)
             iobuff = IOBuffer()
             test_c = """
+                #include <stdlib.h>
                 int test(void) {
                     return 0;
                 }
@@ -155,18 +154,16 @@ end
                 $(compiler) -Werror -o main main.c -L. -ltest
                 """
             cmd = `/bin/bash -c "$(test_script)"`
-            @test run(ur, cmd, iobuff; tee_stream=devnull) broken=is_broken
+            @test run(ur, cmd, iobuff)
             seekstart(iobuff)
             # Make sure `iobuff` contains only the input command, no other text
-            @test readchomp(iobuff) == string(cmd) broken=is_broken
+            @test readchomp(iobuff) == string(cmd)
         end
     end
 
     # This tests only that compilers for all platforms can build and link simple C++ code
     @testset "Compilation - $(platform) - $(compiler)" for platform in platforms, compiler in ("c++", "g++", "clang++")
         mktempdir() do dir
-            # https://github.com/JuliaPackaging/BinaryBuilderBase.jl/issues/248
-            is_broken = compiler == "clang++" && Sys.iswindows(platform)
             ur = preferred_runner()(dir; platform=platform)
             iobuff = IOBuffer()
             needfpic = Sys.iswindows(platform) ? "" : "-fPIC"
@@ -198,10 +195,10 @@ end
                 $(compiler) -Werror -std=c++11 -o main main.cpp -L. -ltest
                 """
             cmd = `/bin/bash -c "$(test_script)"`
-            @test run(ur, cmd, iobuff; tee_stream=devnull) broken=is_broken
+            @test run(ur, cmd, iobuff; tee_stream=devnull)
             seekstart(iobuff)
             # Make sure `iobuff` contains only the input command, no other text
-            is_broken = is_broken || (compiler == "g++" && Sys.isapple(platform) && arch(platform) == "x86_64")
+            is_broken = (compiler == "g++" && Sys.isapple(platform) && arch(platform) == "x86_64") # This gets fixed by using GCC7 or up
             @test readchomp(iobuff) == string(cmd) broken=is_broken
         end
     end
