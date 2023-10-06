@@ -124,9 +124,12 @@ end
     end
 
     # This tests only that compilers for all platforms can build and link simple C code
-    @testset "Compilation - $(platform) - $(compiler)" for platform in platforms, compiler in ("cc", "gcc", "clang")
+    @testset "Compilation - $(platform) - $(compiler)" for platform in platforms, compiler in ("cc", "gcc", "clang"), version in (nothing, v"13")
         mktempdir() do dir
-            ur = preferred_runner()(dir; platform=platform)
+            if isnothing(version)
+                ur = preferred_runner()(dir; platform=platform)
+            else
+                ur = preferred_runner()(dir; platform=platform, preferred_gcc_version=version, preferred_llvm_version=version)
             iobuff = IOBuffer()
             test_c = """
                 #include <stdlib.h>

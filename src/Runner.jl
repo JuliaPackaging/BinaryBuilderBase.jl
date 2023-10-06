@@ -155,7 +155,9 @@ end
                                 host_platform::AbstractPlatform = $(repr(default_host_platform)),
                                 compilers::Vector{Symbol} = [:c],
                                 allow_unsafe_flags::Bool = false,
-                                lock_microarchitecture::Bool = true)
+                                lock_microarchitecture::Bool = true,
+                                gcc_version::Union{Nothing,VersionNumber}=nothing,
+                                clang_version::Union{Nothing,VersionNumber}=nothing)
 
 We generate a set of compiler wrapper scripts within our build environment to force all
 build systems to honor the necessary sets of compiler flags to build for our systems.
@@ -172,6 +174,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
                                      lock_microarchitecture::Bool = true,
                                      bootstrap::Bool = !isempty(bootstrap_list),
                                      gcc_version::Union{Nothing,VersionNumber}=nothing,
+                                     clang_version::Union{Nothing,VersionNumber}=nothing
                                      )
     # Wipe that directory out, in case it already had compiler wrappers
     rm(bin_path; recursive=true, force=true)
@@ -340,7 +343,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             ])
             end
         end
-        if Sys.islinux(p) && !isnothing(gcc_version)
+        if Sys.islinux(p) && !isnothing(gcc_version) && (clang_version >= v"16")
             append!(flags, ["--gcc-install-dir=/opt/$(aatriplet(p))/lib/gcc/$(aatriplet(p))/$(gcc_version)"])
         end
         if Sys.iswindows(p)
@@ -1321,12 +1324,15 @@ function runner_setup!(workspaces, mappings, workspace_root, verbose, kwargs, pl
     # Determine version of GCC toolchain.
     gcc = filter(s -> s.name == "GCCBootstrap" && platforms_match(s.target, platform), shards)
     gcc_version = length(gcc) == 1 ? only(gcc).version : nothing
+
+    clang = filter(s -> s.name == "LLVMBootstrap", shards)
+    clang_version = length(clang) == 1 ? only(clang).version : nothing
     # Construct environment variables we'll use from here on out
     platform::Platform = get_concrete_platform(platform; compilers..., extract_kwargs(kwargs, (:preferred_gcc_version,:preferred_llvm_version))...)
     envs::Dict{String,String} = merge(platform_envs(platform, src_name; rust_version, verbose, compilers...), extra_env)
 
     # JIT out some compiler wrappers, add it to our mounts
-    generate_compiler_wrappers!(platform; bin_path=compiler_wrapper_path, gcc_version, compilers..., extract_kwargs(kwargs, (:allow_unsafe_flags,:lock_microarchitecture))...)
+    generate_compiler_wrappers!(platform; bin_path=compiler_wrapper_path, gcc_version, clang_version, compilers..., extract_kwargs(kwargs, (:allow_unsafe_flags,:lock_microarchitecture))...)
     push!(workspaces, compiler_wrapper_path => "/opt/bin")
 
     if isempty(bootstrap_list)
