@@ -130,6 +130,7 @@ end
                 ur = preferred_runner()(dir; platform=platform)
             else
                 ur = preferred_runner()(dir; platform=platform, preferred_gcc_version=version, preferred_llvm_version=version)
+            end
             iobuff = IOBuffer()
             test_c = """
                 #include <stdlib.h>
