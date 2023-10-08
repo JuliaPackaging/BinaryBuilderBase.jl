@@ -542,9 +542,8 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     end
 
     function gcc_link_flags!(p::AbstractPlatform, flags::Vector{String} = String[])
-        # Yes, it does seem that the inclusion of `/lib64` on `powerpc64le` was fixed
-        # in GCC 6, broken again in GCC 7, and then fixed again for GCC 8 and 9
-        if arch(p) == "powerpc64le" && Sys.islinux(p) && gcc_version.major in (4, 5, 7)
+        # Inclusion of `/lib64` on `powerpc64le` was fixed in GCC 8+.
+        if arch(p) == "powerpc64le" && Sys.islinux(p) && 4 <= gcc_version.major <= 7
             append!(flags, String[
                 "-L/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root/lib64",
                 "-Wl,-rpath-link,/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root/lib64",
