@@ -3,7 +3,7 @@
 #  environment variables must be updated to, etc...
 import Base: convert, joinpath, show
 using SHA, CodecZlib, TOML, LibGit2_jll
-import Bzip2_jll, Gzip_jll, Tar_jll, XZ_jll, Zstd_jll
+import Bzip2_jll, Gzip_jll, Tar_jll, XZ_jll, Zstd_jll, unzip_jll
 using JLLWrappers: pathsep, LIBPATH_env
 
 export Prefix, bindir, libdirs, includedir, logdir, temp_prefix, package
@@ -294,9 +294,6 @@ end
 
 function setup(source::SetupSource{ArchiveSource}, targetdir, verbose; tar_flags = verbose ? "xvof" : "xof")
     mkpath(targetdir)
-    # Extract with host tools because it is _much_ faster on e.g. OSX.
-    # If this becomes a compatibility problem, we'll just have to install
-    # our own `tar` and `unzip` through BP as dependencies for BB.
     cd(targetdir) do
         if any(endswith(source.path, ext) for ext in tar_extensions)
             if verbose
@@ -334,7 +331,9 @@ function setup(source::SetupSource{ArchiveSource}, targetdir, verbose; tar_flags
             if verbose
                 @info "Extracting zipball $(basename(source.path))..."
             end
-            run(`unzip -q $(source.path)`)
+            if unzip_jll.is_available()
+                run(`$(unzip_jll.unzip()) -q $(source.path)`)
+            end
         elseif endswith(source.path, ".conda")
             if verbose
                 @info "Extracting conda package $(basename(source.path))..."
@@ -343,7 +342,9 @@ function setup(source::SetupSource{ArchiveSource}, targetdir, verbose; tar_flags
             # Replace initial hash with pkg, and change the file extension to obtain the name
             pkg_name = replace(basename(source.path), r"^[a-z0-9]{64}-" => "pkg-", ".conda" => ".tar.zst")
             # First unzip the pkg tarball from .conda file
-            run(`unzip -q $(source.path) $pkg_name`)
+            if unzip_jll.is_available()
+                run(`$(unzip_jll.unzip()) -q $(source.path) $(pkg_name)`)
+            end
             # Second untar the pkg tarball
             pkg_source = SetupSource{ArchiveSource}(joinpath(targetdir, pkg_name), source.hash, source.target)
             # Run setup again to untar the pkg binaries
