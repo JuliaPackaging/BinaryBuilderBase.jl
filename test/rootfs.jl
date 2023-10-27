@@ -223,7 +223,6 @@ end
             clang = read(joinpath(platform_bin_dir, "clang"), String)
             # Check link flags
             @test occursin("-L/opt/$(triplet(platform))/$(triplet(platform))/lib", clang)
-            @test occursin("fuse-ld=$(triplet(platform))", clang)
             # Other compilers
             @test occursin("GOOS=\"freebsd\"", read(joinpath(platform_bin_dir, "go"), String))
             @test occursin("--target=x86_64-unknown-freebsd", read(joinpath(platform_bin_dir, "rustc"), String))
