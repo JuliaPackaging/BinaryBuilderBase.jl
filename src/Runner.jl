@@ -187,11 +187,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
 
     target = aatriplet(platform)
     host_target = aatriplet(host_platform)
-    if (!isnothing(gcc_version) && !isnothing(clang_version) && clang_version >= v"16" && gcc_version >= v"5")
-        clang_use_lld = true
-    else
-        clang_use_lld = false
-    end
+    clang_use_lld = (!isnothing(gcc_version) && !isnothing(clang_version) && clang_version >= v"16" && gcc_version >= v"5")
 
     function wrapper(io::IO,
                      prog::String;
