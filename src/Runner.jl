@@ -348,7 +348,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             ])
             end
         end
-        if Sys.islinux(p) && !isnothing(gcc_version) && (clang_version >= v"16")
+        if Sys.islinux(p) && !isnothing(gcc_version) !isnothing(clang_version) && (clang_version >= v"16")
             append!(flags, ["--gcc-install-dir=/opt/$(aatriplet(p))/lib/gcc/$(aatriplet(p))/$(gcc_version)"])
         end
         if Sys.iswindows(p)
