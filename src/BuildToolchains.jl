@@ -166,7 +166,8 @@ function toolchain_file(bt::Meson, p::AbstractPlatform, envs::Dict{String,String
                         is_host::Bool=false, clang_use_lld::Bool=false)
     target = triplet(p)
     aatarget = aatriplet(p)
-    lld_str = Sys.isapple(p) ? "ld64.lld" : "ld.lld"
+    clang_use_lld=false #Meson tries is best to misuse lld so don't use it for now
+    lld_str = Sys.isapple(p) ? "ld64.lld" : "ld.lld" # https://github.com/mesonbuild/meson/issues/6662
     linker_str = clang_use_lld ? "/opt/bin/$(target)/$(lld_str)" : "/opt/bin/$(target)/$(aatarget)-ld"
     return """
     [binaries]
@@ -176,6 +177,8 @@ function toolchain_file(bt::Meson, p::AbstractPlatform, envs::Dict{String,String
     objc = '/opt/bin/$(target)/$(aatarget)-cc'
     ar = '/opt/bin/$(target)/$(aatarget)-ar'
     ld = '$(linker_str)'
+    cpp_ld = '$(linker_str)'
+    c_ld = '$(linker_str)'
     nm = '/opt/bin/$(target)/$(aatarget)-nm'
     strip = '/opt/bin/$(target)/$(aatarget)-strip'
     pkgconfig = '/usr/bin/pkg-config'
