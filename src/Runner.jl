@@ -784,8 +784,13 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         wrapper(io, string("/opt/", aatriplet(p), "/bin/", string(aatriplet(p), "-dlltool")); allow_ccache=false, extra_cmds=extra_cmds, hash_args=true)
     end
     function lld(io::IO, p::AbstractPlatform)
+        if Sys.isapple(p)
+            lld_str = "ld64.lld"
+        else
+            lld_str = "ld.lld"
+        end
         return wrapper(io,
-            "/opt/$(host_target)/bin/lld";
+            "/opt/$(host_target)/bin/$(lld_str)";
             env=Dict("LD_LIBRARY_PATH"=>ld_library_path(platform, host_platform; csl_paths=false)), allow_ccache=false,
         )
     end
