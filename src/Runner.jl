@@ -187,7 +187,6 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
 
     target = aatriplet(platform)
     host_target = aatriplet(host_platform)
-    clang_use_lld = (!isnothing(gcc_version) && !isnothing(clang_version) && clang_version >= v"16" && gcc_version >= v"5")
 
     function wrapper(io::IO,
                      prog::String;
@@ -344,7 +343,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             ])
             end
         end
-        if Sys.islinux(p) && !isnothing(gcc_version) !isnothing(clang_version) && (clang_version >= v"16")
+        if Sys.islinux(p) && !isnothing(gcc_version) && (clang_version >= v"16")
             append!(flags, ["--gcc-install-dir=/opt/$(aatriplet(p))/lib/gcc/$(aatriplet(p))/$(gcc_version)"])
         end
         if Sys.iswindows(p)
@@ -410,7 +409,6 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             append!(flags, get_march_flags(arch(p), march(p), "clang"))
         end
         if Sys.isapple(p)
-            macos_version_flags = clang_use_lld ? (min_macos_version_flags()[1],) : min_macos_version_flags()
             append!(flags, String[
                 # On MacOS, we need to override the typical C++ include search paths, because it always includes
                 # the toolchain C++ headers first.  Valentin tracked this down to:
@@ -423,7 +421,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
                 # `clang` as a linker (and we have no real way to detect that in the wrapper), which will
                 # cause `clang` to complain about compiler flags being passed in.
                 "-Wno-unused-command-line-argument",
-                macos_version_flags...,
+                min_macos_version_flags()...,
             ])
         end
         sanitize_compile_flags!(p, flags)
@@ -469,9 +467,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         end
         # we want to use a particular linker with clang.  But we want to avoid warnings about unused
         # flags when just compiling, so we put it into "linker-only flags".
-        if !clang_use_lld
-            push!(flags, "-fuse-ld=$(aatriplet(p))")
-        end
+        push!(flags, "-fuse-ld=$(aatriplet(p))")
 
         sanitize_link_flags!(p, flags)
 

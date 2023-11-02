@@ -223,17 +223,10 @@ end
             clang = read(joinpath(platform_bin_dir, "clang"), String)
             # Check link flags
             @test occursin("-L/opt/$(triplet(platform))/$(triplet(platform))/lib", clang)
+            @test occursin("fuse-ld=$(triplet(platform))", clang)
             # Other compilers
             @test occursin("GOOS=\"freebsd\"", read(joinpath(platform_bin_dir, "go"), String))
             @test occursin("--target=x86_64-unknown-freebsd", read(joinpath(platform_bin_dir, "rustc"), String))
-        end
-        platform = Platform("x86_64", "linux"; libc="glibc", cxxstring_abi="cxx11")
-        mktempdir() do bin_path
-            platform_bin_dir = joinpath(bin_path, triplet(platform))
-            generate_compiler_wrappers!(platform; bin_path = bin_path, compilers = [:c], gcc_version=v"5")
-            clang = read(joinpath(platform_bin_dir, "clang"), String)
-            # Check link flags
-            @test occursin("-L/opt/$(aatriplet(platform))/lib/gcc/opt/$(aatriplet(platform))/lib/gcc", clang)
         end
     end
 end

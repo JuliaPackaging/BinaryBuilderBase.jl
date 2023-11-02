@@ -126,11 +126,6 @@ end
     # This tests only that compilers for all platforms can build and link simple C code
     @testset "Compilation - $(platform) - $(compiler)" for platform in platforms, compiler in ("cc", "gcc", "clang")
         mktempdir() do dir
-            # if compiler == "clang"
-            #     ur = preferred_runner()(dir; platform=platform, preferred_gcc_version=v"5") #TODO: Fix CI disk size issues to allow this
-            # else
-            #     ur = preferred_runner()(dir; platform=platform)
-            # end
             ur = preferred_runner()(dir; platform=platform)
             iobuff = IOBuffer()
             test_c = """
