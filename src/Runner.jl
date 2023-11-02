@@ -157,7 +157,8 @@ end
                                 allow_unsafe_flags::Bool = false,
                                 lock_microarchitecture::Bool = true,
                                 gcc_version::Union{Nothing,VersionNumber}=nothing,
-                                clang_version::Union{Nothing,VersionNumber}=nothing)
+                                clang_version::Union{Nothing,VersionNumber}=nothing
+                                clang_use_lld::Bool = false)
 
 We generate a set of compiler wrapper scripts within our build environment to force all
 build systems to honor the necessary sets of compiler flags to build for our systems.
@@ -174,8 +175,8 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
                                      lock_microarchitecture::Bool = true,
                                      bootstrap::Bool = !isempty(bootstrap_list),
                                      gcc_version::Union{Nothing,VersionNumber}=nothing,
-                                     clang_version::Union{Nothing,VersionNumber}=nothing
-                                     )
+                                     clang_version::Union{Nothing,VersionNumber}=nothing,
+                                     clang_use_lld::Bool = false)
     # Wipe that directory out, in case it already had compiler wrappers
     rm(bin_path; recursive=true, force=true)
     mkpath(bin_path)
@@ -187,7 +188,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
 
     target = aatriplet(platform)
     host_target = aatriplet(host_platform)
-    clang_use_lld = (!isnothing(gcc_version) && !isnothing(clang_version) && clang_version >= v"16" && gcc_version >= v"5")
+
 
     function wrapper(io::IO,
                      prog::String;
@@ -469,7 +470,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         end
         # we want to use a particular linker with clang.  But we want to avoid warnings about unused
         # flags when just compiling, so we put it into "linker-only flags".
-        if !clang_use_lld
+        if !clang_use_lld #Clang with 16 or above is setup to use lld by default
             push!(flags, "-fuse-ld=$(aatriplet(p))")
         end
 
@@ -782,7 +783,12 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         """
         wrapper(io, string("/opt/", aatriplet(p), "/bin/", string(aatriplet(p), "-dlltool")); allow_ccache=false, extra_cmds=extra_cmds, hash_args=true)
     end
-
+    function lld(io::IO, p::AbstractPlatform)
+        return wrapper(io,
+            "/opt/$(host_target)/bin/lld";
+            env=Dict("LD_LIBRARY_PATH"=>ld_library_path(platform, host_platform; csl_paths=false)), allow_ccache=false,
+        )
+    end
     # Write out a bunch of common tools
     for tool in (:cpp, :ld, :nm, :libtool, :objcopy, :objdump, :otool,
                  :strip, :install_name_tool, :dlltool, :windres, :winmc, :lipo)
@@ -861,8 +867,10 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             # ld wrappers for clang's `-fuse-ld=$(target)`
             if Sys.isapple(p)
                 write_wrapper(ld, p, "ld64.$(t)")
+                write_wrapper(lld,p,"ld64.lld")
             else
                 write_wrapper(ld, p, "ld.$(t)")
+                write_wrapper(lld,p,"ld.lld")
             end
             write_wrapper(nm, p, "$(t)-nm")
             write_wrapper(libtool, p, "$(t)-libtool")
@@ -1330,17 +1338,18 @@ function runner_setup!(workspaces, mappings, workspace_root, verbose, kwargs, pl
 
     clang = filter(s -> s.name == "LLVMBootstrap", shards)
     clang_version = length(clang) == 1 ? only(clang).version : nothing
+    clang_use_lld = (!isnothing(gcc_version) && !isnothing(clang_version) && clang_version >= v"16" && gcc_version >= v"6")
     # Construct environment variables we'll use from here on out
     platform::Platform = get_concrete_platform(platform; compilers..., extract_kwargs(kwargs, (:preferred_gcc_version,:preferred_llvm_version))...)
     envs::Dict{String,String} = merge(platform_envs(platform, src_name; rust_version, verbose, compilers...), extra_env)
 
     # JIT out some compiler wrappers, add it to our mounts
-    generate_compiler_wrappers!(platform; bin_path=compiler_wrapper_path, gcc_version, clang_version, compilers..., extract_kwargs(kwargs, (:allow_unsafe_flags,:lock_microarchitecture))...)
+    generate_compiler_wrappers!(platform; bin_path=compiler_wrapper_path, gcc_version, clang_version, clang_use_lld, compilers..., extract_kwargs(kwargs, (:allow_unsafe_flags,:lock_microarchitecture))...)
     push!(workspaces, compiler_wrapper_path => "/opt/bin")
 
     if isempty(bootstrap_list)
         # Generate CMake and Meson files, only if we are not bootstrapping
-        generate_toolchain_files!(platform, envs, toolchains_path)
+        generate_toolchain_files!(platform, envs, toolchains_path, clang_use_lld=clang_use_lld)
         push!(workspaces, toolchains_path => "/opt/toolchains")
 
         # Generate directory where to write Cargo config files
