@@ -345,7 +345,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             ])
             end
         end
-        if Sys.islinux(p) && !isnothing(gcc_version) !isnothing(clang_version) && (clang_version >= v"16")
+        if Sys.islinux(p) && !isnothing(gcc_version) && !isnothing(clang_version) && (clang_version >= v"16")
             append!(flags, ["--gcc-install-dir=/opt/$(aatriplet(p))/lib/gcc/$(aatriplet(p))/$(gcc_version)"])
         end
         if Sys.iswindows(p)
@@ -473,7 +473,9 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         if !clang_use_lld #Clang with 16 or above is setup to use lld by default
             push!(flags, "-fuse-ld=$(aatriplet(p))")
         end
-
+        if Sys.isfreebsd(p) && clang_use_lld
+            push!(flags, "-L/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root/usr/local/lib")
+        end
         sanitize_link_flags!(p, flags)
 
         # On macos, we need to pass `-headerpad_max_install_names` so that we have lots of space
