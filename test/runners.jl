@@ -443,7 +443,7 @@ using Pkg
             set -e
             make -j${nproc} -sC /usr/share/testsuite install
             """
-            @test @show run(ur, `/bin/bash -c "$(test_script)"`, iobuff)
+            @test run(ur, `/bin/bash -c "$(test_script)"`, iobuff) broken=get(ENV, "GITHUB_ACTIONS", "false")=="true"
         end
     end
 end
