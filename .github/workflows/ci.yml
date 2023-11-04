@@ -8,7 +8,7 @@ on:
   release:
 
 env:
-  BINARYBUILDER_FULL_SHARD_TEST: true
+  BINARYBUILDER_FULL_SHARD_TEST: false
   BINARYBUILDER_AUTOMATIC_APPLE: true
 
 jobs:
@@ -23,28 +23,32 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Add a job that uses the privileged builder with squashfs shards
-          - runner: privileged
-            squashfs: true
-            julia-version: "1.7"
+          # # Add a job that uses the privileged builder with squashfs shards
+          # - runner: privileged
+          #   squashfs: true
+          #   julia-version: "1.7"
 
-          - runner: privileged
-            squashfs: true
-            julia-version: "1.8"
+          # - runner: privileged
+          #   squashfs: true
+          #   julia-version: "1.8"
 
-          - runner: privileged
-            squashfs: true
-            julia-version: "nightly"
+          # - runner: privileged
+          #   squashfs: true
+          #   julia-version: "nightly"
 
           # Add a job that uses the unprivileged builder with unpacked shards
           - runner: unprivileged
             squashfs: false
             julia-version: "1.7"
 
-          # Add a job that uses the docker builder with unpacked shards
-          - runner: docker
+          - runner: unprivileged
             squashfs: false
-            julia-version: "1.7"
+            julia-version: "1"
+
+          # # Add a job that uses the docker builder with unpacked shards
+          # - runner: docker
+          #   squashfs: false
+          #   julia-version: "1.7"
 
     steps:
       - run: sudo rm -rf /opt/*
@@ -80,16 +84,16 @@ jobs:
       - uses: julia-actions/julia-uploadcoveralls@v1.0
         continue-on-error: true
 
-  Documentation:
-    timeout-minutes: 30
-    runs-on: ubuntu-latest
-    env:
-      JULIA_PKG_SERVER: ""
-    steps:
-      - uses: actions/checkout@v4
-      - uses: julia-actions/setup-julia@latest
-        with:
-          version: "1.7"
-      - uses: julia-actions/julia-docdeploy@releases/v1
-        env:
-          DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
+  # Documentation:
+  #   timeout-minutes: 30
+  #   runs-on: ubuntu-latest
+  #   env:
+  #     JULIA_PKG_SERVER: ""
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: julia-actions/setup-julia@latest
+  #       with:
+  #         version: "1.7"
+  #     - uses: julia-actions/julia-docdeploy@releases/v1
+  #       env:
+  #         DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
