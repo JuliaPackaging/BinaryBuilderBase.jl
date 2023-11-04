@@ -8,7 +8,7 @@ on:
   release:
 
 env:
-  BINARYBUILDER_FULL_SHARD_TEST: false
+  BINARYBUILDER_FULL_SHARD_TEST: true
   BINARYBUILDER_AUTOMATIC_APPLE: true
 
 jobs:
@@ -50,7 +50,7 @@ jobs:
           #   julia-version: "1.7"
 
     steps:
-      # - run: sudo rm -rf /opt/*
+      - run: sudo rm -rf /opt/*
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v1
         with:
@@ -59,7 +59,7 @@ jobs:
       - uses: julia-actions/cache@v1
         # For the time being cache artifacts only for squashfs, we need too much
         # storage for the unpacked shards
-        # if: ${{ matrix.squashfs == true }}
+        if: ${{ matrix.squashfs == true }}
         with:
           # Reserve entire cache to artifacts
           cache-name: ${{ matrix.squashfs }}
@@ -77,7 +77,7 @@ jobs:
           touch ~/.ssh/known_hosts
           ssh-keyscan github.com >> ~/.ssh/known_hosts
           ssh-add test/id_ecdsa_deploy_helloworld_c_jll_read_only
-          julia --check-bounds=yes --color=yes --depwarn=yes --inline=yes --project=@. -e 'using Pkg; Pkg.instantiate(); Pkg.test(coverage=true)' || true
+          julia --check-bounds=yes --color=yes --depwarn=yes --inline=yes --project=@. -e 'using Pkg; Pkg.instantiate(); Pkg.test(coverage=true)'
       # - uses: julia-actions/julia-uploadcodecov@v0.1
       #   continue-on-error: true
       # - uses: julia-actions/julia-uploadcoveralls@v1.0
