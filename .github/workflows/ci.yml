@@ -37,10 +37,9 @@ jobs:
           #   julia-version: "nightly"
 
           # Add a job that uses the unprivileged builder with unpacked shards
-          - runner: unprivileged
-            squashfs: false
-            julia-version: "1.7"
-
+          # - runner: unprivileged
+          #   squashfs: false
+          #   julia-version: "1.7"
           - runner: unprivileged
             squashfs: false
             julia-version: "1"
@@ -51,7 +50,7 @@ jobs:
           #   julia-version: "1.7"
 
     steps:
-      - run: sudo rm -rf /opt/*
+      # - run: sudo rm -rf /opt/*
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v1
         with:
@@ -79,10 +78,10 @@ jobs:
           ssh-keyscan github.com >> ~/.ssh/known_hosts
           ssh-add test/id_ecdsa_deploy_helloworld_c_jll_read_only
           julia --check-bounds=yes --color=yes --depwarn=yes --inline=yes --project=@. -e 'using Pkg; Pkg.instantiate(); Pkg.test(coverage=true)'
-      - uses: julia-actions/julia-uploadcodecov@v0.1
-        continue-on-error: true
-      - uses: julia-actions/julia-uploadcoveralls@v1.0
-        continue-on-error: true
+      # - uses: julia-actions/julia-uploadcodecov@v0.1
+      #   continue-on-error: true
+      # - uses: julia-actions/julia-uploadcoveralls@v1.0
+      #   continue-on-error: true
 
   # Documentation:
   #   timeout-minutes: 30
