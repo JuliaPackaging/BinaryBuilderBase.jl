@@ -443,7 +443,9 @@ end
             set -e
             make -j${nproc} -sC /usr/share/testsuite install
             """
-            @test run(ur, `/bin/bash -c "$(test_script)"`, iobuff; tee_stream=devnull)
+            # This test fails on GitHub Actions with non-squashfs:
+            # <https://github.com/JuliaPackaging/BinaryBuilderBase.jl/issues/347>.
+            @test run(ur, `/bin/bash -c "$(test_script)"`, iobuff) broken=(get(ENV, "GITHUB_ACTIONS", "false")=="true" && !(BinaryBuilderBase.use_squashfs[]))
         end
     end
 end
