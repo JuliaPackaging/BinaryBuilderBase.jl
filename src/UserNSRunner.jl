@@ -146,18 +146,19 @@ function Base.run(ur::UserNSRunner, cmd, logger::IO = stdout; verbose::Bool = fa
             sandbox_cmd = ignorestatus(sandbox_cmd)
         end
         oc = OutputCollector(setenv(sandbox_cmd, ur.env); verbose=verbose, tee_stream=tee_stream)
-        did_succeed = wait(oc)
-
+        did_succeed = @show wait(oc)
+        @info "" @__LINE__
         # First print out the command, then the output
         println(logger, cmd)
         print(logger, merge(oc))
+        @info "" @__LINE__
     finally
         unmount_shards(ur; verbose=verbose)
     end
 
 
     # Return whether we succeeded or not
-    return did_succeed
+    return @show did_succeed
 end
 
 function Base.read(ur::UserNSRunner, cmd; verbose=false)

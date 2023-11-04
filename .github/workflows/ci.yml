@@ -68,8 +68,8 @@ jobs:
           cache-packages: "false"
           cache-registries: "false"
       - uses: julia-actions/julia-buildpkg@latest
-      - name: System info
-        run: julia --project=. --color=yes -e "using BinaryBuilderBase; BinaryBuilderBase.versioninfo()"
+      # - name: System info
+      #   run: julia --project=. --color=yes -e "using BinaryBuilderBase; BinaryBuilderBase.versioninfo()"
       - name: Run tests
         run: |
           eval `ssh-agent`

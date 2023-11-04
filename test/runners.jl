@@ -443,7 +443,7 @@ using Pkg
             set -e
             make -j${nproc} -sC /usr/share/testsuite install
             """
-            @test run(ur, `/bin/bash -c "$(test_script)"`, iobuff; tee_stream=devnull)
+            @test @show run(ur, `/bin/bash -c "$(test_script)"`, iobuff; tee_stream=devnull)
         end
     end
 end
