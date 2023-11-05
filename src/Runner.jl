@@ -157,8 +157,9 @@ end
                                 allow_unsafe_flags::Bool = false,
                                 lock_microarchitecture::Bool = true,
                                 gcc_version::Union{Nothing,VersionNumber}=nothing,
-                                clang_version::Union{Nothing,VersionNumber}=nothing
-                                clang_use_lld::Bool = false)
+                                clang_version::Union{Nothing,VersionNumber}=nothing,
+                                clang_use_lld::Bool = false,
+                                )
 
 We generate a set of compiler wrapper scripts within our build environment to force all
 build systems to honor the necessary sets of compiler flags to build for our systems.
@@ -176,7 +177,8 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
                                      bootstrap::Bool = !isempty(bootstrap_list),
                                      gcc_version::Union{Nothing,VersionNumber}=nothing,
                                      clang_version::Union{Nothing,VersionNumber}=nothing,
-                                     clang_use_lld::Bool = false)
+                                     clang_use_lld::Bool = false,
+                                     )
     # Wipe that directory out, in case it already had compiler wrappers
     rm(bin_path; recursive=true, force=true)
     mkpath(bin_path)
@@ -786,11 +788,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         wrapper(io, string("/opt/", aatriplet(p), "/bin/", string(aatriplet(p), "-dlltool")); allow_ccache=false, extra_cmds=extra_cmds, hash_args=true)
     end
     function lld(io::IO, p::AbstractPlatform)
-        if Sys.isapple(p)
-            lld_str = "ld64.lld"
-        else
-            lld_str = "ld.lld"
-        end
+        lld_str = Sys.isapple(p) ? "ld64.lld" : "ld.lld"
         return wrapper(io,
             "/opt/$(host_target)/bin/$(lld_str)";
             env=Dict("LD_LIBRARY_PATH"=>ld_library_path(platform, host_platform; csl_paths=false)), allow_ccache=false,
@@ -877,7 +875,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
                 write_wrapper(lld,p,"ld64.lld")
             else
                 write_wrapper(ld, p, "ld.$(t)")
-                write_wrapper(lld,p,"ld.lld")
+                write_wrapper(lld, p, "ld.lld")
             end
             write_wrapper(nm, p, "$(t)-nm")
             write_wrapper(libtool, p, "$(t)-libtool")
@@ -1356,7 +1354,7 @@ function runner_setup!(workspaces, mappings, workspace_root, verbose, kwargs, pl
 
     if isempty(bootstrap_list)
         # Generate CMake and Meson files, only if we are not bootstrapping
-        generate_toolchain_files!(platform, envs, toolchains_path, clang_use_lld=clang_use_lld)
+        generate_toolchain_files!(platform, envs, toolchains_path; clang_use_lld=clang_use_lld)
         push!(workspaces, toolchains_path => "/opt/toolchains")
 
         # Generate directory where to write Cargo config files
