@@ -95,7 +95,7 @@ function toolchain_file(bt::CMake, p::AbstractPlatform, host_platform::AbstractP
         set(CMAKE_CXX_COMPILER /opt/bin/$(target)/$(aatarget)-$(cxx_compiler(bt)))
         set(CMAKE_Fortran_COMPILER /opt/bin/$(target)/$(aatarget)-$(fortran_compiler(bt)))
 
-        set(CMAKE_LINKER  $(linker_str(p, clang_use_lld)))
+        set(CMAKE_LINKER  $(linker_string(p, clang_use_lld)))
         set(CMAKE_OBJCOPY /opt/bin/$(target)/$(aatarget)-objcopy)
 
         set(CMAKE_AR     /opt/bin/$(target)/$(aatarget)-ar)
@@ -179,9 +179,9 @@ function toolchain_file(bt::Meson, p::AbstractPlatform, envs::Dict{String,String
     fortran = '/opt/bin/$(target)/$(aatarget)-$(fortran_compiler(bt))'
     objc = '/opt/bin/$(target)/$(aatarget)-cc'
     ar = '/opt/bin/$(target)/$(aatarget)-ar'
-    ld = '$(linker_str(p, clang_use_lld))'
-    cpp_ld = '$(linker_str(p, clang_use_lld))'
-    c_ld = '$(linker_str(p, clang_use_lld))'
+    ld = '$(linker_string(p, clang_use_lld))'
+    cpp_ld = '$(linker_string(p, clang_use_lld))'
+    c_ld = '$(linker_string(p, clang_use_lld))'
     nm = '/opt/bin/$(target)/$(aatarget)-nm'
     strip = '/opt/bin/$(target)/$(aatarget)-strip'
     pkgconfig = '/usr/bin/pkg-config'
