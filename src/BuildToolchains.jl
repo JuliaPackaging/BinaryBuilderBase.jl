@@ -31,7 +31,14 @@ function cmake_os(p::AbstractPlatform)
     end
 end
 
-function toolchain_file(bt::CMake, p::AbstractPlatform, host_platform::AbstractPlatform; is_host::Bool=false)
+function linker_string(p::AbstractPlatform, clang_use_lld)
+    target = triplet(p)
+    aatarget = aatriplet(p)
+    lld_str = Sys.isapple(p) ? "ld64.lld" : "ld.lld"
+    return clang_use_lld ? "/opt/bin/$(target)/$(lld_str)" : "/opt/bin/$(target)/$(aatarget)-ld"
+end
+
+function toolchain_file(bt::CMake, p::AbstractPlatform, host_platform::AbstractPlatform; is_host::Bool=false, clang_use_lld::Bool=false)
     target = triplet(p)
     aatarget = aatriplet(p)
 
@@ -81,7 +88,6 @@ function toolchain_file(bt::CMake, p::AbstractPlatform, host_platform::AbstractP
         set(CMAKE_SYSROOT /opt/$(aatarget)/$(aatarget)/sys-root/)
         """
     end
-
     file *= """
         set(CMAKE_INSTALL_PREFIX \$ENV{prefix})
 
@@ -89,7 +95,7 @@ function toolchain_file(bt::CMake, p::AbstractPlatform, host_platform::AbstractP
         set(CMAKE_CXX_COMPILER /opt/bin/$(target)/$(aatarget)-$(cxx_compiler(bt)))
         set(CMAKE_Fortran_COMPILER /opt/bin/$(target)/$(aatarget)-$(fortran_compiler(bt)))
 
-        set(CMAKE_LINKER  /opt/bin/$(target)/$(aatarget)-ld)
+        set(CMAKE_LINKER  $(linker_string(p, clang_use_lld)))
         set(CMAKE_OBJCOPY /opt/bin/$(target)/$(aatarget)-objcopy)
 
         set(CMAKE_AR     /opt/bin/$(target)/$(aatarget)-ar)
@@ -162,10 +168,10 @@ function meson_cpu_family(p::AbstractPlatform)
 end
 
 function toolchain_file(bt::Meson, p::AbstractPlatform, envs::Dict{String,String};
-                        is_host::Bool=false)
+                        is_host::Bool=false, clang_use_lld::Bool=false)
     target = triplet(p)
     aatarget = aatriplet(p)
-
+    clang_use_lld=false #Meson tries is best to misuse lld so don't use it for now
     return """
     [binaries]
     c = '/opt/bin/$(target)/$(aatarget)-$(c_compiler(bt))'
@@ -173,7 +179,9 @@ function toolchain_file(bt::Meson, p::AbstractPlatform, envs::Dict{String,String
     fortran = '/opt/bin/$(target)/$(aatarget)-$(fortran_compiler(bt))'
     objc = '/opt/bin/$(target)/$(aatarget)-cc'
     ar = '/opt/bin/$(target)/$(aatarget)-ar'
-    ld = '/opt/bin/$(target)/$(aatarget)-ld'
+    ld = '$(linker_string(p, clang_use_lld))'
+    cpp_ld = '$(linker_string(p, clang_use_lld))'
+    c_ld = '$(linker_string(p, clang_use_lld))'
     nm = '/opt/bin/$(target)/$(aatarget)-nm'
     strip = '/opt/bin/$(target)/$(aatarget)-strip'
     pkgconfig = '/usr/bin/pkg-config'
@@ -211,6 +219,7 @@ end
 function generate_toolchain_files!(platform::AbstractPlatform, envs::Dict{String,String},
                                    toolchains_path::AbstractString;
                                    host_platform::AbstractPlatform = default_host_platform,
+                                   clang_use_lld::Bool = false,
                                    )
 
     # Generate the files fot bot the host and the target platforms
@@ -221,13 +230,13 @@ function generate_toolchain_files!(platform::AbstractPlatform, envs::Dict{String
         for compiler in (:clang, :gcc)
             # Target toolchains
             if platforms_match(p, platform)
-                write(joinpath(dir, "target_$(aatriplet(p))_$(compiler).cmake"), toolchain_file(CMake{compiler}(), p, host_platform; is_host=false))
-                write(joinpath(dir, "target_$(aatriplet(p))_$(compiler).meson"), toolchain_file(Meson{compiler}(), p, envs; is_host=false))
+                write(joinpath(dir, "target_$(aatriplet(p))_$(compiler).cmake"), toolchain_file(CMake{compiler}(), p, host_platform; is_host=false, clang_use_lld=clang_use_lld))
+                write(joinpath(dir, "target_$(aatriplet(p))_$(compiler).meson"), toolchain_file(Meson{compiler}(), p, envs; is_host=false, clang_use_lld=clang_use_lld))
             end
             # Host toolchains
             if platforms_match(p, host_platform)
-                write(joinpath(dir, "host_$(aatriplet(p))_$(compiler).cmake"), toolchain_file(CMake{compiler}(), p, host_platform; is_host=true))
-                write(joinpath(dir, "host_$(aatriplet(p))_$(compiler).meson"), toolchain_file(Meson{compiler}(), p, envs; is_host=true))
+                write(joinpath(dir, "host_$(aatriplet(p))_$(compiler).cmake"), toolchain_file(CMake{compiler}(), p, host_platform; is_host=true, clang_use_lld=clang_use_lld))
+                write(joinpath(dir, "host_$(aatriplet(p))_$(compiler).meson"), toolchain_file(Meson{compiler}(), p, envs; is_host=true, clang_use_lld=clang_use_lld))
             end
         end
 
