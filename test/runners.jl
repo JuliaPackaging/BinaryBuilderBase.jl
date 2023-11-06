@@ -471,7 +471,7 @@ end
             test_script = """
                 set -e
                 echo '$(test_c)' > test.c
-                cc -Werror -shared test.c -fuse-ld=lld -o libtest.\${dlext}
+                gcc -Werror -shared test.c -fuse-ld=lld -o libtest.\${dlext}
                 """
             cmd = `/bin/bash -c "$(test_script)"`
             @test run(ur, cmd, iobuff)
@@ -479,7 +479,7 @@ end
             test_script = """
             set -e
             echo '$(test_c)' > test.c
-            cc -Werror -v -shared test.c -fuse-ld=lld -o libtest.\${dlext}
+            gcc -Werror -v -shared test.c -fuse-ld=lld -o libtest.\${dlext}
             """
             iobuff = IOBuffer()
             cmd = `/bin/bash -c "$(test_script)"`
