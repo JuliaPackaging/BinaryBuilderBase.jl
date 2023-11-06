@@ -31,11 +31,11 @@ function cmake_os(p::AbstractPlatform)
     end
 end
 
+lld_str(p::AbstractPlatform) = Sys.isapple(p) ? "ld64.lld" : "ld.lld"
 function linker_string(p::AbstractPlatform, clang_use_lld)
     target = triplet(p)
     aatarget = aatriplet(p)
-    lld_str = Sys.isapple(p) ? "ld64.lld" : "ld.lld"
-    return clang_use_lld ? "/opt/bin/$(target)/$(lld_str)" : "/opt/bin/$(target)/$(aatarget)-ld"
+    return clang_use_lld ? "/opt/bin/$(target)/$(lld_str(p))" : "/opt/bin/$(target)/$(aatarget)-ld"
 end
 
 function toolchain_file(bt::CMake, p::AbstractPlatform, host_platform::AbstractPlatform; is_host::Bool=false, clang_use_lld::Bool=false)

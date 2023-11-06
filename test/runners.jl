@@ -428,6 +428,68 @@ end
             @test contains(lines[end], r"^ +sdk 10\.14$")
         end
     end
+
+    @testset "Test lld usage" begin
+        mktempdir() do dir
+            ur = preferred_runner()(dir; platform=Platform("x86_64", "windows"), preferred_gcc_version=v"6")
+            iobuff = IOBuffer()
+            test_c = """
+            #include <stdlib.h>
+            int test(void) {
+                return 0;
+            }
+            """
+            test_script = """
+                set -e
+                echo '$(test_c)' > test.c
+                clang -Werror -shared test.c -o libtest.\${dlext}
+                """
+            cmd = `/bin/bash -c "$(test_script)"`
+            @test run(ur, cmd, iobuff)
+
+            test_script = """
+            set -e
+            echo '$(test_c)' > test.c
+            clang -Werror -v -shared test.c -o libtest.\${dlext}
+            """
+            iobuff = IOBuffer()
+            cmd = `/bin/bash -c "$(test_script)"`
+            @test run(ur, cmd, iobuff)
+            seekstart(iobuff)
+            @test occursin(r"ld.lld", readchomp(iobuff))
+        end
+
+        mktempdir() do dir
+            ur = preferred_runner()(dir; platform=Platform("x86_64", "linux", libc="musl"), preferred_gcc_version=v"9")
+            iobuff = IOBuffer()
+            test_c = """
+            #include <stdlib.h>
+            int test(void) {
+                return 0;
+            }
+            """
+            test_script = """
+                set -e
+                echo '$(test_c)' > test.c
+                cc -Werror -shared test.c -fuse-ld=lld -o libtest.\${dlext}
+                """
+            cmd = `/bin/bash -c "$(test_script)"`
+            @test run(ur, cmd, iobuff)
+
+            test_script = """
+            set -e
+            echo '$(test_c)' > test.c
+            cc -Werror -v -shared test.c -fuse-ld=lld -o libtest.\${dlext}
+            """
+            iobuff = IOBuffer()
+            cmd = `/bin/bash -c "$(test_script)"`
+            @test run(ur, cmd, iobuff)
+            seekstart(iobuff)
+            @test occursin(r"lld", readchomp(iobuff))
+        end
+    end
+
+
 end
 
 @testset "Shards" begin
