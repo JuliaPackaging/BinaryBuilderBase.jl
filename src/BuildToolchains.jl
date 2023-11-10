@@ -31,11 +31,17 @@ function cmake_os(p::AbstractPlatform)
     end
 end
 
-lld_str(p::AbstractPlatform) = Sys.isapple(p) ? "ld64.lld" : "ld.lld"
-function linker_string(p::AbstractPlatform, clang_use_lld)
+lld_string(p::AbstractPlatform) = Sys.isapple(p) ? "ld64.lld" : "ld.lld"
+function linker_string(bt::CMake{:gcc}, p::AbstractPlatform, clang_use_lld)
     target = triplet(p)
     aatarget = aatriplet(p)
-    return clang_use_lld ? "/opt/bin/$(target)/$(lld_str(p))" : "/opt/bin/$(target)/$(aatarget)-ld"
+    return "/opt/bin/$(target)/$(aatarget)-ld"
+end
+
+function linker_string(bt::CMake{:clang}, p::AbstractPlatform, clang_use_lld)
+    target = triplet(p)
+    aatarget = aatriplet(p)
+    return clang_use_lld ? "/opt/bin/$(target)/$(lld_string(p))" : "/opt/bin/$(target)/$(aatarget)-ld"
 end
 
 function toolchain_file(bt::CMake, p::AbstractPlatform, host_platform::AbstractPlatform; is_host::Bool=false, clang_use_lld::Bool=false)
@@ -95,7 +101,7 @@ function toolchain_file(bt::CMake, p::AbstractPlatform, host_platform::AbstractP
         set(CMAKE_CXX_COMPILER /opt/bin/$(target)/$(aatarget)-$(cxx_compiler(bt)))
         set(CMAKE_Fortran_COMPILER /opt/bin/$(target)/$(aatarget)-$(fortran_compiler(bt)))
 
-        set(CMAKE_LINKER  $(linker_string(p, clang_use_lld)))
+        set(CMAKE_LINKER  $(linker_string(bt, p, clang_use_lld)))
         set(CMAKE_OBJCOPY /opt/bin/$(target)/$(aatarget)-objcopy)
 
         set(CMAKE_AR     /opt/bin/$(target)/$(aatarget)-ar)
@@ -167,6 +173,18 @@ function meson_cpu_family(p::AbstractPlatform)
     end
 end
 
+function linker_string(bt::Meson{:gcc}, p::AbstractPlatform, clang_use_lld)
+    target = triplet(p)
+    aatarget = aatriplet(p)
+    return "bfd"
+end
+
+function linker_string(bt::Meson{:clang}, p::AbstractPlatform, clang_use_lld)
+    target = triplet(p)
+    aatarget = aatriplet(p)
+    return clang_use_lld ? "/opt/bin/$(target)/$(lld_string(p))" : "/opt/bin/$(target)/$(aatarget)-ld"
+end
+
 function toolchain_file(bt::Meson, p::AbstractPlatform, envs::Dict{String,String};
                         is_host::Bool=false, clang_use_lld::Bool=false)
     target = triplet(p)
@@ -179,9 +197,9 @@ function toolchain_file(bt::Meson, p::AbstractPlatform, envs::Dict{String,String
     fortran = '/opt/bin/$(target)/$(aatarget)-$(fortran_compiler(bt))'
     objc = '/opt/bin/$(target)/$(aatarget)-cc'
     ar = '/opt/bin/$(target)/$(aatarget)-ar'
-    ld = '$(linker_string(p, clang_use_lld))'
-    cpp_ld = '$(linker_string(p, clang_use_lld))'
-    c_ld = '$(linker_string(p, clang_use_lld))'
+    ld = '$(linker_string(bt, p, clang_use_lld))'
+    cpp_ld = '$(linker_string(bt, p, clang_use_lld))'
+    c_ld = '$(linker_string(bt, p, clang_use_lld))'
     nm = '/opt/bin/$(target)/$(aatarget)-nm'
     strip = '/opt/bin/$(target)/$(aatarget)-strip'
     pkgconfig = '/usr/bin/pkg-config'

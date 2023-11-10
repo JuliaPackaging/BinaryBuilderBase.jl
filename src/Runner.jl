@@ -792,7 +792,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         return wrapper(io, "/opt/$(host_target)/bin/lld"; env=Dict("LD_LIBRARY_PATH"=>ld_library_path(platform, host_platform; csl_paths=false)), allow_ccache=false,)
     function lld(io::IO, p::AbstractPlatform)
         return wrapper(io,
-            "/opt/$(host_target)/bin/$(lld_str(p))";
+            "/opt/$(host_target)/bin/$(lld_string(p))";
             env=Dict("LD_LIBRARY_PATH"=>ld_library_path(platform, host_platform; csl_paths=false)), allow_ccache=false,
         )
     end
@@ -877,7 +877,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             else
                 write_wrapper(ld, p, "ld.$(t)")
             end
-            write_wrapper(lld,p,"$(t)-$(lld_str(p))")
+            write_wrapper(lld,p,"$(t)-$(lld_string(p))")
             write_wrapper(lld_generic, p, "$(t)-lld")
             write_wrapper(nm, p, "$(t)-nm")
             write_wrapper(libtool, p, "$(t)-libtool")
@@ -944,7 +944,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         elseif Sys.iswindows(platform)
             append!(default_tools, ("dlltool", "windres", "winmc"))
         end
-        append!(default_tools, ("cc", "c++", "cpp", "f77", "gfortran", "gcc", "clang", "g++", "clang++", "lld", lld_str(platform)))
+        append!(default_tools, ("cc", "c++", "cpp", "f77", "gfortran", "gcc", "clang", "g++", "clang++", "lld", lld_string(platform)))
     end
     if :rust in compilers
         append!(default_tools, ("rustc","rustup","cargo"))
