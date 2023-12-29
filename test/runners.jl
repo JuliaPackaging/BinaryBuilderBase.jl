@@ -33,6 +33,32 @@ using Pkg
     @test !prefer_clang(Platform("x86_64", "linux"; sanitize="thread"))
 end
 
+@testset "with_logfile" begin
+    mktempdir() do dir
+        logfile = joinpath(dir, "dir", "logfile.txt")
+        with_logfile(logfile) do io
+            print(io, logfile)
+        end
+        @test readchomp(logfile) == logfile
+        # Test writing on an existing file
+        with_logfile(logfile) do io
+            print(io, logfile * logfile)
+        end
+        @test readchomp(logfile) == logfile * logfile
+
+        # Test using a Prefix as argument
+        prefix = Prefix(dir)
+        subdir = "my_package"
+        ldir = logdir(prefix; subdir)
+        name = "logfile.txt"
+        logfile = joinpath(ldir, name)
+        with_logfile(prefix, name; subdir) do io
+            print(io, logfile)
+        end
+        @test readchomp(logfile) == logfile
+    end
+end
+
 # Are we using docker? If so, test that the docker runner works...
 @testset "Runner utilities" begin
     # Test that is_ecryptfs works for something we're certain isn't encrypted
