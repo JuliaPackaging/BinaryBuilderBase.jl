@@ -20,6 +20,16 @@ function with_temp_project(f::Function)
     end
 end
 
+function test_setup_dependencies(prefix, dependencies, platform)
+    if VERSION >= v"1.11.0-"
+        # A warning is issued in Julia v1.11:
+        # <https://github.com/JuliaPackaging/BinaryBuilderBase.jl/issues/358>.
+        setup_dependencies(prefix, dependencies, platform)
+    else
+        @test_logs setup_dependencies(prefix, dependencies, platform)
+    end
+end
+
 @testset "Dependencies" begin
     name = "Foo_jll"
     dep = Dependency(PackageSpec(; name = name); platforms=supported_platforms(; experimental=true, exclude=!Sys.isapple))
@@ -167,7 +177,7 @@ end
                 Dependency("Zlib_jll")
             ]
             platform = HostPlatform()
-            ap = @test_logs setup_dependencies(prefix, getpkg.(dependencies), platform)
+            ap = test_setup_dependencies(prefix, getpkg.(dependencies), platform)
             @test "libz." * platform_dlext(platform) in readdir(last(libdirs(Prefix(destdir(dir, platform)))))
             @test sort!(readdir(joinpath(destdir(dir, platform), "include"))) == ["zconf.h", "zlib.h"]
 
@@ -202,7 +212,7 @@ end
                 Dependency("LibCURL_jll")
             ]
             platform = HostPlatform()
-            ap = @test_logs setup_dependencies(prefix, getpkg.(dependencies), platform)
+            ap = test_setup_dependencies(prefix, getpkg.(dependencies), platform)
             @test "libcurl." * platform_dlext(platform) in readdir(last(libdirs(Prefix(destdir(dir, platform)))))
             @test "curl.h" in readdir(joinpath(destdir(dir, platform), "include", "curl"))
             @test "libssh2." * platform_dlext(platform) in readdir(last(libdirs(Prefix(destdir(dir, platform)))))
@@ -225,7 +235,9 @@ end
                 Dependency("LibOSXUnwind_jll")
             ]
             platform = Platform("i686", "linux"; libc="musl")
-            @test_logs (:warn, r"Dependency LibOSXUnwind_jll does not have a mapping for artifact LibOSXUnwind for platform i686-linux-musl") begin
+            # `match_mode=:any` is a workaround for
+            # <https://github.com/JuliaPackaging/BinaryBuilderBase.jl/issues/358>.
+            @test_logs (:warn, r"Dependency LibOSXUnwind_jll does not have a mapping for artifact LibOSXUnwind for platform i686-linux-musl") match_mode=(VERSION >= v"1.11.0-" ? :any : :all) begin
                 setup_dependencies(prefix, getpkg.(dependencies), platform)
             end
             @test "destdir" ∉ readdir(dirname(destdir(dir, platform)))
@@ -238,7 +250,7 @@ end
             platform = Platform("x86_64", "linux"; julia_version=v"1.5")
 
             # Test that a particular version of GMP is installed
-            @test @test_logs !isempty(setup_dependencies(prefix, getpkg.(dependencies), platform))
+            @test !isempty(test_setup_dependencies(prefix, getpkg.(dependencies), platform))
             @test isfile(joinpath(destdir(dir, platform), "lib", "libgmp.so.10.3.2"))
         end
 
@@ -249,7 +261,7 @@ end
             platform = Platform("x86_64", "linux"; julia_version=v"1.6")
 
             # Test that a particular version of GMP is installed
-            @test_logs setup_dependencies(prefix, getpkg.(dependencies), platform)
+            test_setup_dependencies(prefix, getpkg.(dependencies), platform)
             @test isfile(joinpath(destdir(dir, platform), "lib", "libgmp.so.10.4.0"))
         end
 
@@ -269,7 +281,7 @@ end
 
             # If we don't give a `julia_version`, then we are FULLY UNSHACKLED.
             platform = Platform("x86_64", "linux")
-            @test_logs setup_dependencies(prefix, getpkg.(dependencies), platform)
+            test_setup_dependencies(prefix, getpkg.(dependencies), platform)
             @test isfile(joinpath(destdir(dir, platform), "lib", "libgmp.so.10.3.2"))
             @test isfile(joinpath(destdir(dir, platform), "lib", "libmpfr.so.6.1.0"))
         end
@@ -296,7 +308,7 @@ end
                             ),
                         ]
                         platform = Platform("x86_64", "linux"; libc="glibc")
-                        @test_logs setup_dependencies(prefix, dependencies, platform)
+                        test_setup_dependencies(prefix, dependencies, platform)
                         @test readdir(joinpath(destdir(dir, platform), "bin")) == ["hello_world"]
                     end
                 end
@@ -314,7 +326,7 @@ end
                 ),
             ]
             platform = Platform("x86_64", "linux"; libc="glibc")
-            @test_logs setup_dependencies(prefix, dependencies, platform)
+            test_setup_dependencies(prefix, dependencies, platform)
             @test readdir(joinpath(destdir(dir, platform), "bin")) == ["hello_world"]
         end
 
@@ -325,7 +337,7 @@ end
                     get_addable_spec("Zlib_jll", v"1.2.12+4")
                 ]
                 platform = Platform("x86_64", "linux")
-                @test_logs setup_dependencies(prefix, dependencies, platform)
+                test_setup_dependencies(prefix, dependencies, platform)
                 readmeta(joinpath(destdir(dir, platform), "lib", "libz.so")) do oh
                     symbols = symbol_name.(Symbols(oh))
                     # The platform didn't specify the sanitizer, the library shouldn't contain
@@ -341,7 +353,7 @@ end
                     get_addable_spec("Zlib_jll", v"1.2.12+4")
                 ]
                 platform = Platform("x86_64", "linux"; sanitize="memory")
-                @test_logs setup_dependencies(prefix, dependencies, platform)
+                test_setup_dependencies(prefix, dependencies, platform)
                 readmeta(joinpath(destdir(dir, platform), "lib", "libz.so")) do oh
                     symbols = symbol_name.(Symbols(oh))
                     # Make sure the library contains only "msan" symbols
