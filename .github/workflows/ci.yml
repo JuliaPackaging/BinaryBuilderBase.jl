@@ -55,16 +55,17 @@ jobs:
         with:
           version: ${{ matrix.julia-version }}
           arch: x64
-      - uses: julia-actions/cache@v1
-        # For the time being cache artifacts only for squashfs, we need too much
-        # storage for the unpacked shards
-        if: ${{ matrix.squashfs == true }}
-        with:
-          # Reserve entire cache to artifacts
-          cache-name: ${{ matrix.squashfs }}
-          cache-artifacts: "true"
-          cache-packages: "false"
-          cache-registries: "false"
+      # We can't cache artifacts at the moment, it'd require more than 10 GiB.
+      # - uses: julia-actions/cache@v1
+      #   # For the time being cache artifacts only for squashfs, we need too much
+      #   # storage for the unpacked shards
+      #   if: ${{ matrix.squashfs == true }}
+      #   with:
+      #     # Reserve entire cache to artifacts
+      #     cache-name: ${{ matrix.squashfs }}
+      #     cache-artifacts: "true"
+      #     cache-packages: "false"
+      #     cache-registries: "false"
       - uses: julia-actions/julia-buildpkg@latest
       - name: System info
         run: julia --project=. --color=yes -e "using BinaryBuilderBase; BinaryBuilderBase.versioninfo()"
@@ -89,6 +90,7 @@ jobs:
       JULIA_PKG_SERVER: ""
     steps:
       - uses: actions/checkout@v4
+      - uses: julia-actions/cache@v1
       - uses: julia-actions/setup-julia@latest
         with:
           version: "1.7"
