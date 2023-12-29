@@ -1344,7 +1344,14 @@ function runner_setup!(workspaces, mappings, workspace_root, verbose, kwargs, pl
 
     clang = filter(s -> s.name == "LLVMBootstrap", shards)
     clang_version = length(clang) == 1 ? only(clang).version : nothing
-    clang_use_lld = (!isnothing(gcc_version) && !isnothing(clang_version) && clang_version >= v"16" && gcc_version >= v"6")
+    clang_use_lld = let
+        kw = collect(extract_kwargs(kwargs, (:clang_use_lld,)))
+        # Default `clang_use_lld` to `true` if not specified.
+        value = isone(length(kw)) ? last(only(kw)) : true
+        # The user can ask for using `lld` as linker with Clang, but we can
+        # actually use it only under certain conditions.
+        value && (!isnothing(gcc_version) && !isnothing(clang_version) && clang_version >= v"16" && gcc_version >= v"6")
+    end
     # Construct environment variables we'll use from here on out
     platform::Platform = get_concrete_platform(platform; compilers..., extract_kwargs(kwargs, (:preferred_gcc_version,:preferred_llvm_version))...)
     envs::Dict{String,String} = merge(platform_envs(platform, src_name; rust_version, verbose, compilers...), extra_env)

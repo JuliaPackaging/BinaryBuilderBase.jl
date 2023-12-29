@@ -487,6 +487,20 @@ end
             seekstart(iobuff)
             @test occursin(r"lld", readchomp(iobuff))
         end
+
+        mktempdir() do dir
+            platform = Platform("x86_64", "linux", libc="musl")
+            ur = preferred_runner()(dir; platform, preferred_gcc_version=v"9", clang_use_lld=false)
+            iobuff = IOBuffer()
+            test_script = raw"""
+                cat $(which clang)
+                """
+            cmd = `/bin/bash -c "$(test_script)"`
+            @test run(ur, cmd, iobuff)
+            seekstart(iobuff)
+            @test occursin("-fuse-ld=$(aatriplet(platform))", readchomp(iobuff))
+        end
+
     end
 
 
