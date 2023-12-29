@@ -67,7 +67,13 @@ jobs:
           cache-registries: "false"
       - uses: julia-actions/julia-buildpkg@latest
       - name: System info
-        run: julia --project=. --color=yes -e "using BinaryBuilderBase; BinaryBuilderBase.versioninfo()"
+        run: |
+          args=(--check-bounds=yes --color=yes --depwarn=yes --inline=yes --project=@.)
+          # On Julia v1.8+ issue the code coverage info for this command.
+          if [[ "${{ matrix.julia-version }}" != "1.7" ]]; then
+              args+=(--code-coverage="@${PWD}")
+          fi
+          julia "${args[@]}" -e "using BinaryBuilderBase; BinaryBuilderBase.versioninfo()"
       - name: Run tests
         run: |
           eval `ssh-agent`
