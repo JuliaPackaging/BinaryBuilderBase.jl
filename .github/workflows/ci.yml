@@ -4,7 +4,17 @@ on:
   push:
     branches: "master"
     tags: ["*"]
+    paths:
+      - '.github/workflows/ci.yml'
+      - '*.toml'
+      - 'src/**'
+      - 'test/**'
   pull_request:
+    paths:
+      - '.github/workflows/ci.yml'
+      - '*.toml'
+      - 'src/**'
+      - 'test/**'
   release:
 
 concurrency:
@@ -94,18 +104,3 @@ jobs:
         continue-on-error: true
       - uses: julia-actions/julia-uploadcoveralls@v1.0
         continue-on-error: true
-
-  Documentation:
-    timeout-minutes: 30
-    runs-on: ubuntu-latest
-    env:
-      JULIA_PKG_SERVER: ""
-    steps:
-      - uses: actions/checkout@v4
-      - uses: julia-actions/cache@v1
-      - uses: julia-actions/setup-julia@latest
-        with:
-          version: "1.7"
-      - uses: julia-actions/julia-docdeploy@releases/v1
-        env:
-          DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
