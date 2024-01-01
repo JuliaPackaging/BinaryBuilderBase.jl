@@ -1,0 +1,43 @@
+name: Documentation
+
+on:
+  push:
+    branches: "master"
+    tags: ["*"]
+    paths:
+      - '.github/workflows/Documentation.yml'
+      - '*.toml'
+      - 'docs/**'
+      - 'src/**'
+  pull_request:
+    paths:
+      - '.github/workflows/Documentation.yml'
+      - '*.toml'
+      - 'docs/**'
+      - 'src/**'
+  release:
+
+concurrency:
+  # Skip intermediate builds: always.
+  # Cancel intermediate builds: always.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BINARYBUILDER_AUTOMATIC_APPLE: true
+
+jobs:
+  Documentation:
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    env:
+      JULIA_PKG_SERVER: ""
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/cache@v1
+      - uses: julia-actions/setup-julia@v1
+        with:
+          version: "1.7"
+      - uses: julia-actions/julia-docdeploy@releases/v1
+        env:
+          DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
