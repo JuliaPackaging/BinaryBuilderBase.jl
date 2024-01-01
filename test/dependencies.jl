@@ -184,7 +184,7 @@ end
             # Since Julia v1.9 Zlib_jll doesn't have logs directory at all
             @static if VERSION < v"1.9-DEV"
                 zlib_log_files = if os(platform) == "macos"
-                    ["Zlib.log.gz", "fix_identity_mismatch_libz.1.2.11.dylib.log.gz", "ldid_libz.1.2.11.dylib.log.gz"]
+                    ["Zlib.log.gz", "fix_identity_mismatch_libz.1.2.12.dylib.log.gz", "ldid_libz.1.2.12.dylib.log.gz"]
                 else
                     ["Zlib.log.gz"]
                 end
@@ -338,13 +338,15 @@ end
                 ]
                 platform = Platform("x86_64", "linux")
                 test_setup_dependencies(prefix, dependencies, platform)
-                readmeta(joinpath(destdir(dir, platform), "lib", "libz.so")) do oh
-                    symbols = symbol_name.(Symbols(oh))
-                    # The platform didn't specify the sanitizer, the library shouldn't contain
-                    # "asan", "msan", or "tsan" symbols
-                    @test !any(contains("asan_"), symbols)
-                    @test !any(contains("msan_"), symbols)
-                    @test !any(contains("tsan_"), symbols)
+                readmeta(joinpath(destdir(dir, platform), "lib", "libz.so")) do ohs
+                    foreach(ohs) do oh
+                        symbols = symbol_name.(Symbols(oh))
+                        # The platform didn't specify the sanitizer, the library shouldn't contain
+                        # "asan", "msan", or "tsan" symbols
+                        @test !any(contains("asan_"), symbols)
+                        @test !any(contains("msan_"), symbols)
+                        @test !any(contains("tsan_"), symbols)
+                    end
                 end
             end
             with_temp_project() do dir
@@ -354,12 +356,14 @@ end
                 ]
                 platform = Platform("x86_64", "linux"; sanitize="memory")
                 test_setup_dependencies(prefix, dependencies, platform)
-                readmeta(joinpath(destdir(dir, platform), "lib", "libz.so")) do oh
-                    symbols = symbol_name.(Symbols(oh))
-                    # Make sure the library contains only "msan" symbols
-                    @test !any(contains("asan_"), symbols)
-                    @test any(contains("msan_"), symbols)
-                    @test !any(contains("tsan_"), symbols)
+                readmeta(joinpath(destdir(dir, platform), "lib", "libz.so")) do ohs
+                    foreach(ohs) do oh
+                        symbols = symbol_name.(Symbols(oh))
+                        # Make sure the library contains only "msan" symbols
+                        @test !any(contains("asan_"), symbols)
+                        @test any(contains("msan_"), symbols)
+                        @test !any(contains("tsan_"), symbols)
+                    end
                 end
             end
         end
