@@ -347,8 +347,16 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             ])
             end
         end
-        if Sys.islinux(p) && !isnothing(gcc_version) && !isnothing(clang_version) && (clang_version >= v"16")
-            append!(flags, ["--gcc-install-dir=/opt/$(aatriplet(p))/lib/gcc/$(aatriplet(p))/$(gcc_version)"])
+        if Sys.islinux(p)
+            # Find GCC toolchain
+            gcc_toolchain_flag = if !isnothing(gcc_version) && !isnothing(clang_version) && (clang_version >= v"16")
+                "--gcc-install-dir=/opt/$(aatriplet(p))/lib/gcc/$(aatriplet(p))/$(gcc_version)"
+            else
+                # This helps MSAN C++ compiler finding the target toolchain, rather than the host one:
+                # <https://github.com/JuliaPackaging/Yggdrasil/pull/7872#issuecomment-1913141689>.
+                "--gcc-toolchain=/opt/$(aatriplet(p))"
+            end
+            append!(flags, [gcc_toolchain_flag])
         end
         if Sys.iswindows(p)
             windows_cflags!(p, flags)
