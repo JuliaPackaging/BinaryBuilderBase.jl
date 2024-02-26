@@ -53,7 +53,8 @@ function ld_library_path(target::AbstractPlatform,
                          host::AbstractPlatform,
                          prefix::String="",
                          host_libdir::String="";
-                         csl_paths::Bool=true)
+                         csl_paths::Bool=true,
+                         host_lib64::Bool=nbits(host)==64)
     # Helper for generating the library include path for a target.  MacOS, as usual,
     # puts things in slightly different place.
     function target_lib_dir(p::AbstractPlatform)
@@ -88,6 +89,10 @@ function ld_library_path(target::AbstractPlatform,
               # Libdir of the host platform, to run programs in `HostBuildDependency`
               host_libdir,
               )
+        if host_lib64
+            # Include `${host_prefix}/lib64` too.
+            push!(paths, "$(host_libdir)64")
+        end
     end
 
     push!(paths,
