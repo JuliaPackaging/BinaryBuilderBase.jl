@@ -189,10 +189,10 @@ end
 function transfer_progress(progress::Ptr{GitTransferProgress}, payloads::Dict)
     p = payloads[:transfer_progress]
     progress = unsafe_load(progress)
-    p.n = progress.total_objects
+    p.n = Int(progress.total_objects)
     if progress.total_deltas != 0
         p.desc = "Resolving Deltas: "
-        p.n = progress.total_deltas
+        p.n = Int(progress.total_deltas)
         update!(p, Int(max(1, progress.indexed_deltas)))
     else
         update!(p, Int(max(1, progress.received_objects)))
