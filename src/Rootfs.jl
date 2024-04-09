@@ -735,6 +735,7 @@ function supported_platforms(;exclude::Union{Vector{<:Platform},Function}=Return
     # We have experimental support for some platforms, allow easily including them
     if experimental
         append!(standard_platforms, [
+            Platform("riscv64", "linux"),
         ])
     end
     return exclude_platforms!(standard_platforms,exclude)
