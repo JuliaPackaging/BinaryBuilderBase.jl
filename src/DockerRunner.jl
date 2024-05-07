@@ -54,7 +54,8 @@ function import_docker_image(rootfs::CompilerShard, workspace_root::String; verb
     end
     try
         run(pipeline(pipeline(
-            `tar -c -C $(rootfs_path) .`,
+            # Exclude xattrs, due to macOS >= 13 adding com.apple.provenance xattr which docker does not like
+            `tar -c --no-xattrs -C $(rootfs_path) .`,
             `docker import - -c $(dockerfile_cmds) $(docker_image(rootfs))`;
         ); stdout=devnull))
     finally
