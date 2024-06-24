@@ -3012,6 +3012,20 @@ os = "linux"
     sha256 = "7cca12c5f22f4502d4fc0427f615f37c6ab0cab571cd24bcbe1311ac4dbbb750"
     url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/Go-v1.22.0/Go.v1.22.0.x86_64-linux-musl.unpacked.tar.gz"
 
+[["Go.v1.22.4.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "a369f5b693823f3458520728690525954f73691c"
+lazy = true
+libc = "musl"
+os = "linux"
+
+[["Go.v1.22.4.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "8c86145df6ce28d7aea5977cc84fc594175ab2e5"
+lazy = true
+libc = "musl"
+os = "linux"
+
 [["LLVMBootstrap.v11.0.1.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
 git-tree-sha1 = "5ab848b00d11e579786ffcca46f2ab0173e30d48"
