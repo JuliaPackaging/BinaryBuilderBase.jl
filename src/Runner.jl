@@ -586,7 +586,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
 
     function gcc_unsafe_flags!(p::AbstractPlatform, flags::Vector{String} = String[])
         if !allow_unsafe_flags
-            return String["-Ofast", "-ffast-math", "-funsafe-math-optimizations"]
+            return String["-Ofast", "-ffast-math", "-funsafe-math-optimizations", "-fomit-frame-pointer"]
         end
         return String[]
     end
