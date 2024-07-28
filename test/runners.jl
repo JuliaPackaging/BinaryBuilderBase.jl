@@ -418,8 +418,8 @@ end
             @test !run(ur, cmd, iobuff; tee_stream=devnull)
             seekstart(iobuff)
             lines = readlines(iobuff)
-            @test lines[2] == "BinaryBuilder: You used one or more of the unsafe flags: -Ofast, -ffast-math, -funsafe-math-optimizations"
-            @test lines[3] == "Please repent."
+            @test lines[2] == "BinaryBuilder error: You used one or more of the unsafe flags: -Ofast, -ffast-math, -funsafe-math-optimizations"
+            @test lines[3] == "This is not allowed, please remove all unsafe flags from your build script to continue."
 
             ur = preferred_runner()(dir; platform=platform, allow_unsafe_flags=true)
             iobuff = IOBuffer()
