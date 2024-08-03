@@ -308,7 +308,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         if length(unsafe_flags) >= 1
             write(io, """
             if [[ "\${ARGS[@]}" =~ \"$(join(unsafe_flags, "\"|\""))\" ]]; then
-                echo -e \"BinaryBuilder: You used one or more of the unsafe flags: $(join(unsafe_flags, ", "))\\nPlease repent.\" >&2
+                echo -e \"BinaryBuilder error: You used one or more of the unsafe flags: $(join(unsafe_flags, ", "))\\nThis is not allowed, please remove all unsafe flags from your build script to continue.\" >&2
                 exit 1
             fi
             """)
