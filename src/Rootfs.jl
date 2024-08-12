@@ -726,6 +726,7 @@ function supported_platforms(;exclude::Union{Vector{<:Platform},Function}=Return
         Platform("x86_64", "macos"),
         Platform("aarch64", "macos"),
         Platform("x86_64", "freebsd"),
+        Platform("aarch64", "freebsd"),
 
         # Windows
         Platform("i686", "windows"),
