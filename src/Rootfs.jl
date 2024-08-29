@@ -466,6 +466,11 @@ function gcc_version(p::AbstractPlatform,GCC_builds::Vector{GCCBuild},
         GCC_builds = filter(b -> getversion(b) ≥ v"6", GCC_builds)
     end
 
+    # We don't have GCC 6 or older for FreeBSD AArch64
+    if Sys.isfreebsd(p) && arch(p) == "aarch64"
+        GCC_builds = filter(b -> getversion(b) ≥ v"7", GCC_builds)
+    end
+
     # Rust on Windows requires binutils 2.25 (it invokes `ld` with `--high-entropy-va`),
     # which we bundle with GCC 5.
     if :rust in compilers && Sys.iswindows(p)
