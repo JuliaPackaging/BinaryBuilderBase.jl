@@ -766,6 +766,8 @@ function expand_gfortran_versions(platform::AbstractPlatform)
     local libgfortran_versions
     if Sys.isapple(platform) && arch(platform) == "aarch64"
         libgfortran_versions = [v"5"]
+    elseif Sys.isfreebsd(platform) && arch(platform) == "aarch64"
+        libgfortran_versions = [v"4", v"5"]
     else
         libgfortran_versions = [v"3", v"4", v"5"]
     end
