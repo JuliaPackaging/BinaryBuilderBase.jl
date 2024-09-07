@@ -466,6 +466,11 @@ function gcc_version(p::AbstractPlatform,GCC_builds::Vector{GCCBuild},
         GCC_builds = filter(b -> getversion(b) ≥ v"6", GCC_builds)
     end
 
+    # We don't have GCC 6 or older for FreeBSD AArch64
+    if Sys.isfreebsd(p) && arch(p) == "aarch64"
+        GCC_builds = filter(b -> getversion(b) ≥ v"7", GCC_builds)
+    end
+
     # Rust on Windows requires binutils 2.25 (it invokes `ld` with `--high-entropy-va`),
     # which we bundle with GCC 5.
     if :rust in compilers && Sys.iswindows(p)
@@ -560,7 +565,7 @@ function choose_shards(p::AbstractPlatform;
             compilers::Vector{Symbol} = [:c],
             # We always just use the latest Rootfs embedded within our Artifacts.toml
             rootfs_build::VersionNumber=last(BinaryBuilderBase.get_available_builds("Rootfs")),
-            ps_build::VersionNumber=v"2023.06.10",
+            ps_build::VersionNumber=v"2024.08.10",
             GCC_builds::Vector{GCCBuild}=available_gcc_builds,
             LLVM_builds::Vector{LLVMBuild}=available_llvm_builds,
             Rust_build::VersionNumber=maximum(getversion.(available_rust_builds)),
@@ -726,6 +731,7 @@ function supported_platforms(;exclude::Union{Vector{<:Platform},Function}=Return
         Platform("x86_64", "macos"),
         Platform("aarch64", "macos"),
         Platform("x86_64", "freebsd"),
+        Platform("aarch64", "freebsd"),
 
         # Windows
         Platform("i686", "windows"),
@@ -765,6 +771,8 @@ function expand_gfortran_versions(platform::AbstractPlatform)
     local libgfortran_versions
     if Sys.isapple(platform) && arch(platform) == "aarch64"
         libgfortran_versions = [v"5"]
+    elseif Sys.isfreebsd(platform) && arch(platform) == "aarch64"
+        libgfortran_versions = [v"4", v"5"]
     else
         libgfortran_versions = [v"3", v"4", v"5"]
     end
