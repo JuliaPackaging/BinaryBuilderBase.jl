@@ -18,7 +18,7 @@ const default_host_platform = Platform("x86_64", "linux"; libc="musl", cxxstring
 function nbits(p::AbstractPlatform)
     if arch(p) in ("i686", "armv6l", "armv7l")
         return 32
-    elseif arch(p) in ("x86_64", "aarch64", "powerpc64le")
+    elseif arch(p) in ("x86_64", "aarch64", "powerpc64le", "riscv64")
         return 64
     else
         error("Unknown bitwidth for architecture $(arch(p))")
@@ -32,6 +32,8 @@ function proc_family(p::AbstractPlatform)
         return "arm"
     elseif arch(p) == "powerpc64le"
         return "power"
+    elseif arch(p) == "riscv64"
+        return "riscv"
     else
         error("Unknown processor family for architecture $(arch(p))")
     end
@@ -1288,7 +1290,7 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
             mapping["GNU_LIBC_VERSION"] = "glibc 2.12.2"
         elseif arch(platform) in ("armv7l", "aarch64")
             mapping["GNU_LIBC_VERSION"] = "glibc 2.19"
-        elseif arch(platform) === "powerpc64le"
+        elseif arch(platform) in ("powerpc64le", "riscv64")
             mapping["GNU_LIBC_VERSION"] = "glibc 2.17"
         end
     end
