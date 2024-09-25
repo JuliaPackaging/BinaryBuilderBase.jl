@@ -545,10 +545,7 @@ end
             set -e
             make -j${nproc} -sC /usr/share/testsuite install
             """
-            # This test fails on GitHub Actions with non-squashfs on UserNS runners:
-            # <https://github.com/JuliaPackaging/BinaryBuilderBase.jl/issues/347>.
-            is_broken = get(ENV, "GITHUB_ACTIONS", "false")=="true" && !(BinaryBuilderBase.use_squashfs[]) && BinaryBuilderBase.preferred_runner() == BinaryBuilderBase.UserNSRunner
-            @test run(ur, `/bin/bash -c "$(test_script)"`, iobuff) broken=is_broken
+            @test run(ur, `/bin/bash -c "$(test_script)"`, iobuff)
         end
     end
 end
