@@ -2,6 +2,7 @@ abstract type AbstractBuildToolchain{C} end
 
 struct CMake{C} <: AbstractBuildToolchain{C} end
 struct Meson{C} <: AbstractBuildToolchain{C} end
+struct Bazel{C} <: AbstractBuildToolchain{C} end
 
 c_compiler(::AbstractBuildToolchain{:clang}) = "clang"
 cxx_compiler(::AbstractBuildToolchain{:clang}) = "clang++"
@@ -250,11 +251,13 @@ function generate_toolchain_files!(platform::AbstractPlatform, envs::Dict{String
             if platforms_match(p, platform)
                 write(joinpath(dir, "target_$(aatriplet(p))_$(compiler).cmake"), toolchain_file(CMake{compiler}(), p, host_platform; is_host=false, clang_use_lld=clang_use_lld))
                 write(joinpath(dir, "target_$(aatriplet(p))_$(compiler).meson"), toolchain_file(Meson{compiler}(), p, envs; is_host=false, clang_use_lld=clang_use_lld))
+                write(joinpath(dir, "target_$(aatriplet(p))_$(compiler).bzl"), toolchain_file(Bazel{compiler}(), p, host_platform))
             end
             # Host toolchains
             if platforms_match(p, host_platform)
                 write(joinpath(dir, "host_$(aatriplet(p))_$(compiler).cmake"), toolchain_file(CMake{compiler}(), p, host_platform; is_host=true, clang_use_lld=clang_use_lld))
                 write(joinpath(dir, "host_$(aatriplet(p))_$(compiler).meson"), toolchain_file(Meson{compiler}(), p, envs; is_host=true, clang_use_lld=clang_use_lld))
+                write(joinpath(dir, "host_$(aatriplet(p))_$(compiler).bzl"), toolchain_file(Bazel{compiler}(), p, host_platform))
             end
         end
 
@@ -264,13 +267,17 @@ function generate_toolchain_files!(platform::AbstractPlatform, envs::Dict{String
         if prefer_clang(p)
             symlink_if_exists("host_$(aatriplet(p))_clang.cmake", joinpath(dir, "host_$(aatriplet(p)).cmake"))
             symlink_if_exists("host_$(aatriplet(p))_clang.meson", joinpath(dir, "host_$(aatriplet(p)).meson"))
+            symlink_if_exists("host_$(aatriplet(p))_clang.bzl", joinpath(dir, "host_$(aatriplet(p)).bzl"))
             symlink_if_exists("target_$(aatriplet(p))_clang.cmake", joinpath(dir, "target_$(aatriplet(p)).cmake"))
             symlink_if_exists("target_$(aatriplet(p))_clang.meson", joinpath(dir, "target_$(aatriplet(p)).meson"))
+            symlink_if_exists("target_$(aatriplet(p))_clang.bzl", joinpath(dir, "target_$(aatriplet(p)).bzl"))
         else
             symlink_if_exists("host_$(aatriplet(p))_gcc.cmake", joinpath(dir, "host_$(aatriplet(p)).cmake"))
             symlink_if_exists("host_$(aatriplet(p))_gcc.meson", joinpath(dir, "host_$(aatriplet(p)).meson"))
+            symlink_if_exists("host_$(aatriplet(p))_gcc.bzl", joinpath(dir, "host_$(aatriplet(p)).bzl"))
             symlink_if_exists("target_$(aatriplet(p))_gcc.cmake", joinpath(dir, "target_$(aatriplet(p)).cmake"))
             symlink_if_exists("target_$(aatriplet(p))_gcc.meson", joinpath(dir, "target_$(aatriplet(p)).meson"))
+            symlink_if_exists("target_$(aatriplet(p))_gcc.bzl", joinpath(dir, "target_$(aatriplet(p)).bzl"))
         end
     end
 end
@@ -298,4 +305,134 @@ function cargo_config_file!(dir::AbstractString, platform::AbstractPlatform;
                   protocol = 'sparse'
                   """)
     end
+end
+
+# TODO distinguish between clang and gcc toolchains?
+# TODO implement our own cc_toolchain rule
+function toolchain_file(bt::Bazel, p::AbstractPlatform, host_platform::AbstractPlatform; is_host::Bool=false, clang_use_lld::Bool=false)
+    target = triplet(p) # TODO fix this
+    full_target = string(p) # TODO fix this
+    host_target = triplet(host_platform) # TODO fix this
+
+    return """
+    load("@rules_cc//cc:defs.bzl", "cc_toolchain")
+
+    def ygg_cc_toolchain():
+        bb_target = "aarch64-linux-gnu"
+        bb_full_target = "aarch64-linux-gnu-libgfortran5-cxx11-gpu+none-mode+opt"
+        cpu = "aarch64"
+        toolchain_identifier = "ygg_toolchain"
+        target_system_name = ""
+        supports_start_end_lib = False
+
+        cc_toolchain(
+            name = "ygg_target_toolchain",
+            all_files = ":empty",
+            compiler_files = ":empty",
+            dwp_files = ":empty",
+            linker_files = ":empty",
+            objcopy_files = ":empty",
+            strip_files = ":empty",
+            supports_param_files = 1,
+            toolchain_config = ":ygg_target_toolchain_config",
+            toolchain_identifier = "ygg_toolchain",
+        )
+
+        cc_toolchain_config(
+            name = "ygg_target_toolchain_config",
+            cpu = cpu,
+            compiler = "compiler",
+            toolchain_identifier = toolchain_identifier,
+            target_system_name = target_system_name,
+            target_libc = "",
+            abi_libc_version = "local",
+            abi_version = "local",
+            cxx_builtin_include_directories = [
+                "/opt/$(target)/lib/gcc/$(target)/10.2.0/include",
+                "/opt/$(target)/lib/gcc/$(target)/10.2.0/include-fixed",
+                "/opt/$(target)/$(target)/include",
+                "/opt/$(target)/$(target)/sys-root/usr/include",
+                "/opt/$(target)/$(target)/include/c++/10.2.0",
+                "/opt/$(target)/$(target)/include/c++/10.2.0/$(target)",
+                "/opt/$(target)/$(target)/include/c++/10.2.0/backward",
+                "/opt/$(target)/$(target)/include/c++/10.2.0/parallel",
+            ],
+            tool_paths = {
+                "ar": "/opt/bin/$(full_target)/ar",
+                "as": "/opt/bin/$(full_target)/as",
+                "c++": "/opt/bin/$(full_target)/c++",
+                "c++filt": "/opt/bin/$(full_target)/c++filt",
+                "cc": "/opt/bin/$(full_target)/cc",
+                "clang": "/opt/bin/$(full_target)/clang",
+                "clang++": "/opt/bin/$(full_target)/clang++",
+                "cpp": "/opt/bin/$(full_target)/cpp",
+                "f77": "/opt/bin/$(full_target)/f77",
+                # WARN we force to use clang instead of gcc
+                "g++": "/opt/bin/$(full_target)/clang++",
+                "gcc": "/opt/bin/$(full_target)/clang",
+                "gfortran": "/opt/bin/$(full_target)/gfortran",
+                "ld": "/opt/bin/$(full_target)/ld",
+                "ld.lld": "/opt/bin/$(full_target)/ld.lld",
+                "libtool": "/opt/bin/$(full_target)/libtool",
+                "lld": "/opt/bin/$(full_target)/lld",
+                "nm": "/opt/bin/$(full_target)/nm",
+                "objcopy": "/opt/bin/$(full_target)/objcopy",
+                "patchelf": "/opt/bin/$(full_target)/patchelf",
+                "ranlib": "/opt/bin/$(full_target)/ranlib",
+                "readelf": "/opt/bin/$(full_target)/readelf",
+                "strip": "/opt/bin/$(full_target)/strip",
+                # from host
+                "llvm-cov": "/opt/$(host_target)/bin/llvm-cov",
+                "llvm-profdata": "/opt/$(host_target)/bin/llvm-profdata",
+                "objdump": "/usr/bin/objdump",
+            },
+            compile_flags = [
+                "-fstack-protector",
+                "-Wall",
+                "-Wunused-but-set-parameter",
+                "-Wno-free-nonheap-object",
+                "-fno-omit-frame-pointer",
+                # TODO cxx_builtin_include_directories doesn't seem to be working, so we add the INCLUDE_PATHs manually
+                "-isystem /opt/$(target)/lib/gcc/$(target)/10.2.0/include",
+                "-isystem /opt/$(target)/lib/gcc/$(target)/10.2.0/include-fixed",
+                "-isystem /opt/$(target)/$(target)/include",
+                "-isystem /opt/$(target)/$(target)/sys-root/usr/include",
+                "-isystem /opt/$(target)/$(target)/include/c++/10.2.0",
+                "-isystem /opt/$(target)/$(target)/include/c++/10.2.0/$(target)",
+                "-isystem /opt/$(target)/$(target)/include/c++/10.2.0/backward",
+                "-isystem /opt/$(target)/$(target)/include/c++/10.2.0/parallel",
+            ],
+            opt_compile_flags = [
+                "-g0",
+                "-O2",
+                "-D_FORTIFY_SOURCE=1",
+                "-DNDEBUG",
+                "-ffunction-sections",
+                "-fdata-sections",
+                # "-stdlib=libstdc++",
+            ],
+            dbg_compile_flags = ["-g"],
+            link_flags = [],
+            link_libs = [
+                "-lstdc++",
+                "-lm",
+            ],
+            opt_link_flags = ["-Wl,--gc-sections"],
+            unfiltered_compile_flags = [
+                "-no-canonical-prefixes",
+                "-Wno-builtin-macro-redefined",
+                "-D__DATE__=\"redacted\"",
+                "-D__TIMESTAMP__=\"redacted\"",
+                "-D__TIME__=\"redacted\"",
+                "-Wno-unused-command-line-argument",
+                "-Wno-gnu-offsetof-extensions",
+            ],
+            builtin_sysroot = "/opt/$(target)/$(target)/sys-root/",
+            coverage_compile_flags = ["--coverage"],
+            coverage_link_flags = ["--coverage"],
+            host_system_name = "linux",
+            # TODO gcc doesn't support it, only put it on clang (maybe even only for clang on aarch64-darwin?)
+            # supports_start_end_lib = supports_start_end_lib,
+        )
+    """
 end
