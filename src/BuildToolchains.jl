@@ -453,7 +453,7 @@ function toolchain_file(bt::Bazel, p::AbstractPlatform, host_platform::AbstractP
         supports_start_end_lib = False
 
         cc_toolchain(
-            name = "ygg_$(is_host ? "host" : "target")_toolchain",
+            name = "ygg_$(is_host ? "host" : "target")_cc_toolchain",
             all_files = ":empty",
             compiler_files = ":empty",
             dwp_files = ":empty",
@@ -461,12 +461,12 @@ function toolchain_file(bt::Bazel, p::AbstractPlatform, host_platform::AbstractP
             objcopy_files = ":empty",
             strip_files = ":empty",
             supports_param_files = 1,
-            toolchain_config = ":ygg_$(is_host ? "host" : "target")_toolchain_config",
+            toolchain_config = ":ygg_$(is_host ? "host" : "target")_cc_toolchain_config",
             toolchain_identifier = toolchain_identifier,
         )
 
         ygg_cc_toolchain_config(
-            name = "ygg_target_toolchain_config",
+            name = "ygg_$(is_host ? "host" : "target")_cc_toolchain_config",
             toolchain_identifier = toolchain_identifier,
             target_system_name = "$(os(p))"
             # TODO gcc doesn't support it, only put it on clang (maybe even only for clang on aarch64-darwin?)
