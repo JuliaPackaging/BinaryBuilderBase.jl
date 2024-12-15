@@ -321,6 +321,7 @@ end
 
 # TODO distinguish between clang and gcc toolchains?
 # TODO in _impl, get cpu, target_libc, abi_version and abi_libc_version from host + env info
+# TODO add `-lm` to `link_libs` on Reactant
 function toolchain_file(bt::Bazel, p::AbstractPlatform, host_platform::AbstractPlatform; is_host::Bool=false, clang_use_lld::Bool=false)
     target = triplet(p)
     aatarget = aatriplet(p)
@@ -367,11 +368,11 @@ function toolchain_file(bt::Bazel, p::AbstractPlatform, host_platform::AbstractP
             ],
             toolchain_identifier = ctx.attr.toolchain_identifier,
             target_system_name = ctx.attr.target_system_name,
-            target_cpu = "$(bazel_cpu(p))", # TODO
-            target_libc = "unknown", # TODO
+            target_cpu = "$(bazel_cpu(p))",
+            target_libc = "unknown", # TODO get from platform on BB's generation step
             compiler = "clang",
-            abi_version = "unknown", # TODO
-            abi_libc_version = "unknown", # TODO
+            abi_version = "unknown", # TODO get from platform on BB's generation step
+            abi_libc_version = "unknown", # TODO get from platform on BB's generation step
             tool_paths = [
                 tool_path(name = "ar", path = "/opt/bin/$(target)/ar"),
                 tool_path(name = "as", path = "/opt/bin/$(target)/as"),
@@ -384,8 +385,8 @@ function toolchain_file(bt::Bazel, p::AbstractPlatform, host_platform::AbstractP
                 tool_path(name = "f77", path = "/opt/bin/$(target)/f77"),
 
                 # WARN we force to use clang instead of gcc
-                tool_path(name = "g++", path = "/opt/bin/$(target)/clang++"),
-                tool_path(name = "gcc", path = "/opt/bin/$(target)/clang"),
+                # tool_path(name = "g++", path = "/opt/bin/$(target)/clang++"),
+                # tool_path(name = "gcc", path = "/opt/bin/$(target)/clang"),
 
                 tool_path(name = "gfortran", path = "/opt/bin/$(target)/gfortran"),
                 tool_path(name = "ld", path = "/opt/bin/$(target)/ld"),
@@ -446,7 +447,7 @@ function toolchain_file(bt::Bazel, p::AbstractPlatform, host_platform::AbstractP
         provides = [CcToolchainConfigInfo],
     )
 
-    def ygg_cc_toolchain():
+    def ygg_cc_toolchain(**kwargs):
         cpu = "aarch64"
         toolchain_identifier = "ygg_$(is_host ? "host" : "target")_toolchain"
         supports_start_end_lib = False
@@ -470,6 +471,7 @@ function toolchain_file(bt::Bazel, p::AbstractPlatform, host_platform::AbstractP
             target_system_name = "$(os(p))"
             # TODO gcc doesn't support it, only put it on clang (maybe even only for clang on aarch64-darwin?)
             # supports_start_end_lib = supports_start_end_lib,
+            **kwargs,
         )
     """
 end
