@@ -431,7 +431,8 @@ the only GCC versions available to be picked from are `4.8.5` and `5.2.0`, it
 will return `4.8.5`, as binaries compiled with that version will run on this
 platform, whereas binaries compiled with `5.2.0` may not.
 """
-function gcc_version(p::AbstractPlatform,GCC_builds::Vector{GCCBuild},
+function gcc_version(p::AbstractPlatform,
+                     GCC_builds::Vector{GCCBuild},
                      compilers::Vector{Symbol}=[:c];
                      llvm_version::Union{Nothing,VersionNumber}=nothing)
     # First, filter by libgfortran version.
@@ -469,6 +470,11 @@ function gcc_version(p::AbstractPlatform,GCC_builds::Vector{GCCBuild},
     # We don't have GCC 6 or older for FreeBSD AArch64
     if Sys.isfreebsd(p) && arch(p) == "aarch64"
         GCC_builds = filter(b -> getversion(b) ≥ v"7", GCC_builds)
+    end
+
+    # We only have GCC 13 or newer for RISC-V (this could be changed)
+    if arch(p) == "riscv64"
+        GCC_builds = filter(b -> getversion(b) ≥ v"13", GCC_builds)
     end
 
     # Rust on Windows requires binutils 2.25 (it invokes `ld` with `--high-entropy-va`),
