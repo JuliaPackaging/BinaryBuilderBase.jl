@@ -82,3 +82,95 @@ BinaryPlatforms.arch_march_isa_mapping["riscv64"] =
     ["riscv64" => get_set("riscv64", "riscv64")]
 
 end
+function Base.parse(::Type{Platform}, triplet::AbstractString; validate_strict::Bool = false)
+    # Helper function to collapse dictionary of mappings down into a regex of
+    # named capture groups joined by "|" operators
+    c(mapping) = string("(",join(["(?<$k>$v)" for (k, v) in mapping], "|"), ")")
+
+    # We're going to build a mondo regex here to parse everything:
+    triplet_regex = Regex(string(
+        "^",
+        # First, the core triplet; arch/os/libc/call_abi
+        c(arch_mapping),
+        c(os_mapping),
+        c(libc_mapping),
+        c(call_abi_mapping),
+        # Next, optional things, like libgfortran/libstdcxx/cxxstring abi
+        c(libgfortran_version_mapping),
+        c(cxxstring_abi_mapping),
+        c(libstdcxx_version_mapping),
+        # Finally, the catch-all for extended tags
+        "(?<tags>(?:-[^-]+\\+[^-]+)*)?",
+        "\$",
+    ))
+
+    m = match(triplet_regex, triplet)
+    if m !== nothing
+        # Helper function to find the single named field within the giant regex
+        # that is not `nothing` for each mapping we give it.
+        get_field(m, mapping) = begin
+            for k in keys(mapping)
+                if m[k] !== nothing
+                    # Convert our sentinel `nothing` values to actual `nothing`
+                    if endswith(k, "_nothing")
+                        return nothing
+                    end
+                    # Convert libgfortran/libstdcxx version numbers
+                    if startswith(k, "libgfortran")
+                        return VersionNumber(parse(Int,k[12:end]))
+                    elseif startswith(k, "libstdcxx")
+                        return VersionNumber(3, 4, parse(Int,m[k][11:end]))
+                    else
+                        return k
+                    end
+                end
+            end
+        end
+
+        # Extract the information we're interested in:
+        arch = get_field(m, arch_mapping)
+        os = get_field(m, os_mapping)
+        libc = get_field(m, libc_mapping)
+        call_abi = get_field(m, call_abi_mapping)
+        libgfortran_version = get_field(m, libgfortran_version_mapping)
+        libstdcxx_version = get_field(m, libstdcxx_version_mapping)
+        cxxstring_abi = get_field(m, cxxstring_abi_mapping)
+        function split_tags(tagstr)
+            tag_fields = filter(!isempty, split(tagstr, "-"))
+            if isempty(tag_fields)
+                return Pair{String,String}[]
+            end
+            return map(v -> Symbol(v[1]) => v[2], split.(tag_fields, "+"))
+        end
+        tags = split_tags(m["tags"])
+
+        # Special parsing of os version number, if any exists
+        function extract_os_version(os_name, pattern)
+            m_osvn = match(pattern, m[os_name])
+            if m_osvn !== nothing
+                return VersionNumber(m_osvn.captures[1])
+            end
+            return nothing
+        end
+        os_version = nothing
+        if os == "macos"
+            os_version = extract_os_version("macos", r".*darwin([\d\.]+)")
+        end
+        if os == "freebsd"
+            os_version = extract_os_version("freebsd", r".*freebsd([\d.]+)")
+        end
+
+        return Platform(
+            arch, os;
+            validate_strict,
+            libc,
+            call_abi,
+            libgfortran_version,
+            cxxstring_abi,
+            libstdcxx_version,
+            os_version,
+            tags...,
+        )
+    end
+    throw(ArgumentError("Platform `$(triplet)` is not an officially supported platform"))
+end
