@@ -647,14 +647,14 @@ function choose_shards(p::AbstractPlatform;
 
         # We _always_ need Rootfs and PlatformSupport for our target, at least
         append!(shards, [
-            @show find_shard("Rootfs", rootfs_build, archive_type),
-            @show find_shard("PlatformSupport", ps_build, archive_type; target=p)
+            (@show find_shard("Rootfs", rootfs_build, archive_type)),
+            (@show find_shard("PlatformSupport", ps_build, archive_type; target=p))
         ])
 
         if :c in compilers
             append!(shards, [
-                @show find_shard("GCCBootstrap", GCC_build, archive_type; target=p),
-                @show find_shard("LLVMBootstrap", LLVM_build, archive_type),
+                (@show find_shard("GCCBootstrap", GCC_build, archive_type; target=p)),
+                (@show find_shard("LLVMBootstrap", LLVM_build, archive_type)),
             ])
         end
 
@@ -675,8 +675,8 @@ function choose_shards(p::AbstractPlatform;
             # This is necessary for both rust and c compilers
             if !platforms_match(p, default_host_platform)
                 append!(shards, [
-                    @show find_shard("PlatformSupport", ps_build, archive_type; target=default_host_platform),
-                    @show find_shard("GCCBootstrap", GCC_build, archive_type; target=default_host_platform),
+                    (@show find_shard("PlatformSupport", ps_build, archive_type; target=default_host_platform)),
+                    (@show find_shard("GCCBootstrap", GCC_build, archive_type; target=default_host_platform)),
                 ])
             end
         end
