@@ -72,6 +72,7 @@ function Base.BinaryPlatforms.validate_tags(tags::Dict)
     end
 end
 
+using .BinaryPlatforms: arch_mapping
 BinaryPlatforms.arch_mapping["riscv64"] = "(rv64|riscv64)"
 
 function get_set(arch, name)
