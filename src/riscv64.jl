@@ -72,7 +72,6 @@ function Base.BinaryPlatforms.validate_tags(tags::Dict)
     end
 end
 
-using .BinaryPlatforms: arch_mapping
 BinaryPlatforms.arch_mapping["riscv64"] = "(rv64|riscv64)"
 
 function get_set(arch, name)
@@ -83,6 +82,10 @@ BinaryPlatforms.arch_march_isa_mapping["riscv64"] =
     ["riscv64" => get_set("riscv64", "riscv64")]
 
 end
+
+using .BinaryPlatforms: arch_mapping, os_mapping, libc_mapping, call_abi_mapping,
+    libgfortran_version_mapping, cxxstring_abi_mapping, libstdcxx_version_mapping
+
 function Base.parse(::Type{Platform}, triplet::AbstractString; validate_strict::Bool = false)
     # Helper function to collapse dictionary of mappings down into a regex of
     # named capture groups joined by "|" operators
