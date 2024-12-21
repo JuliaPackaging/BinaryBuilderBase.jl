@@ -472,7 +472,8 @@ function gcc_version(p::AbstractPlatform,
         GCC_builds = filter(b -> getversion(b) ≥ v"7", GCC_builds)
     end
 
-    # We only have GCC 13 or newer for RISC-V (this could be changed)
+    # We only have GCC 13 or newer for RISC-V.
+    # (This could be changed down to GCC 7.1.)
     if arch(p) == "riscv64"
         GCC_builds = filter(b -> getversion(b) ≥ v"13", GCC_builds)
     end
@@ -523,6 +524,12 @@ function gcc_version(p::AbstractPlatform,
 end
 
 function llvm_version(p::AbstractPlatform, LLVM_builds::Vector{LLVMBuild})
+    # # We only have LLVM 18 or newer for RISC-V.
+    # # (This could be changed down to LLVM 6.0.)
+    # if arch(p) == "riscv64"
+    #     LLVM_builds = filter(b -> getversion(b) ≥ v"6", LLVM_builds)
+    # end
+
     if march(p) in ("armv8_2_crypto",)
         LLVM_builds = filter(b -> getversion(b) >= v"9.0", LLVM_builds)
     elseif march(p) in ("a64fx",)
@@ -748,6 +755,7 @@ function supported_platforms(;exclude::Union{Vector{<:Platform},Function}=Return
     if experimental
         append!(standard_platforms, [
             Platform("riscv64", "linux"),
+            Platform("riscv64", "linux"; libc="musl"),
         ])
     end
     return exclude_platforms!(standard_platforms,exclude)
@@ -780,6 +788,9 @@ function expand_gfortran_versions(platform::AbstractPlatform)
         libgfortran_versions = [v"5"]
     elseif Sys.isfreebsd(platform) && arch(platform) == "aarch64"
         libgfortran_versions = [v"4", v"5"]
+    elseif arch(platform) == "riscv64"
+        # TODO: That might change if we build older GCC versions
+        libgfortran_versions = [v"5"]
     else
         libgfortran_versions = [v"3", v"4", v"5"]
     end
@@ -817,7 +828,7 @@ function expand_cxxstring_abis(platform::AbstractPlatform; skip=Sys.isbsd)
 
     if sanitize(platform) == "memory"
         p = deepcopy(platform)
-        p["cxxstring_abi"] = "cxx11" #Clang only seems to generate cxx11 abi
+        p["cxxstring_abi"] = "cxx11" # Clang only seems to generate cxx11 abi
         return [p]
     end
 

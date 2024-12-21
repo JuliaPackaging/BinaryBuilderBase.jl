@@ -1291,7 +1291,7 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
         elseif arch(platform) in ["x86_64", "i686",  "powerpc64le"]
             mapping["GNU_LIBC_VERSION"] = "glibc 2.17"
         elseif arch(platform) in ["riscv64"]
-            mapping["GNU_LIBC_VERSION"] = "glibc 2.28"
+            mapping["GNU_LIBC_VERSION"] = "glibc 2.35"
         end
     end
 

@@ -2,6 +2,10 @@ using Base: BinaryPlatforms
 
 @static if !haskey(BinaryPlatforms.arch_mapping, "riscv64")
 
+# We pirate a few functions and global variables from Base.BinaryPlatforms.
+# These changes have been upstreamed to newer Julia versions, but we are stuck with Julia 1.7.
+# This is not pretty. It seems to work.
+
 using .BinaryPlatforms: CPUID
 CPUID.ISAs_by_family["riscv64"] = [
     # We have no way to test riscv64 features yet, so we're only going to declare the lowest ISA:
