@@ -435,6 +435,7 @@ function gcc_version(p::AbstractPlatform,
                      GCC_builds::Vector{GCCBuild},
                      compilers::Vector{Symbol}=[:c];
                      llvm_version::Union{Nothing,VersionNumber}=nothing)
+    @show gcc_version p GCC_builds compilers llvm_version
     # First, filter by libgfortran version.
     if libgfortran_version(p) !== nothing
         GCC_builds = filter(b -> getabi(b).libgfortran_version == libgfortran_version(p), GCC_builds)
@@ -634,6 +635,7 @@ function choose_shards(p::AbstractPlatform;
 
     shards = CompilerShard[]
     if isempty(bootstrap_list)
+        @show choose_shards compilers, GCC_builds, LLVM_builds, preferred_gcc_version, preferred_llvm_version
         # Select GCC and LLVM versions given the compiler ABI and target requirements given in `p`
         GCC_build, LLVM_build = select_compiler_versions(p,
             compilers,
@@ -645,14 +647,14 @@ function choose_shards(p::AbstractPlatform;
 
         # We _always_ need Rootfs and PlatformSupport for our target, at least
         append!(shards, [
-            find_shard("Rootfs", rootfs_build, archive_type),
-            find_shard("PlatformSupport", ps_build, archive_type; target=p)
+            @show find_shard("Rootfs", rootfs_build, archive_type),
+            @show find_shard("PlatformSupport", ps_build, archive_type; target=p)
         ])
 
         if :c in compilers
             append!(shards, [
-                find_shard("GCCBootstrap", GCC_build, archive_type; target=p),
-                find_shard("LLVMBootstrap", LLVM_build, archive_type),
+                @show find_shard("GCCBootstrap", GCC_build, archive_type; target=p),
+                @show find_shard("LLVMBootstrap", LLVM_build, archive_type),
             ])
         end
 
@@ -673,8 +675,8 @@ function choose_shards(p::AbstractPlatform;
             # This is necessary for both rust and c compilers
             if !platforms_match(p, default_host_platform)
                 append!(shards, [
-                    find_shard("PlatformSupport", ps_build, archive_type; target=default_host_platform),
-                    find_shard("GCCBootstrap", GCC_build, archive_type; target=default_host_platform),
+                    @show find_shard("PlatformSupport", ps_build, archive_type; target=default_host_platform),
+                    @show find_shard("GCCBootstrap", GCC_build, archive_type; target=default_host_platform),
                 ])
             end
         end
