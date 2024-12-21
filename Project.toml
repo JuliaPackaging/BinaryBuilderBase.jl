@@ -1,7 +1,7 @@
 name = "BinaryBuilderBase"
 uuid = "7f725544-6523-48cd-82d1-3fa08ff4056e"
 authors = ["Elliot Saba <staticfloat@gmail.com>"]
-version = "1.30.0"
+version = "1.32.0"
 
 [deps]
 Bzip2_jll = "6e34b625-4abd-537c-b88f-471c36dfa7a0"
@@ -41,7 +41,7 @@ Bzip2_jll = "1.0.8"
 CodecZlib = "0.5, 0.6, 0.7"
 Downloads = "1.5"
 Gzip_jll = "1.12.0"
-HistoricalStdlibVersions = "0.1, 1"
+HistoricalStdlibVersions = "2"
 InteractiveUtils = "1.7"
 JLLWrappers = "1.4"
 JSON = "0.21"

@@ -310,7 +310,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         if length(unsafe_flags) >= 1
             write(io, """
             if [[ "\${ARGS[@]}" =~ \"$(join(unsafe_flags, "\"|\""))\" ]]; then
-                echo -e \"BinaryBuilder: You used one or more of the unsafe flags: $(join(unsafe_flags, ", "))\\nPlease repent.\" >&2
+                echo -e \"BinaryBuilder error: You used one or more of the unsafe flags: $(join(unsafe_flags, ", "))\\nThis is not allowed, please remove all unsafe flags from your build script to continue.\" >&2
                 exit 1
             fi
             """)
@@ -1285,12 +1285,10 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
     # GNU_LIBC_VERSION` would return, if it worked.
     if libc(platform) === "glibc"
         # This should be kept in sync with the version of glibc used in
-        # https://github.com/JuliaPackaging/Yggdrasil/blob/master/0_RootFS/gcc_common.jl
-        if arch(platform) in ("x86_64", "i686")
-            mapping["GNU_LIBC_VERSION"] = "glibc 2.12.2"
-        elseif arch(platform) in ("armv7l", "aarch64")
+        # https://github.com/JuliaPackaging/Yggdrasil/blob/master/0_RootFS/gcc_sources.jl
+        if arch(platform) in ("armv7l", "aarch64")
             mapping["GNU_LIBC_VERSION"] = "glibc 2.19"
-        elseif arch(platform) in ("powerpc64le", "riscv64")
+        elseif arch(platform) in ("x86_64", "i686",  "powerpc64le", "riscv64")
             mapping["GNU_LIBC_VERSION"] = "glibc 2.17"
         end
     end

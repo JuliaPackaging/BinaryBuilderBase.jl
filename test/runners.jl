@@ -418,8 +418,8 @@ end
             @test !run(ur, cmd, iobuff; tee_stream=devnull)
             seekstart(iobuff)
             lines = readlines(iobuff)
-            @test lines[2] == "BinaryBuilder: You used one or more of the unsafe flags: -Ofast, -ffast-math, -funsafe-math-optimizations"
-            @test lines[3] == "Please repent."
+            @test lines[2] == "BinaryBuilder error: You used one or more of the unsafe flags: -Ofast, -ffast-math, -funsafe-math-optimizations"
+            @test lines[3] == "This is not allowed, please remove all unsafe flags from your build script to continue."
 
             ur = preferred_runner()(dir; platform=platform, allow_unsafe_flags=true)
             iobuff = IOBuffer()
@@ -545,10 +545,7 @@ end
             set -e
             make -j${nproc} -sC /usr/share/testsuite install
             """
-            # This test fails on GitHub Actions with non-squashfs on UserNS runners:
-            # <https://github.com/JuliaPackaging/BinaryBuilderBase.jl/issues/347>.
-            is_broken = get(ENV, "GITHUB_ACTIONS", "false")=="true" && !(BinaryBuilderBase.use_squashfs[]) && BinaryBuilderBase.preferred_runner() == BinaryBuilderBase.UserNSRunner
-            @test run(ur, `/bin/bash -c "$(test_script)"`, iobuff) broken=is_broken
+            @test run(ur, `/bin/bash -c "$(test_script)"`, iobuff)
         end
     end
 end

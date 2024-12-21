@@ -4,7 +4,7 @@ using Pkg, Pkg.Artifacts, Random, Libdl, InteractiveUtils
 using Base.BinaryPlatforms
 using Downloads
 using JSON, OutputCollectors, Scratch
-using HistoricalStdlibVersions
+import HistoricalStdlibVersions
 
 # Re-export useful stuff from Base.BinaryPlatforms:
 export HostPlatform, platform_dlext, valid_dl_path, arch, libc,
@@ -222,8 +222,8 @@ function __init__()
         use_ccache[] = true
     end
 
-    # Populate `Pkg.Types.STDLIBS_BY_VERSION`
-    append!(empty!(Pkg.Types.STDLIBS_BY_VERSION), HistoricalStdlibVersions.STDLIBS_BY_VERSION)
+    # Populate `Pkg.Types.STDLIBS_BY_VERSION`.
+    HistoricalStdlibVersions.register!()
 end
 
 
