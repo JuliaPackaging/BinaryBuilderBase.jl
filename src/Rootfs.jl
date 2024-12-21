@@ -472,10 +472,10 @@ function gcc_version(p::AbstractPlatform,
         GCC_builds = filter(b -> getversion(b) ≥ v"7", GCC_builds)
     end
 
-    # We only have GCC 13 or newer for RISC-V.
+    # We only have GCC 12 or newer for RISC-V.
     # (This could be changed down to GCC 7.1.)
     if arch(p) == "riscv64"
-        GCC_builds = filter(b -> getversion(b) ≥ v"13", GCC_builds)
+        GCC_builds = filter(b -> getversion(b) ≥ v"12", GCC_builds)
     end
 
     # Rust on Windows requires binutils 2.25 (it invokes `ld` with `--high-entropy-va`),
