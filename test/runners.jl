@@ -536,7 +536,14 @@ end
     # Run the testsuite as sanity check
     @testset "testsuite" begin
         mktempdir() do dir
-            ur = preferred_runner()(dir; platform=Platform("x86_64", "linux"; libc="glibc"), preferred_gcc_version=v"5", compilers=[:c, :rust, :go])
+            # Skip Rust tests when they are broken.  Ref:
+            # https://github.com/JuliaPackaging/BinaryBuilderBase.jl/issues/395
+            compilers = if !BinaryBuilderBase.use_squashfs[] && get(ENV, "BINARYBUILDER_RUNNER", "") == "unprivileged"
+                [:c, :go]
+            else
+                [:c, :rust, :go]
+            end
+            ur = preferred_runner()(dir; platform=Platform("x86_64", "linux"; libc="glibc"), preferred_gcc_version=v"5", compilers)
             # Make sure the runner platform is concrete even if the requested platform isn't
             @test !isnothing(libgfortran_version(ur.platform))
             @test !isnothing(cxxstring_abi(ur.platform))
