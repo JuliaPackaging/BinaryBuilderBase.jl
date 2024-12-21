@@ -3584,7 +3584,7 @@ os = "linux"
     sha256 = "5169c970367462dd820ba1d4a7b490997e46da48e1c0248718ed556f3271136f"
     url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2024.8.10/PlatformSupport-aarch64-linux-gnu.v2024.8.10.x86_64-linux-musl.unpacked.tar.gz"
 
-"PlatformSupport-riscv64-linux-gnu.v2024.4.7.x86_64-linux-musl.squashfs"]]
+[["PlatformSupport-riscv64-linux-gnu.v2024.4.7.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
 git-tree-sha1 = "0e6ee4055c36b0931644528bf89ebfa74da8be6b"
 lazy = true
