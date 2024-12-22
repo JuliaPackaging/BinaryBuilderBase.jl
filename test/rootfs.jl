@@ -86,7 +86,7 @@ using BinaryBuilderBase
         Platform("i686", "linux"; libc="glibc", march="pentium4"),
         Platform("i686", "linux"; libc="glibc", march="prescott"),
         Platform("powerpc64le", "linux"; libc="glibc", march="power8"),
-        Platform("riscv64", "linux"; libc="glibc", march="riscv64"),
+        #experimental Platform("riscv64", "linux"; libc="glibc", march="riscv64"),
         Platform("x86_64", "linux"; libc="glibc", march="avx"),
         Platform("x86_64", "linux"; libc="glibc", march="avx2"),
         Platform("x86_64", "linux"; libc="glibc", march="avx512"),
