@@ -579,7 +579,8 @@ function choose_shards(p::AbstractPlatform;
             compilers::Vector{Symbol} = [:c],
             # We always just use the latest Rootfs embedded within our Artifacts.toml
             rootfs_build::VersionNumber=last(BinaryBuilderBase.get_available_builds("Rootfs")),
-            ps_build::VersionNumber=v"2024.08.10",
+            #TODO ps_build::VersionNumber=v"2024.08.10",
+            ps_build::VersionNumber=v"2024.12.21",
             GCC_builds::Vector{GCCBuild}=available_gcc_builds,
             LLVM_builds::Vector{LLVMBuild}=available_llvm_builds,
             Rust_build::VersionNumber=maximum(getversion.(available_rust_builds)),
