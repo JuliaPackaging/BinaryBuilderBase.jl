@@ -160,7 +160,7 @@ const ARCHITECTURE_FLAGS = Dict(
             #"power10" => ["-mcpu=power10", "-mtune=power10"],
         ),
         "riscv64" => OrderedDict(
-            "riscv64" => [],    # TODO
+            "riscv64" => [],
         ),
     ),
     "gcc" => Dict(

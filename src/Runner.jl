@@ -664,6 +664,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             "x86_64" => "amd64",
             "i686" => "386",
             "powerpc64le" => "ppc64le",
+            "riscv64" => "riscv64",
         )
         return arch_mapping[arch(p)]
     end
