@@ -23,6 +23,8 @@ end
 
 __init__() = setup_riscv64()
 
+
+
 function Base.BinaryPlatforms.validate_tags(tags::Dict)
     throw_invalid_key(k) = throw(ArgumentError("Key \"$(k)\" cannot have value \"$(tags[k])\""))
     # Validate `arch`
@@ -87,11 +89,16 @@ function Base.BinaryPlatforms.validate_tags(tags::Dict)
     end
 end
 
-using .BinaryPlatforms: arch_mapping, os_mapping, libc_mapping, call_abi_mapping,
-    libgfortran_version_mapping, cxxstring_abi_mapping, libstdcxx_version_mapping
-
 function Base.parse(::Type{Platform}, triplet::AbstractString; validate_strict::Bool = false)
-    setup_riscv64()
+    # setup_riscv64()
+
+    arch_mapping = BinaryPlatforms.arch_mapping
+    os_mapping = BinaryPlatforms.os_mapping
+    libc_mapping = BinaryPlatforms.libc_mapping
+    call_abi_mapping = BinaryPlatforms.call_abi_mapping
+    libgfortran_version_mapping = BinaryPlatforms.libgfortran_version_mapping
+    cxxstring_abi_mapping = BinaryPlatforms.cxxstring_abi_mapping
+    libstdcxx_version_mapping = BinaryPlatforms.libstdcxx_version_mapping
 
     # Helper function to collapse dictionary of mappings down into a regex of
     # named capture groups joined by "|" operators
