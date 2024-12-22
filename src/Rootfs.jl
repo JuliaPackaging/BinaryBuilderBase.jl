@@ -435,7 +435,6 @@ function gcc_version(p::AbstractPlatform,
                      GCC_builds::Vector{GCCBuild},
                      compilers::Vector{Symbol}=[:c];
                      llvm_version::Union{Nothing,VersionNumber}=nothing)
-    @show gcc_version p GCC_builds compilers llvm_version
     # First, filter by libgfortran version.
     if libgfortran_version(p) !== nothing
         GCC_builds = filter(b -> getabi(b).libgfortran_version == libgfortran_version(p), GCC_builds)
@@ -602,17 +601,13 @@ function choose_shards(p::AbstractPlatform;
             version = v"12.1.0"
         end
 
-        @show find_shard
-        @show name version archive_type target
         for cs in all_compiler_shards()
-            @show cs.name cs.version cs.archive_type cs.target
             if cs.name == name && cs.version == version &&
                (target === nothing || platforms_match(cs.target, target)) &&
                cs.archive_type == archive_type
                 return cs
             end
         end
-        @show :notfound
         return nothing
     end
 
@@ -639,7 +634,6 @@ function choose_shards(p::AbstractPlatform;
 
     shards = CompilerShard[]
     if isempty(bootstrap_list)
-        @show choose_shards compilers, GCC_builds, LLVM_builds, preferred_gcc_version, preferred_llvm_version
         # Select GCC and LLVM versions given the compiler ABI and target requirements given in `p`
         GCC_build, LLVM_build = select_compiler_versions(p,
             compilers,
@@ -650,16 +644,17 @@ function choose_shards(p::AbstractPlatform;
         )
 
         # We _always_ need Rootfs and PlatformSupport for our target, at least
+        # TODO: Remove this again
         ps_build_new = arch(p) == "riscv64" ? v"2024.12.21" : ps_build
         append!(shards, [
-            (@show find_shard("Rootfs", rootfs_build, archive_type)),
-            (@show find_shard("PlatformSupport", ps_build_new, archive_type; target=p))
+            find_shard("Rootfs", rootfs_build, archive_type),
+            find_shard("PlatformSupport", ps_build_new, archive_type; target=p)
         ])
 
         if :c in compilers
             append!(shards, [
-                (@show find_shard("GCCBootstrap", GCC_build, archive_type; target=p)),
-                (@show find_shard("LLVMBootstrap", LLVM_build, archive_type)),
+                find_shard("GCCBootstrap", GCC_build, archive_type; target=p),
+                find_shard("LLVMBootstrap", LLVM_build, archive_type),
             ])
         end
 
@@ -680,8 +675,8 @@ function choose_shards(p::AbstractPlatform;
             # This is necessary for both rust and c compilers
             if !platforms_match(p, default_host_platform)
                 append!(shards, [
-                    (@show find_shard("PlatformSupport", ps_build, archive_type; target=default_host_platform)),
-                    (@show find_shard("GCCBootstrap", GCC_build, archive_type; target=default_host_platform)),
+                    find_shard("PlatformSupport", ps_build, archive_type; target=default_host_platform),
+                    find_shard("GCCBootstrap", GCC_build, archive_type; target=default_host_platform),
                 ])
             end
         end
