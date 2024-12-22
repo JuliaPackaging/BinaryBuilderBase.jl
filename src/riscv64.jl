@@ -90,7 +90,7 @@ function Base.BinaryPlatforms.validate_tags(tags::Dict)
 end
 
 function Base.parse(::Type{Platform}, triplet::AbstractString; validate_strict::Bool = false)
-    # setup_riscv64()
+    setup_riscv64()
 
     arch_mapping = BinaryPlatforms.arch_mapping
     os_mapping = BinaryPlatforms.os_mapping
