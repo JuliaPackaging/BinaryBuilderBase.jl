@@ -533,7 +533,6 @@ function llvm_version(p::AbstractPlatform, LLVM_builds::Vector{LLVMBuild})
         LLVM_builds = filter(b -> getversion(b) >= v"13.0", LLVM_builds)
     end
 
-    end
     return getversion.(LLVM_builds)
 end
 
