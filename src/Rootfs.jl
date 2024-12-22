@@ -524,12 +524,6 @@ function gcc_version(p::AbstractPlatform,
 end
 
 function llvm_version(p::AbstractPlatform, LLVM_builds::Vector{LLVMBuild})
-    # # We only have LLVM 18 or newer for RISC-V.
-    # # (This could be changed down to LLVM 6.0.)
-    # if arch(p) == "riscv64"
-    #     LLVM_builds = filter(b -> getversion(b) ≥ v"6", LLVM_builds)
-    # end
-
     if march(p) in ("armv8_2_crypto",)
         LLVM_builds = filter(b -> getversion(b) >= v"9.0", LLVM_builds)
     elseif march(p) in ("a64fx",)
@@ -537,6 +531,8 @@ function llvm_version(p::AbstractPlatform, LLVM_builds::Vector{LLVMBuild})
     elseif march(p) in ("apple_m1",)
         # The target `apple-m1` was introduced in LLVM 13
         LLVM_builds = filter(b -> getversion(b) >= v"13.0", LLVM_builds)
+    end
+
     end
     return getversion.(LLVM_builds)
 end
@@ -644,8 +640,8 @@ function choose_shards(p::AbstractPlatform;
         )
 
         # We _always_ need Rootfs and PlatformSupport for our target, at least
-        # TODO: Remove this again
-        ps_build_new = arch(p) == "riscv64" ? v"2024.12.21" : ps_build
+        # We don't have old platform support for riscv64. Remove this once all platfor support is aligned in time.
+        ps_build_new = arch(p) == "riscv64" ? max(ps_build, v"2024.12.21") : ps_build
         append!(shards, [
             find_shard("Rootfs", rootfs_build, archive_type),
             find_shard("PlatformSupport", ps_build_new, archive_type; target=p)
@@ -791,7 +787,7 @@ function expand_gfortran_versions(platform::AbstractPlatform)
     elseif Sys.isfreebsd(platform) && arch(platform) == "aarch64"
         libgfortran_versions = [v"4", v"5"]
     elseif arch(platform) == "riscv64"
-        # TODO: That might change if we build older GCC versions
+        # We don't have older GCC versions
         libgfortran_versions = [v"5"]
     else
         libgfortran_versions = [v"3", v"4", v"5"]

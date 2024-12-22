@@ -1286,11 +1286,11 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
     if libc(platform) === "glibc"
         # This should be kept in sync with the version of glibc used in
         # https://github.com/JuliaPackaging/Yggdrasil/blob/master/0_RootFS/gcc_sources.jl
-        if arch(platform) in ["armv7l", "aarch64"]
+        if arch(platform) in ("armv7l", "aarch64")
             mapping["GNU_LIBC_VERSION"] = "glibc 2.19"
-        elseif arch(platform) in ["x86_64", "i686",  "powerpc64le"]
+        elseif arch(platform) in ("x86_64", "i686",  "powerpc64le")
             mapping["GNU_LIBC_VERSION"] = "glibc 2.17"
-        elseif arch(platform) in ["riscv64"]
+        elseif arch(platform) in ("riscv64",)
             mapping["GNU_LIBC_VERSION"] = "glibc 2.35"
         end
     end
