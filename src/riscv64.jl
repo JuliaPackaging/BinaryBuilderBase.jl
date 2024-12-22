@@ -93,8 +93,8 @@ function Base.parse(::Type{Platform}, triplet::AbstractString; validate_strict::
         # We have no way to test riscv64 features yet, so we're only going to declare the lowest ISA:
         "riscv64" => CPUID.ISA(Set{UInt32}()),
     ]
-    arch_mapping["riscv64"] = "(rv64|riscv64)"
-    arch_march_isa_mapping["riscv64"] = ["riscv64" => get_set("riscv64", "riscv64")]
+    BinaryPlatforms.arch_mapping["riscv64"] = "(rv64|riscv64)"
+    BinaryPlatforms.arch_march_isa_mapping["riscv64"] = ["riscv64" => get_set("riscv64", "riscv64")]
 
     # Helper function to collapse dictionary of mappings down into a regex of
     # named capture groups joined by "|" operators
