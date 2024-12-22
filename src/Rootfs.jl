@@ -604,7 +604,7 @@ function choose_shards(p::AbstractPlatform;
 
         for cs in all_compiler_shards()
             if cs.name == name && cs.version == version &&
-               (target === nothing || platforms_match(cs.target, target)) &&
+               (target === nothing || (@show platforms_match((@show cs.target), (@show target)))) &&
                cs.archive_type == archive_type
                 return cs
             end
