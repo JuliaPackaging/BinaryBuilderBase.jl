@@ -6,7 +6,7 @@ using Base: BinaryPlatforms
 # These changes have been upstreamed to newer Julia versions, but we are stuck with Julia 1.7.
 # This is not pretty. It seems to work.
 
-function __init__()
+function setup_riscv64()
     CPUID.ISAs_by_family["riscv64"] = [
         # We have no way to test riscv64 features yet, so we're only going to declare the lowest ISA:
         "riscv64" => CPUID.ISA(Set{UInt32}()),
@@ -20,6 +20,8 @@ function __init__()
     end
     BinaryPlatforms.arch_march_isa_mapping["riscv64"] = ["riscv64" => get_set("riscv64", "riscv64")]
 end
+
+__init__() = setup_riscv64()
 
 function Base.BinaryPlatforms.validate_tags(tags::Dict)
     throw_invalid_key(k) = throw(ArgumentError("Key \"$(k)\" cannot have value \"$(tags[k])\""))
@@ -89,13 +91,7 @@ using .BinaryPlatforms: arch_mapping, os_mapping, libc_mapping, call_abi_mapping
     libgfortran_version_mapping, cxxstring_abi_mapping, libstdcxx_version_mapping
 
 function Base.parse(::Type{Platform}, triplet::AbstractString; validate_strict::Bool = false)
-    # # Re-insert the architecture because the global assignments above don't stick
-    # CPUID.ISAs_by_family["riscv64"] = [
-    #     # We have no way to test riscv64 features yet, so we're only going to declare the lowest ISA:
-    #     "riscv64" => CPUID.ISA(Set{UInt32}()),
-    # ]
-    # BinaryPlatforms.arch_mapping["riscv64"] = "(rv64|riscv64)"
-    # BinaryPlatforms.arch_march_isa_mapping["riscv64"] = ["riscv64" => get_set("riscv64", "riscv64")]
+    setup_riscv64()
 
     # Helper function to collapse dictionary of mappings down into a regex of
     # named capture groups joined by "|" operators
