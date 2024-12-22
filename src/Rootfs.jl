@@ -729,6 +729,7 @@ function supported_platforms(;exclude::Union{Vector{<:Platform},Function}=Return
         Platform("armv6l", "linux"),
         Platform("armv7l", "linux"),
         Platform("powerpc64le", "linux"),
+        Platform("riscv64", "linux"),
 
         # musl Linuces
         Platform("i686", "linux"; libc="musl"),
@@ -751,8 +752,6 @@ function supported_platforms(;exclude::Union{Vector{<:Platform},Function}=Return
     # We have experimental support for some platforms, allow easily including them
     if experimental
         append!(standard_platforms, [
-            Platform("riscv64", "linux"),
-            Platform("riscv64", "linux"; libc="musl"),
         ])
     end
     return exclude_platforms!(standard_platforms,exclude)
