@@ -7,9 +7,9 @@ using Base: BinaryPlatforms
 # This is not pretty. It seems to work.
 
 function setup_riscv64()
-    CPUID.ISAs_by_family["riscv64"] = [
+    BinaryPlatforms.CPUID.ISAs_by_family["riscv64"] = [
         # We have no way to test riscv64 features yet, so we're only going to declare the lowest ISA:
-        "riscv64" => CPUID.ISA(Set{UInt32}()),
+        "riscv64" => BinaryPlatforms.CPUID.ISA(Set{UInt32}()),
     ]
 
     BinaryPlatforms.arch_mapping["riscv64"] = "(rv64|riscv64)"
