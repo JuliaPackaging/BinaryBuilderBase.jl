@@ -89,6 +89,10 @@ BinaryPlatforms.arch_march_isa_mapping["riscv64"] = ["riscv64" => get_set("riscv
 
 function Base.parse(::Type{Platform}, triplet::AbstractString; validate_strict::Bool = false)
     # Re-insert the architecture because the global assignments above don't stick
+    CPUID.ISAs_by_family["riscv64"] = [
+        # We have no way to test riscv64 features yet, so we're only going to declare the lowest ISA:
+        "riscv64" => CPUID.ISA(Set{UInt32}()),
+    ]
     arch_mapping["riscv64"] = "(rv64|riscv64)"
     arch_march_isa_mapping["riscv64"] = ["riscv64" => get_set("riscv64", "riscv64")]
 
