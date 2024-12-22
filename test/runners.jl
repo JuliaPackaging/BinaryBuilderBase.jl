@@ -9,6 +9,7 @@ using Pkg
     @test nbits(Platform("armv7l", "linux")) == 32
     @test nbits(Platform("aarch64", "linux"; cuda="10.1")) == 64
     @test nbits(Platform("powerpc64le", "linux")) == 64
+    @test nbits(Platform("riscv64", "linux")) == 64
     @test nbits(AnyPlatform()) == 64
 
     @test proc_family(Platform("i686", "linux")) == "intel"
@@ -16,6 +17,7 @@ using Pkg
     @test proc_family(Platform("armv7l", "linux")) == "arm"
     @test proc_family(Platform("aarch64", "linux"; cuda="10.1")) == "arm"
     @test proc_family(Platform("powerpc64le", "linux")) == "power"
+    @test proc_family(Platform("riscv64", "linux")) == "riscv"
     @test proc_family(AnyPlatform()) == "any"
 
     @test platform_exeext(Platform("i686", "linux")) == ""
@@ -28,6 +30,8 @@ using Pkg
 
     @test prefer_clang(Platform("x86_64", "freebsd"))
     @test prefer_clang(Platform("aarch64", "macos"))
+    @test !prefer_clang(Platform("powerpc64le", "linux"))
+    @test !prefer_clang(Platform("riscv64", "linux"))
     @test !prefer_clang(Platform("x86_64", "linux"))
     @test prefer_clang(Platform("x86_64", "linux"; sanitize="memory"))
     @test !prefer_clang(Platform("x86_64", "linux"; sanitize="thread"))
