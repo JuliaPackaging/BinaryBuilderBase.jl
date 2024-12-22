@@ -88,9 +88,9 @@ end
 BinaryPlatforms.arch_march_isa_mapping["riscv64"] = ["riscv64" => get_set("riscv64", "riscv64")]
 
 function Base.parse(::Type{Platform}, triplet::AbstractString; validate_strict::Bool = false)
-    # Re-insert the architecture because the global assignment above doesn't stick
+    # Re-insert the architecture because the global assignments above don't stick
     arch_mapping["riscv64"] = "(rv64|riscv64)"
-    #TODO Base.BinaryPlatforms.arch_march_isa_mapping["riscv64"] = ["riscv64" => get_set("riscv64", "riscv64")]
+    arch_march_isa_mapping["riscv64"] = ["riscv64" => get_set("riscv64", "riscv64")]
 
     # Helper function to collapse dictionary of mappings down into a regex of
     # named capture groups joined by "|" operators
