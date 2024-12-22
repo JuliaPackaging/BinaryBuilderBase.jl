@@ -650,11 +650,10 @@ function choose_shards(p::AbstractPlatform;
         )
 
         # We _always_ need Rootfs and PlatformSupport for our target, at least
-        ps_build_new=v"2024.12.21"
+        ps_build_new = arch(p) == "riscv64" ? v"2024.12.21" : ps_build
         append!(shards, [
             (@show find_shard("Rootfs", rootfs_build, archive_type)),
             (@show find_shard("PlatformSupport", ps_build_new, archive_type; target=p))
-
         ])
 
         if :c in compilers
