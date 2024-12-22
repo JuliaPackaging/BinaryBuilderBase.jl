@@ -942,6 +942,7 @@ julia> expand_microarchitectures(filter!(p -> Sys.islinux(p) && libc(p) == "glib
  Linux armv7l {call_abi=eabihf, libc=glibc, march=armv7l}
  Linux armv7l {call_abi=eabihf, libc=glibc, march=neonvfpv4}
  Linux powerpc64le {libc=glibc, march=power8}
+ Linux riscv64 {libc=glibc, march=riscv64}
 
 julia> expand_microarchitectures(filter!(p -> Sys.islinux(p) && libc(p) == "glibc", supported_platforms()), ["x86_64", "avx2"])
 7-element Vector{Platform}:
@@ -952,6 +953,7 @@ julia> expand_microarchitectures(filter!(p -> Sys.islinux(p) && libc(p) == "glib
  Linux armv6l {call_abi=eabihf, libc=glibc}
  Linux armv7l {call_abi=eabihf, libc=glibc}
  Linux powerpc64le {libc=glibc}
+ Linux riscv64 {libc=glibc}
 
 julia> expand_microarchitectures(filter!(p -> Sys.islinux(p) && libc(p) == "glibc", supported_platforms()); filter=p->arch(p)=="x86_64")
 9-element Vector{Platform}:
@@ -964,6 +966,7 @@ julia> expand_microarchitectures(filter!(p -> Sys.islinux(p) && libc(p) == "glib
  Linux armv6l {call_abi=eabihf, libc=glibc}
  Linux armv7l {call_abi=eabihf, libc=glibc}
  Linux powerpc64le {libc=glibc}
+ Linux riscv64 {libc=glibc}
 ```
 """
 function expand_microarchitectures(ps::Vector{<:AbstractPlatform},
