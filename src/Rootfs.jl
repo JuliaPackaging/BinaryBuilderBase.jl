@@ -927,7 +927,7 @@ argument.
 julia> using BinaryBuilderBase
 
 julia> expand_microarchitectures(filter!(p -> Sys.islinux(p) && libc(p) == "glibc", supported_platforms()))
-14-element Vector{Platform}:
+15-element Vector{Platform}:
  Linux i686 {libc=glibc, march=pentium4}
  Linux i686 {libc=glibc, march=prescott}
  Linux x86_64 {libc=glibc, march=x86_64}
@@ -945,7 +945,7 @@ julia> expand_microarchitectures(filter!(p -> Sys.islinux(p) && libc(p) == "glib
  Linux riscv64 {libc=glibc, march=riscv64}
 
 julia> expand_microarchitectures(filter!(p -> Sys.islinux(p) && libc(p) == "glibc", supported_platforms()), ["x86_64", "avx2"])
-7-element Vector{Platform}:
+8-element Vector{Platform}:
  Linux i686 {libc=glibc}
  Linux x86_64 {libc=glibc, march=x86_64}
  Linux x86_64 {libc=glibc, march=avx2}
@@ -956,7 +956,7 @@ julia> expand_microarchitectures(filter!(p -> Sys.islinux(p) && libc(p) == "glib
  Linux riscv64 {libc=glibc}
 
 julia> expand_microarchitectures(filter!(p -> Sys.islinux(p) && libc(p) == "glibc", supported_platforms()); filter=p->arch(p)=="x86_64")
-9-element Vector{Platform}:
+10-element Vector{Platform}:
  Linux i686 {libc=glibc}
  Linux x86_64 {libc=glibc, march=x86_64}
  Linux x86_64 {libc=glibc, march=avx}
