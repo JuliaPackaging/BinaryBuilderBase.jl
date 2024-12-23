@@ -431,7 +431,8 @@ the only GCC versions available to be picked from are `4.8.5` and `5.2.0`, it
 will return `4.8.5`, as binaries compiled with that version will run on this
 platform, whereas binaries compiled with `5.2.0` may not.
 """
-function gcc_version(p::AbstractPlatform,GCC_builds::Vector{GCCBuild},
+function gcc_version(p::AbstractPlatform,
+                     GCC_builds::Vector{GCCBuild},
                      compilers::Vector{Symbol}=[:c];
                      llvm_version::Union{Nothing,VersionNumber}=nothing)
     # First, filter by libgfortran version.
@@ -469,6 +470,12 @@ function gcc_version(p::AbstractPlatform,GCC_builds::Vector{GCCBuild},
     # We don't have GCC 6 or older for FreeBSD AArch64
     if Sys.isfreebsd(p) && arch(p) == "aarch64"
         GCC_builds = filter(b -> getversion(b) ≥ v"7", GCC_builds)
+    end
+
+    # We only have GCC 12 or newer for RISC-V.
+    # (This could be changed down to GCC 7.1.)
+    if arch(p) == "riscv64"
+        GCC_builds = filter(b -> getversion(b) ≥ v"12", GCC_builds)
     end
 
     # Rust on Windows requires binutils 2.25 (it invokes `ld` with `--high-entropy-va`),
@@ -525,6 +532,7 @@ function llvm_version(p::AbstractPlatform, LLVM_builds::Vector{LLVMBuild})
         # The target `apple-m1` was introduced in LLVM 13
         LLVM_builds = filter(b -> getversion(b) >= v"13.0", LLVM_builds)
     end
+
     return getversion.(LLVM_builds)
 end
 
@@ -631,9 +639,11 @@ function choose_shards(p::AbstractPlatform;
         )
 
         # We _always_ need Rootfs and PlatformSupport for our target, at least
+        # We don't have old platform support for riscv64. Remove this once all platform support is aligned in time.
+        ps_build_new = arch(p) == "riscv64" ? max(ps_build, v"2024.12.21") : ps_build
         append!(shards, [
             find_shard("Rootfs", rootfs_build, archive_type),
-            find_shard("PlatformSupport", ps_build, archive_type; target=p)
+            find_shard("PlatformSupport", ps_build_new, archive_type; target=p)
         ])
 
         if :c in compilers
@@ -719,6 +729,7 @@ function supported_platforms(;exclude::Union{Vector{<:Platform},Function}=Return
         Platform("armv6l", "linux"),
         Platform("armv7l", "linux"),
         Platform("powerpc64le", "linux"),
+        Platform("riscv64", "linux"),
 
         # musl Linuces
         Platform("i686", "linux"; libc="musl"),
@@ -773,6 +784,9 @@ function expand_gfortran_versions(platform::AbstractPlatform)
         libgfortran_versions = [v"5"]
     elseif Sys.isfreebsd(platform) && arch(platform) == "aarch64"
         libgfortran_versions = [v"4", v"5"]
+    elseif arch(platform) == "riscv64"
+        # We don't have older GCC versions
+        libgfortran_versions = [v"5"]
     else
         libgfortran_versions = [v"3", v"4", v"5"]
     end
@@ -810,7 +824,7 @@ function expand_cxxstring_abis(platform::AbstractPlatform; skip=Sys.isbsd)
 
     if sanitize(platform) == "memory"
         p = deepcopy(platform)
-        p["cxxstring_abi"] = "cxx11" #Clang only seems to generate cxx11 abi
+        p["cxxstring_abi"] = "cxx11" # Clang only seems to generate cxx11 abi
         return [p]
     end
 
@@ -913,7 +927,7 @@ argument.
 julia> using BinaryBuilderBase
 
 julia> expand_microarchitectures(filter!(p -> Sys.islinux(p) && libc(p) == "glibc", supported_platforms()))
-14-element Vector{Platform}:
+15-element Vector{Platform}:
  Linux i686 {libc=glibc, march=pentium4}
  Linux i686 {libc=glibc, march=prescott}
  Linux x86_64 {libc=glibc, march=x86_64}
@@ -928,9 +942,10 @@ julia> expand_microarchitectures(filter!(p -> Sys.islinux(p) && libc(p) == "glib
  Linux armv7l {call_abi=eabihf, libc=glibc, march=armv7l}
  Linux armv7l {call_abi=eabihf, libc=glibc, march=neonvfpv4}
  Linux powerpc64le {libc=glibc, march=power8}
+ Linux riscv64 {libc=glibc, march=riscv64}
 
 julia> expand_microarchitectures(filter!(p -> Sys.islinux(p) && libc(p) == "glibc", supported_platforms()), ["x86_64", "avx2"])
-7-element Vector{Platform}:
+8-element Vector{Platform}:
  Linux i686 {libc=glibc}
  Linux x86_64 {libc=glibc, march=x86_64}
  Linux x86_64 {libc=glibc, march=avx2}
@@ -938,9 +953,10 @@ julia> expand_microarchitectures(filter!(p -> Sys.islinux(p) && libc(p) == "glib
  Linux armv6l {call_abi=eabihf, libc=glibc}
  Linux armv7l {call_abi=eabihf, libc=glibc}
  Linux powerpc64le {libc=glibc}
+ Linux riscv64 {libc=glibc}
 
 julia> expand_microarchitectures(filter!(p -> Sys.islinux(p) && libc(p) == "glibc", supported_platforms()); filter=p->arch(p)=="x86_64")
-9-element Vector{Platform}:
+10-element Vector{Platform}:
  Linux i686 {libc=glibc}
  Linux x86_64 {libc=glibc, march=x86_64}
  Linux x86_64 {libc=glibc, march=avx}
@@ -950,6 +966,7 @@ julia> expand_microarchitectures(filter!(p -> Sys.islinux(p) && libc(p) == "glib
  Linux armv6l {call_abi=eabihf, libc=glibc}
  Linux armv7l {call_abi=eabihf, libc=glibc}
  Linux powerpc64le {libc=glibc}
+ Linux riscv64 {libc=glibc}
 ```
 """
 function expand_microarchitectures(ps::Vector{<:AbstractPlatform},

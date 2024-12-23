@@ -65,7 +65,7 @@ end
     end
 
     for p in [Platform("x86_64", "linux"), Platform("x86_64", "windows"), Platform("aarch64", "linux"),
-              Platform("powerpc64le", "linux"), Platform("x86_64", "macos")]
+              Platform("powerpc64le", "linux"), Platform("riscv64", "linux"), Platform("x86_64", "macos")]
         @test nbits(p) == 64
     end
 
@@ -76,8 +76,10 @@ end
         @test proc_family(p) == "arm"
     end
     @test proc_family(Platform("powerpc64le", "linux")) == "power"
+    @test proc_family(Platform("riscv64", "linux")) == "riscv"
 
-    for p in [Platform("x86_64", "linux"), Platform("x86_64", "freebsd"), Platform("powerpc64le", "linux"), Platform("x86_64", "macos")]
+    for p in [Platform("x86_64", "linux"), Platform("x86_64", "freebsd"), Platform("powerpc64le", "linux"),
+              Platform("riscv64", "linux"), Platform("x86_64", "macos")]
         @test platform_exeext(p) == ""
     end
     @test platform_exeext(Platform("x86_64", "windows")) == ".exe"
@@ -107,7 +109,7 @@ using BinaryBuilderBase: get_march_flags, get_all_arch_names, get_all_march_name
     end
 
     # Get all architectures and all microarchitectures for the different architectures
-    @test sort(get_all_arch_names()) == ["aarch64", "armv6l", "armv7l", "i686", "powerpc64le", "x86_64"]
+    @test sort(get_all_arch_names()) == ["aarch64", "armv6l", "armv7l", "i686", "powerpc64le", "riscv64", "x86_64"]
     @test sort(get_all_march_names("x86_64")) == ["avx", "avx2", "avx512", "x86_64"]
     @test sort(get_all_march_names("armv7l")) == ["armv7l", "neonvfpv4"]
 end

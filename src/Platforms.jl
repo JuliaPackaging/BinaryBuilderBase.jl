@@ -135,7 +135,7 @@ const ARCHITECTURE_FLAGS = Dict(
             "arm1176jzfs" => ["-mcpu=arm1176jzf-s", "-mfpu=vfp", "-mfloat-abi=hard"],
         ),
         "armv7l" => OrderedDict(
-            # Base armv7l architecture, with the most basic of FPU's
+            # Base armv7l architecture, with the most basic of FPUs
             "armv7l"   => ["-march=armv7-a", "-mtune=generic-armv7-a", "-mfpu=vfpv3", "-mfloat-abi=hard"],
             # armv7l plus NEON and vfpv4, (Raspberry Pi 2B+, RK3328, most boards Elliot has access to)
             "neonvfpv4" => ["-mcpu=cortex-a53", "-mfpu=neon-vfpv4", "-mfloat-abi=hard"],
@@ -158,7 +158,10 @@ const ARCHITECTURE_FLAGS = Dict(
             #"power9"  => ["-mcpu=power9", "-mtune=power9"],
             # Eventually, we'll support power10, once we have compilers that support it.
             #"power10" => ["-mcpu=power10", "-mtune=power10"],
-        )
+        ),
+        "riscv64" => OrderedDict(
+            "riscv64" => ["-march=rv64gc", "-mabi=lp64d"],
+        ),
     ),
     "gcc" => Dict(
         "aarch64" => OrderedDict(

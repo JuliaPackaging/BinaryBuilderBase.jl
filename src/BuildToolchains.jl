@@ -170,6 +170,8 @@ function meson_cpu_family(p::AbstractPlatform)
         return "aarch64"
     elseif startswith(arch(p)::String, "arm")
         return "arm"
+    elseif arch(p) == "riscv64"
+        return "riscv64"
     end
 end
 
