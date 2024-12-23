@@ -639,7 +639,7 @@ function choose_shards(p::AbstractPlatform;
         )
 
         # We _always_ need Rootfs and PlatformSupport for our target, at least
-        # We don't have old platform support for riscv64. Remove this once all platfor support is aligned in time.
+        # We don't have old platform support for riscv64. Remove this once all platform support is aligned in time.
         ps_build_new = arch(p) == "riscv64" ? max(ps_build, v"2024.12.21") : ps_build
         append!(shards, [
             find_shard("Rootfs", rootfs_build, archive_type),
