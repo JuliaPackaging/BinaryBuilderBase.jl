@@ -666,9 +666,16 @@ function choose_shards(p::AbstractPlatform;
                 error("Requested Rust toolchain $(preferred_rust_version) not available in $(Rust_builds)")
             end
 
+            base_shard = find_shard("RustBase", Rust_build, archive_type)
+            toolchain_shard = find_shard("RustToolchain", Rust_build, archive_type; target=p)
+
+            if isnothing(toolchain_shard)
+                error("Requested Rust toolchain $(preferred_rust_version) not available on platform $(triplet(p))")
+            end
+
             append!(shards, [
-                find_shard("RustBase", Rust_build, archive_type),
-                find_shard("RustToolchain", Rust_build, archive_type; target=p),
+                base_shard,
+                toolchain_shard,
             ])
 
             if !platforms_match(p, default_host_platform)
