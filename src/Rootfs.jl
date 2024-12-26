@@ -577,7 +577,7 @@ function choose_shards(p::AbstractPlatform;
             GCC_builds::Vector{GCCBuild}=available_gcc_builds,
             LLVM_builds::Vector{LLVMBuild}=available_llvm_builds,
             Rust_builds::Vector{RustBuild}=available_rust_builds,
-            Go_build::VersionNumber=maximum(getversion.(available_go_builds)),
+            Go_builds::Vector{GoBuild}=available_go_builds,
             archive_type::Symbol = (use_squashfs[] ? :squashfs : :unpacked),
             bootstrap_list::Vector{Symbol} = bootstrap_list,
             # Because GCC has lots of compatibility issues, we always default to
@@ -589,6 +589,8 @@ function choose_shards(p::AbstractPlatform;
             # Rust can have compatibility issues between versions, but by default choose
             # the newest one.
             preferred_rust_version::VersionNumber = maximum(getversion.(Rust_builds)),
+            # Always default to the latest Go version
+            preferred_go_version::VersionNumber = maximum(getversion.(Go_builds)),
         )
 
     function find_shard(name, version, archive_type; target = nothing)
@@ -687,6 +689,13 @@ function choose_shards(p::AbstractPlatform;
         end
 
         if :go in compilers
+            # Make sure the selected Go toolchain version is available
+            if preferred_go_version in getversion.(Go_builds)
+                Go_build = preferred_go_version
+            else
+                error("Requested Go toolchain $(preferred_go_version) not available in $(Go_builds)")
+            end
+
             push!(shards, find_shard("Go", Go_build, archive_type))
         end
     else

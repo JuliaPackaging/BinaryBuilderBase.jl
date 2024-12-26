@@ -129,6 +129,17 @@ end
         @test_throws ErrorException choose_shards(platform; preferred_rust_version = v"1.78", (common_opts)...)
     end
 
+    @testset "Go toolchain selection" begin
+        platform = Platform("x86_64", "linux")
+        common_opts = (preferred_gcc_version=v"9", compilers=[:c, :go])
+
+        shards = choose_shards(platform; preferred_go_version = v"1.13", (common_opts)... )
+        @test filter(s-> s.name == "Go", shards)[end].version == v"1.13"
+
+        # 1.14 was never added, so use that as the testcase here
+        @test_throws ErrorException choose_shards(platform; preferred_go_version = v"1.14", (common_opts)...)
+    end
+
     @testset "GCC ABI matching" begin
         # Preferred libgfortran version and C++ string ABI
         platform = Platform("x86_64", "freebsd")
