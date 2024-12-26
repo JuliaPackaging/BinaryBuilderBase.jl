@@ -576,8 +576,8 @@ function choose_shards(p::AbstractPlatform;
             ps_build::VersionNumber=v"2024.08.10",
             GCC_builds::Vector{GCCBuild}=available_gcc_builds,
             LLVM_builds::Vector{LLVMBuild}=available_llvm_builds,
-            Rust_build::VersionNumber=maximum(getversion.(available_rust_builds)),
-            Go_build::VersionNumber=maximum(getversion.(available_go_builds)),
+            Rust_builds::Vector{RustBuild}=available_rust_builds,
+            Go_builds::Vector{GoBuild}=available_go_builds,
             archive_type::Symbol = (use_squashfs[] ? :squashfs : :unpacked),
             bootstrap_list::Vector{Symbol} = bootstrap_list,
             # Because GCC has lots of compatibility issues, we always default to
@@ -586,6 +586,11 @@ function choose_shards(p::AbstractPlatform;
             # Because LLVM doesn't have compatibility issues, we always default
             # to the newest version possible.
             preferred_llvm_version::VersionNumber = getversion(LLVM_builds[end]),
+            # Rust can have compatibility issues between versions, but by default choose
+            # the newest one.
+            preferred_rust_version::VersionNumber = maximum(getversion.(Rust_builds)),
+            # Always default to the latest Go version
+            preferred_go_version::VersionNumber = maximum(getversion.(Go_builds)),
         )
 
     function find_shard(name, version, archive_type; target = nothing)
@@ -654,9 +659,23 @@ function choose_shards(p::AbstractPlatform;
         end
 
         if :rust in compilers
+            # Make sure the selected Rust toolchain version is available
+            if preferred_rust_version in getversion.(Rust_builds)
+                Rust_build = preferred_rust_version
+            else
+                error("Requested Rust toolchain $(preferred_rust_version) not available in $(Rust_builds)")
+            end
+
+            base_shard = find_shard("RustBase", Rust_build, archive_type)
+            toolchain_shard = find_shard("RustToolchain", Rust_build, archive_type; target=p)
+
+            if isnothing(toolchain_shard)
+                error("Requested Rust toolchain $(preferred_rust_version) not available on platform $(triplet(p))")
+            end
+
             append!(shards, [
-                find_shard("RustBase", Rust_build, archive_type),
-                find_shard("RustToolchain", Rust_build, archive_type; target=p),
+                base_shard,
+                toolchain_shard,
             ])
 
             if !platforms_match(p, default_host_platform)
@@ -677,6 +696,13 @@ function choose_shards(p::AbstractPlatform;
         end
 
         if :go in compilers
+            # Make sure the selected Go toolchain version is available
+            if preferred_go_version in getversion.(Go_builds)
+                Go_build = preferred_go_version
+            else
+                error("Requested Go toolchain $(preferred_go_version) not available in $(Go_builds)")
+            end
+
             push!(shards, find_shard("Go", Go_build, archive_type))
         end
     else
