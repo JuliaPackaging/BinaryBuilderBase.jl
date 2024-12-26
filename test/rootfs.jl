@@ -1,6 +1,7 @@
 using Test
 using Base.BinaryPlatforms
 using BinaryBuilderBase
+using BinaryBuilderBase: RustBuild, CompilerShard
 
 @testset "Expand platforms" begin
     # expand_gfortran_versions
@@ -116,6 +117,17 @@ end
 
 @testset "Compiler Shards" begin
     @test_throws ErrorException CompilerShard("GCCBootstrap", v"4", Platform("x86_64", "linux"), :invalid_archive_type)
+
+    @testset "Rust toolchain selection" begin
+        platform = Platform("x86_64", "linux")
+        common_opts = (preferred_gcc_version=v"9", compilers=[:c, :rust])
+
+        shards = choose_shards(platform; preferred_rust_version = v"1.73", (common_opts)... )
+        @test filter(s-> s.name == "RustBase", shards)[end].version == v"1.73"
+        @test filter(s-> s.name == "RustToolchain", shards)[end].version == v"1.73"
+
+        @test_throws ErrorException choose_shards(platform; preferred_rust_version = v"1.78", (common_opts)...)
+    end
 
     @testset "GCC ABI matching" begin
         # Preferred libgfortran version and C++ string ABI

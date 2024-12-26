@@ -576,7 +576,7 @@ function choose_shards(p::AbstractPlatform;
             ps_build::VersionNumber=v"2024.08.10",
             GCC_builds::Vector{GCCBuild}=available_gcc_builds,
             LLVM_builds::Vector{LLVMBuild}=available_llvm_builds,
-            Rust_build::VersionNumber=maximum(getversion.(available_rust_builds)),
+            Rust_builds::Vector{RustBuild}=available_rust_builds,
             Go_build::VersionNumber=maximum(getversion.(available_go_builds)),
             archive_type::Symbol = (use_squashfs[] ? :squashfs : :unpacked),
             bootstrap_list::Vector{Symbol} = bootstrap_list,
@@ -586,6 +586,9 @@ function choose_shards(p::AbstractPlatform;
             # Because LLVM doesn't have compatibility issues, we always default
             # to the newest version possible.
             preferred_llvm_version::VersionNumber = getversion(LLVM_builds[end]),
+            # Rust can have compatibility issues between versions, but by default choose
+            # the newest one.
+            preferred_rust_version::VersionNumber = maximum(getversion.(Rust_builds)),
         )
 
     function find_shard(name, version, archive_type; target = nothing)
@@ -654,6 +657,13 @@ function choose_shards(p::AbstractPlatform;
         end
 
         if :rust in compilers
+            # Make sure the selected Rust toolchain version is available
+            if preferred_rust_version in getversion.(Rust_builds)
+                Rust_build = preferred_rust_version
+            else
+                error("Requested Rust toolchain $(preferred_rust_version) not available in $(Rust_builds)")
+            end
+
             append!(shards, [
                 find_shard("RustBase", Rust_build, archive_type),
                 find_shard("RustToolchain", Rust_build, archive_type; target=p),
