@@ -480,7 +480,9 @@ function gcc_version(p::AbstractPlatform,
 
     # Rust on Windows requires binutils 2.25 (it invokes `ld` with `--high-entropy-va`),
     # which we bundle with GCC 5.
-    if :rust in compilers && Sys.iswindows(p)
+    # Rust requires glibc 2.17 (https://blog.rust-lang.org/2022/08/01/Increasing-glibc-kernel-requirements.html),
+    # which we only use for GCC >5
+    if :rust in compilers
         GCC_builds = filter(b -> getversion(b) ≥ v"5", GCC_builds)
     end
 
