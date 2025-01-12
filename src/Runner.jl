@@ -555,8 +555,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             # the wrappers before any additional arguments because we want this path to have
             # precedence over anything else.  In this way for example we avoid libraries
             # from `CompilerSupportLibraries_jll` in `${libdir}` are picked up by mistake.
-            # Note 2: Compiler libraries for riscv64 ended up in `lib/` by mistake.
-            dir = "/opt/$(aatriplet(p))/$(aatriplet(p))/lib" * (nbits(p) == 32 || arch(p) == "riscv64" ? "" : "64")
+            dir = "/opt/$(aatriplet(p))/$(aatriplet(p))/lib" * (nbits(p) == 32 ? "" : "64")
             append!(flags, ("-L$(dir)", "-Wl,-rpath-link,$(dir)"))
         end
         if lock_microarchitecture

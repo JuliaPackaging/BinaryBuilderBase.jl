@@ -390,6 +390,7 @@ get_available_builds(name::String) =
     unique!(sort!(VersionNumber.(join.(getindex.(split.(filter(x->startswith(x, name), keys(load_artifacts_toml(joinpath(dirname(@__DIR__), "Artifacts.toml")))), '.'), Ref(2:4)), '.'))))
 
 const available_gcc_builds = [
+    # For the version of libstdc++ see also <https://gcc.gnu.org/onlinedocs/libstdc++/manual/abi.html>.
     GCCBuild(v"4.8.5", (libgfortran_version = v"3", libstdcxx_version = v"3.4.19", cxxstring_abi = "cxx03")),
     GCCBuild(v"5.2.0", (libgfortran_version = v"3", libstdcxx_version = v"3.4.21", cxxstring_abi = "cxx11")),
     GCCBuild(v"6.1.0", (libgfortran_version = v"3", libstdcxx_version = v"3.4.22", cxxstring_abi = "cxx11")),
@@ -400,6 +401,7 @@ const available_gcc_builds = [
     GCCBuild(v"11.1.0", (libgfortran_version = v"5", libstdcxx_version = v"3.4.29", cxxstring_abi = "cxx11")),
     GCCBuild(v"12.1.0", (libgfortran_version = v"5", libstdcxx_version = v"3.4.30", cxxstring_abi = "cxx11")),
     GCCBuild(v"13.2.0", (libgfortran_version = v"5", libstdcxx_version = v"3.4.32", cxxstring_abi = "cxx11")),
+    GCCBuild(v"14.2.0", (libgfortran_version = v"5", libstdcxx_version = v"3.4.33", cxxstring_abi = "cxx11")),
     ## v"11.0.0-iains" is a very old build with some ABI incompatibilities with new versions (for example `libgcc_s`
     ## soversion, see https://github.com/JuliaLang/julia/issues/44435), let's pretend it never existed.
     # GCCBuild(v"11.0.0-iains", (libgfortran_version = v"5", libstdcxx_version = v"3.4.28", cxxstring_abi = "cxx11")),
@@ -472,9 +474,9 @@ function gcc_version(p::AbstractPlatform,
         GCC_builds = filter(b -> getversion(b) ≥ v"7", GCC_builds)
     end
 
-    # We only have GCC 13 or newer for RISC-V.
+    # We only use GCC 14 or newer for riscv64.
     if arch(p) == "riscv64"
-        GCC_builds = filter(b -> getversion(b) ≥ v"13", GCC_builds)
+        GCC_builds = filter(b -> getversion(b) ≥ v"14", GCC_builds)
     end
 
     # Rust on Windows requires binutils 2.25 (it invokes `ld` with `--high-entropy-va`),

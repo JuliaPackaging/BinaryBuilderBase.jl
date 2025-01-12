@@ -30,7 +30,11 @@ jobs:
   test:
     name: Julia ${{ matrix.julia-version }} - x64 - runner ${{ matrix.runner }} - SquashFS ${{ matrix.squashfs }}
     timeout-minutes: 60
-    runs-on: ubuntu-latest
+    # With unprivileged runner on Ubuntu 24.04 we run into
+    #
+    #     --> Creating overlay workdir at /proc
+    #     At line 572, ABORTED (13: Permission denied)!
+    runs-on: ubuntu-22.04
     env:
       BINARYBUILDER_RUNNER: ${{ matrix.runner }}
       BINARYBUILDER_USE_SQUASHFS: ${{ matrix.squashfs }}
