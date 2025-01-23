@@ -394,7 +394,6 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     end
 
     function sanitize_compile_flags!(p::AbstractPlatform, flags::Vector{String})
-        san = sanitize(p)
         if sanitize(p) !== nothing
             if sanitize(p) == "memory"
                 append!(flags, ["-fsanitize=memory"])
@@ -427,35 +426,52 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         if lock_microarchitecture
             append!(flags, get_march_flags(arch(p), march(p), "clang"))
         end
+
+        append!(flags, [
+            # We add `-Wno-unused-command-line-argument` so that if someone does something like
+            # `clang -Werror -o foo a.o b.o`, it doesn't complain due to the fact that that is using
+            # `clang` as a linker (and we have no real way to detect that in the wrapper), which
+            # will cause `clang` to complain about compiler flags being passed in.
+            "-Wno-unused-command-line-argument",
+            # We need to override the typical C++ include search paths, because it always includes
+            # the toolchain C++ headers first.  Valentin tracked this down to:
+            # https://github.com/llvm/llvm-project/blob/0378f3a90341d990236c44f297b923a32b35fab1/clang/lib/Driver/ToolChains/Darwin.cpp#L1944-L1978
+            "-nostdinc++",
+            # For systems other than macOS this directory doesn't exist out-of-the-box in our
+            # toolchain, but you can put in there the headers of the C++ standard library for libc++
+            # from LLLVMLibcxx_jll.  This must come before GCC header files (added below).
+            "-isystem /opt/$(aatriplet(p))/$(aatriplet(p))/sys-root/usr/include/c++/v1",
+        ])
+
         if Sys.isapple(p)
             macos_version_flags = clang_use_lld ? (min_macos_version_flags()[1],) : min_macos_version_flags()
             append!(flags, String[
-                # On MacOS, we need to override the typical C++ include search paths, because it always includes
-                # the toolchain C++ headers first.  Valentin tracked this down to:
-                # https://github.com/llvm/llvm-project/blob/0378f3a90341d990236c44f297b923a32b35fab1/clang/lib/Driver/ToolChains/Darwin.cpp#L1944-L1978
-                "-nostdinc++",
-                "-isystem",
-                "/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root/usr/include/c++/v1",
-                # We also add `-Wno-unused-command-line-argument` so that if someone does something like
-                # `clang -Werror -o foo a.o b.o`, it doesn't complain due to the fact that that is using
-                # `clang` as a linker (and we have no real way to detect that in the wrapper), which will
-                # cause `clang` to complain about compiler flags being passed in.
-                "-Wno-unused-command-line-argument",
                 macos_version_flags...,
             ])
         end
+
         sanitize_compile_flags!(p, flags)
         if Sys.isfreebsd(p)
             add_system_includedir(flags)
         end
 
-        if !Sys.isbsd(p) && !isnothing(gcc_version)
-            append!(flags, String["-isystem /opt/$(aatriplet(p))/$(aatriplet(p))/include/c++/$(gcc_version)",
-                                  "-isystem /opt/$(aatriplet(p))/$(aatriplet(p))/include/c++/$(gcc_version)/$(aatriplet(p))",
-                                  "-isystem /opt/$(aatriplet(p))/$(aatriplet(p))/include/c++/$(gcc_version)/backward",
-                                  "-isystem /opt/$(aatriplet(p))/$(aatriplet(p))/include",
-                                  "-isystem /opt/$(aatriplet(p))/$(aatriplet(p))/sys-root/include"])
+        if !Sys.isbsd(p)
+            # GCC header files
+            if !isnothing(gcc_version)
+                append!(flags, [
+                    "-isystem /opt/$(aatriplet(p))/$(aatriplet(p))/include/c++/$(gcc_version)",
+                    "-isystem /opt/$(aatriplet(p))/$(aatriplet(p))/include/c++/$(gcc_version)/$(aatriplet(p))",
+                    "-isystem /opt/$(aatriplet(p))/$(aatriplet(p))/include/c++/$(gcc_version)/backward",
+                ])
+            end
+            # MinGW header files
+            if Sys.iswindows(p)
+                append!(flags, [
+                    "-isystem /opt/$(aatriplet(p))/$(aatriplet(p))/include",
+                ])
+            end
         end
+
         if Sys.iswindows(p) && nbits(p) == 32
             push!(flags, "-fsjlj-exceptions")
         end
