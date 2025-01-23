@@ -449,13 +449,39 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             add_system_includedir(flags)
         end
 
-        if !Sys.isbsd(p) && !isnothing(gcc_version)
-            append!(flags, String["-isystem /opt/$(aatriplet(p))/$(aatriplet(p))/include/c++/$(gcc_version)",
-                                  "-isystem /opt/$(aatriplet(p))/$(aatriplet(p))/include/c++/$(gcc_version)/$(aatriplet(p))",
-                                  "-isystem /opt/$(aatriplet(p))/$(aatriplet(p))/include/c++/$(gcc_version)/backward",
-                                  "-isystem /opt/$(aatriplet(p))/$(aatriplet(p))/include",
-                                  "-isystem /opt/$(aatriplet(p))/$(aatriplet(p))/sys-root/include"])
+        if !Sys.isbsd(p)
+            # libc++ header files
+            append!(flags, [
+                # NOTE: this first directory doesn't exist out-of-the-box in our toolchain,
+                # but you should put in there the C++ standard libraries for libc++ from
+                # LLLVMLibcxx_jll.  This must come before GCC header files (added below).
+                "-isystem /opt/$(aatriplet(p))/$(aatriplet(p))/sys-root/include/c++/v1",
+                # This directory contains C header files.  Must come after the C++ ones, see
+                # for example <https://github.com/llvm/llvm-project/blob/4bcdb26dac4cdadd7f8850a5f9b2e775b73aaf7f/libcxx/include/cmath#L336-L338>.
+                # This directory is in default search paths, but we have to explicitly put
+                # it here to give it higher precedence than the following directories.
+                "-isystem /opt/$(aatriplet(p))/$(aatriplet(p))/sys-root/usr/include",
+            ])
+            # GCC header files
+            if !isnothing(gcc_version)
+                append!(flags, [
+                    "-isystem /opt/$(aatriplet(p))/$(aatriplet(p))/include/c++/$(gcc_version)",
+                    "-isystem /opt/$(aatriplet(p))/$(aatriplet(p))/include/c++/$(gcc_version)/$(aatriplet(p))",
+                    "-isystem /opt/$(aatriplet(p))/$(aatriplet(p))/include/c++/$(gcc_version)/backward",
+                ])
+            end
+            # MinGW header files
+            if Sys.iswindows(p)
+                append!(flags, [
+                    "-isystem /opt/$(aatriplet(p))/$(aatriplet(p))/include",
+                ])
+            end
+            # Extra stuff
+            append!(flags, [
+                # "-isystem /opt/$(aatriplet(p))/$(aatriplet(p))/sys-root/include", # <-- this directory doesn't exist out-of-the box (unless manually created to put libc++ in its subdirs, but this would remain without header files anyway), commenting out for the time being
+            ])
         end
+
         if Sys.iswindows(p) && nbits(p) == 32
             push!(flags, "-fsjlj-exceptions")
         end
