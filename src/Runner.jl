@@ -476,10 +476,6 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
                     "-isystem /opt/$(aatriplet(p))/$(aatriplet(p))/include",
                 ])
             end
-            # Extra stuff
-            append!(flags, [
-                # "-isystem /opt/$(aatriplet(p))/$(aatriplet(p))/sys-root/include", # <-- this directory doesn't exist out-of-the box (unless manually created to put libc++ in its subdirs, but this would remain without header files anyway), commenting out for the time being
-            ])
         end
 
         if Sys.iswindows(p) && nbits(p) == 32
