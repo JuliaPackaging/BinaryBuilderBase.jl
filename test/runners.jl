@@ -197,7 +197,9 @@ end
     end
 
     # This tests only that compilers for all platforms can build and link simple C++ code
-    @testset "Compilation - $(platform) - $(compiler)" for platform in platforms, compiler in ("c++", "g++", "clang++")
+    # Note: we test the slightly weird `clang -x c++` as compiler driver because that's used
+    # in some cases and we want to make sure it works correctly.
+    @testset "Compilation - $(platform) - $(compiler)" for platform in platforms, (compiler, linker) in (("c++", "c++"), ("g++", "g++"), ("clang -x c++", "clang++"))
         mktempdir() do dir
             ur = preferred_runner()(dir; platform=platform)
             iobuff = IOBuffer()
@@ -221,13 +223,15 @@ end
                 echo '$(test_cpp)' > test.cpp
                 echo '$(main_cpp)' > main.cpp
                 # Build object file
-                $(compiler) -Werror -std=c++11 -c test.cpp -o test.o
-                # Build shared library
-                $(compiler) -Werror -std=c++11 $(needfpic) -shared test.cpp -o libtest.\${dlext}
+                $(compiler) $(needfpic) -Werror -std=c++11 -c test.cpp -o test.o
+                # Link shared library
+                $(linker) -shared test.o -o libtest.\${dlext}
                 # Build and link program with object file
-                $(compiler) -Werror -std=c++11 -o main main.cpp test.o
-                # Build and link program with shared library
-                $(compiler) -Werror -std=c++11 -o main main.cpp -L. -ltest
+                $(compiler) $(needfpic) -Werror -std=c++11 -c main.cpp -o main.o
+                # Link main program with test object file
+                $(linker) -o main main.o test.o
+                # Link main program with shared library
+                $(linker) -o main main.o -L. -ltest
                 """
             cmd = `/bin/bash -c "$(test_script)"`
             @test run(ur, cmd, iobuff; tee_stream=devnull)
