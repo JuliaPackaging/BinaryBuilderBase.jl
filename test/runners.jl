@@ -177,6 +177,9 @@ end
             """
             test_script = """
                 set -e
+                # Make sure setting `CCACHE` doesn't affect the compiler wrappers.
+                export CCACHE=pwned
+                export USE_CCACHE=false
                 echo '$(test_c)' > test.c
                 echo '$(main_c)' > main.c
                 # Build object file
@@ -222,6 +225,9 @@ end
                 set -e
                 echo '$(test_cpp)' > test.cpp
                 echo '$(main_cpp)' > main.cpp
+                # Make sure setting `CCACHE` doesn't affect the compiler wrappers.
+                export CCACHE=pwned
+                export USE_CCACHE=true
                 # Build object file
                 $(compiler) $(needfpic) -Werror -std=c++11 -c test.cpp -o test.o
                 # Link shared library

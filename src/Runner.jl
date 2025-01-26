@@ -319,13 +319,16 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
 
         if allow_ccache
             write(io, """
+            # Override `\${CCACHE}` setting from the outside.
+            CCACHE=""
             if [[ \${USE_CCACHE} == "true" ]]; then
                 CCACHE="ccache"
             fi
             """)
         end
+        # Don't evaluate `${CCACHE}` at all if not allowed in the first place.
         write(io, """
-        vrun \${CCACHE} $(prog) "\${PRE_FLAGS[@]}" "\${ARGS[@]}" "\${POST_FLAGS[@]}"
+        vrun $(allow_ccache ? "\${CCACHE} " : "")$(prog) "\${PRE_FLAGS[@]}" "\${ARGS[@]}" "\${POST_FLAGS[@]}"
         """)
     end
 
