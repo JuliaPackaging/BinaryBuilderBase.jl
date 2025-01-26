@@ -319,7 +319,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
 
         if allow_ccache
             write(io, """
-            # Override `${CCACHE}` setting from the outside.
+            # Override `\${CCACHE}` setting from the outside.
             CCACHE=""
             if [[ \${USE_CCACHE} == "true" ]]; then
                 CCACHE="ccache"
