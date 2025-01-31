@@ -581,7 +581,13 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             # the wrappers before any additional arguments because we want this path to have
             # precedence over anything else.  In this way for example we avoid libraries
             # from `CompilerSupportLibraries_jll` in `${libdir}` are picked up by mistake.
-            dir = "/opt/$(aatriplet(p))/$(aatriplet(p))/lib" * (nbits(p) == 32 ? "" : "64")
+            # Note 2: Compiler libraries for riscv64 ended up in `lib/` for some reason, and
+            # are always in `lib/` for FreeBSD.
+            # Note 3: while these are technically link-only flags, link-only flags are
+            # written out in our wrappers as "post flags" after those passed on the command
+            # line, but we really need to have these flags before those to solve
+            # <https://github.com/JuliaPackaging/BinaryBuilderBase.jl/issues/163>.
+            dir = "/opt/$(aatriplet(p))/$(aatriplet(p))/lib" * (nbits(p) == 32 || arch(p) == "riscv64" || Sys.isfreebsd(p) ? "" : "64")
             append!(flags, ("-L$(dir)", "-Wl,-rpath-link,$(dir)"))
         end
         if lock_microarchitecture
