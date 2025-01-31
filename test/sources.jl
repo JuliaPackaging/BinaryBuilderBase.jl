@@ -18,6 +18,7 @@ using JSON
     @test_throws ArgumentError ArchiveSource("https://github.com/ralna/ARCHDefs/archive/refs/tags/v2.0.3x.tar.gz", "6583e27f84338447767bbdf4335514c8836ae4ad54f5e66280307e8b57189cff")
     @test_throws ArgumentError FileSource("https://github.com/ralna/ARCHDefs/archive/v2.0.3x.tar.gz", "6583e27f84338447767bbdf4335514c8836ae4ad54f5e66280307e8b57189cff")
     @test_throws ArgumentError FileSource("https://github.com/ralna/ARCHDefs/archive/refs/tags/v2.0.3x.tar.gz", "6583e27f84338447767bbdf4335514c8836ae4ad54f5e66280307e8b57189cff")
+    @test_throws ArgumentError FileSource("https://github.com/coin-or/qpOASES/archive/refs/tags/releases/3.2.1.zip", "28dbe55fdfdca5f8a43e8fbfbdb5a90c52546568f8ecc7b29bd1d42dc1ccdd2a")
 
     @test SetupSource("https://ftp.gnu.org/gnu/wget/wget-1.20.3.tar.gz", "wget-1.20.3.tar.gz", "", "") isa SetupSource{ArchiveSource}
     @test SetupSource("https://ftp.gnu.org/gnu/wget/wget-1.20.3.zip", "wget-1.20.3.zip", "", "")    isa SetupSource{ArchiveSource}
