@@ -456,6 +456,13 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         sanitize_compile_flags!(p, flags)
         if Sys.isfreebsd(p)
             add_system_includedir(flags)
+            if arch(p) == "aarch64"
+                append!(flags, [
+                    # At the moment we know this is needed only on aarch64-freebsd:
+                    # <https://github.com/JuliaPackaging/Yggdrasil/pull/10360#discussion_r1935608177>.
+                    "-isystem /opt/$(aatriplet(p))/$(aatriplet(p))/sys-root/usr/include"
+                ])
+            end
         end
 
         if !Sys.isbsd(p)
