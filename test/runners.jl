@@ -220,11 +220,17 @@ end
                     std::complex<double> z3 = add(std::complex<double>(1.,2.),std::complex<double>(4.,2.));
                     return 0;
                 }
-            """
+                """
+            main_c = """
+                int main(void) {
+                    return 0;
+                }
+                """
             test_script = """
                 set -e
                 echo '$(test_cpp)' > test.cpp
                 echo '$(main_cpp)' > main.cpp
+                echo '$(main_c)' > main.c
                 # Make sure setting `CCACHE` doesn't affect the compiler wrappers.
                 export CCACHE=pwned
                 export USE_CCACHE=true
@@ -238,6 +244,10 @@ end
                 $(linker) -o main main.o test.o
                 # Link main program with shared library
                 $(linker) -o main main.o -L. -ltest
+
+                # Also make sure we can link to libtest (which may link to
+                # libstdc++) with gcc (as in the C compiler).
+                gcc -o main_c main.c -ltest -L.
                 """
             cmd = `/bin/bash -c "$(test_script)"`
             @test run(ur, cmd, iobuff; tee_stream=devnull)
