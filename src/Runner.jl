@@ -157,6 +157,148 @@ function add_cxx_abi(p::AbstractPlatform, flags::Vector{String})
     end
 end
 
+function wrapper(io::IO,
+                 prog::String;
+                 # Flags that are always prepended
+                 flags::Vector{String} = String[],
+                 # Flags that are prepended if we think we're compiling (e.g. no `-x assembler`)
+                 compile_only_flags::Vector = String[],
+                 # Flags that are postpended if we think we're linking (e.g. no `-c`)
+                 link_only_flags::Vector = String[],
+                 allow_ccache::Bool = true,
+                 no_soft_float::Bool = false,
+                 hash_args::Bool = false,
+                 extra_cmds::String = "",
+                 env::Dict{String,String} = Dict{String,String}(),
+                 unsafe_flags = String[],
+                 sanitize::Bool=false,
+                 lock_microarchitecture::Bool=true,
+                 )
+    write(io, """
+    #!/bin/bash
+    # This compiler wrapper script brought into existence by `generate_compiler_wrappers!()`
+
+    if [ "x\${SUPER_VERBOSE}" = "x" ]; then
+        vrun() { "\$@"; }
+    else
+        vrun() { echo -e "\\e[96m\$@\\e[0m" >&2; "\$@"; }
+    fi
+
+    ARGS=( "\$@" )
+    PRE_FLAGS=()
+    POST_FLAGS=()
+    """)
+
+    # Sometimes we need to look at the hash of our arguments
+    if hash_args
+        write(io, """
+        ARGS_HASH="\$(echo -n "\$*" | sha1sum | cut -c1-8)"
+        """)
+    end
+
+    # If we're given always-prepend flags, include them
+    if !isempty(flags)
+        println(io)
+        for cf in flags
+            println(io, "PRE_FLAGS+=( $cf )")
+        end
+        println(io)
+    end
+
+    # If we're given compile-only flags, include them only if `-x assembler` is not provided
+    if !isempty(compile_only_flags)
+        println(io)
+        println(io, "if [[ \" \${ARGS[@]} \" != *' -x assembler '* ]]; then")
+        for cf in compile_only_flags
+            println(io, "    PRE_FLAGS+=( $cf )")
+        end
+        println(io, "fi")
+        println(io)
+    end
+
+    # If we're given link-only flags, include them only if `-c` or other link-disablers are not provided.
+    if !isempty(link_only_flags)
+        println(io)
+        println(io, "if [[ \" \${ARGS[@]} \" != *' -c '* ]] && [[ \" \${ARGS[@]} \" != *' -E '* ]] && [[ \" \${ARGS[@]} \" != *' -M '* ]] && [[ \" \${ARGS[@]} \" != *' -fsyntax-only '* ]]; then")
+        for lf in link_only_flags
+            println(io, "    POST_FLAGS+=( $lf )")
+        end
+        println(io, "fi")
+        println(io)
+    end
+
+    # If we're given both -fsanitize= and -Wl,--no-undefined, then try turning
+    # the latter into a warning rather than an error.
+    if sanitize
+        println(io, """
+        if  [[ " \${ARGS[@]} " == *"-Wl,--no-undefined"* ]]; then
+            PRE_FLAGS+=("-Wl,--warn-unresolved-symbols")
+        fi
+        """)
+    end
+
+    # Insert extra commands from the user (usually some kind of conditional setting
+    # of PRE_FLAGS and POST_FLAGS)
+    println(io)
+    write(io, extra_cmds)
+    println(io)
+
+    for (name, val) in env
+        write(io, "export $(name)=\"$(val)\"\n")
+    end
+
+    # TODO: improve this check
+    if lock_microarchitecture
+        write(io, raw"""
+                  if [[ " ${ARGS[@]} " == *"-march="* ]]; then
+                      echo "BinaryBuilder: Cannot force an architecture via -march" >&2
+                      exit 1
+                  fi
+                  """)
+        println(io)
+    end
+
+    if no_soft_float
+        write(io, raw"""
+                  if [[ " ${ARGS[@]} " == *"-mfloat-abi=soft"* ]]; then
+                      echo "BinaryBuilder: ${target} platform does not support soft-float ABI (-mfloat-abi=soft)" >&2
+                      exit 1
+                  fi
+                  """)
+        println(io)
+    end
+
+    if length(unsafe_flags) >= 1
+        write(io, """
+        if [[ "\${ARGS[@]}" =~ \"$(join(unsafe_flags, "\"|\""))\" ]]; then
+            echo -e \"BinaryBuilder error: You used one or more of the unsafe flags: $(join(unsafe_flags, ", "))\\nThis is not allowed, please remove all unsafe flags from your build script to continue.\" >&2
+            exit 1
+        fi
+        """)
+        println(io)
+    end
+
+    if allow_ccache
+        write(io, """
+        # Override `\${CCACHE}` setting from the outside.
+        CCACHE=""
+        if [[ \${USE_CCACHE} == "true" ]]; then
+            CCACHE="ccache"
+        fi
+        """)
+    end
+    # Don't evaluate `${CCACHE}` at all if not allowed in the first place.
+    write(io, """
+    vrun $(allow_ccache ? "\${CCACHE} " : "")$(prog) "\${PRE_FLAGS[@]}" "\${ARGS[@]}" "\${POST_FLAGS[@]}"
+    """)
+end
+
+# Write out a bunch of common tools
+for tool in (:cpp, :ld, :nm, :libtool, :objcopy, :objdump, :otool,
+             :strip, :install_name_tool, :dlltool, :windres, :winmc, :lipo)
+    @eval $(tool)(io::IO, p::AbstractPlatform) = $(wrapper)(io, string("/opt/", aatriplet(p), "/bin/", aatriplet(p), "-", $(string(tool))); allow_ccache=false)
+end
+
 """
     generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::AbstractString,
                                 host_platform::AbstractPlatform = $(repr(default_host_platform)),
@@ -197,140 +339,6 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
 
     target = aatriplet(platform)
     host_target = aatriplet(host_platform)
-
-
-    function wrapper(io::IO,
-                     prog::String;
-                     # Flags that are always prepended
-                     flags::Vector{String} = String[],
-                     # Flags that are prepended if we think we're compiling (e.g. no `-x assembler`)
-                     compile_only_flags::Vector = String[],
-                     # Flags that are postpended if we think we're linking (e.g. no `-c`)
-                     link_only_flags::Vector = String[],
-                     allow_ccache::Bool = true,
-                     no_soft_float::Bool = false,
-                     hash_args::Bool = false,
-                     extra_cmds::String = "",
-                     env::Dict{String,String} = Dict{String,String}(),
-                     unsafe_flags = String[])
-        write(io, """
-        #!/bin/bash
-        # This compiler wrapper script brought into existence by `generate_compiler_wrappers!()`
-
-        if [ "x\${SUPER_VERBOSE}" = "x" ]; then
-            vrun() { "\$@"; }
-        else
-            vrun() { echo -e "\\e[96m\$@\\e[0m" >&2; "\$@"; }
-        fi
-
-        ARGS=( "\$@" )
-        PRE_FLAGS=()
-        POST_FLAGS=()
-        """)
-
-        # Sometimes we need to look at the hash of our arguments
-        if hash_args
-            write(io, """
-            ARGS_HASH="\$(echo -n "\$*" | sha1sum | cut -c1-8)"
-            """)
-        end
-
-        # If we're given always-prepend flags, include them
-        if !isempty(flags)
-            println(io)
-            for cf in flags
-                println(io, "PRE_FLAGS+=( $cf )")
-            end
-            println(io)
-        end
-
-        # If we're given compile-only flags, include them only if `-x assembler` is not provided
-        if !isempty(compile_only_flags)
-            println(io)
-            println(io, "if [[ \" \${ARGS[@]} \" != *' -x assembler '* ]]; then")
-            for cf in compile_only_flags
-                println(io, "    PRE_FLAGS+=( $cf )")
-            end
-            println(io, "fi")
-            println(io)
-        end
-
-        # If we're given link-only flags, include them only if `-c` or other link-disablers are not provided.
-        if !isempty(link_only_flags)
-            println(io)
-            println(io, "if [[ \" \${ARGS[@]} \" != *' -c '* ]] && [[ \" \${ARGS[@]} \" != *' -E '* ]] && [[ \" \${ARGS[@]} \" != *' -M '* ]] && [[ \" \${ARGS[@]} \" != *' -fsyntax-only '* ]]; then")
-            for lf in link_only_flags
-                println(io, "    POST_FLAGS+=( $lf )")
-            end
-            println(io, "fi")
-            println(io)
-        end
-
-        # If we're given both -fsanitize= and -Wl,--no-undefined, then try turning
-        # the latter into a warning rather than an error.
-        if sanitize(platform) != nothing
-            println(io, """
-            if  [[ " \${ARGS[@]} " == *"-Wl,--no-undefined"* ]]; then
-                PRE_FLAGS+=("-Wl,--warn-unresolved-symbols")
-            fi
-            """)
-        end
-
-        # Insert extra commands from the user (usually some kind of conditional setting
-        # of PRE_FLAGS and POST_FLAGS)
-        println(io)
-        write(io, extra_cmds)
-        println(io)
-
-        for (name, val) in env
-            write(io, "export $(name)=\"$(val)\"\n")
-        end
-
-        # TODO: improve this check
-        if lock_microarchitecture
-            write(io, raw"""
-                      if [[ " ${ARGS[@]} " == *"-march="* ]]; then
-                          echo "BinaryBuilder: Cannot force an architecture via -march" >&2
-                          exit 1
-                      fi
-                      """)
-            println(io)
-        end
-
-        if no_soft_float
-            write(io, raw"""
-                      if [[ " ${ARGS[@]} " == *"-mfloat-abi=soft"* ]]; then
-                          echo "BinaryBuilder: ${target} platform does not support soft-float ABI (-mfloat-abi=soft)" >&2
-                          exit 1
-                      fi
-                      """)
-            println(io)
-        end
-
-        if length(unsafe_flags) >= 1
-            write(io, """
-            if [[ "\${ARGS[@]}" =~ \"$(join(unsafe_flags, "\"|\""))\" ]]; then
-                echo -e \"BinaryBuilder error: You used one or more of the unsafe flags: $(join(unsafe_flags, ", "))\\nThis is not allowed, please remove all unsafe flags from your build script to continue.\" >&2
-                exit 1
-            fi
-            """)
-            println(io)
-        end
-
-        if allow_ccache
-            write(io, """
-            # Override `\${CCACHE}` setting from the outside.
-            CCACHE=""
-            if [[ \${USE_CCACHE} == "true" ]]; then
-                CCACHE="ccache"
-            fi
-            """)
-        end
-        # Don't evaluate `${CCACHE}` at all if not allowed in the first place.
-        write(io, """
-        vrun $(allow_ccache ? "\${CCACHE} " : "")$(prog) "\${PRE_FLAGS[@]}" "\${ARGS[@]}" "\${POST_FLAGS[@]}"
-        """)
-    end
 
     # Helper invocations
     target_tool(io::IO, tool::String, args...; kwargs...) = wrapper(io, "/opt/$(target)/bin/$(target)-$(tool)", args...; kwargs...)
@@ -637,6 +645,8 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             no_soft_float=arch(p) in ("armv6l", "armv7l"),
             # Override `LD_LIBRARY_PATH` to avoid external settings mess it up.
             env=Dict("LD_LIBRARY_PATH"=>ld_library_path(platform, host_platform; csl_paths=false)),
+            sanitize=!isnothing(sanitize(p)),
+            lock_microarchitecture,
         )
     end
 
@@ -650,6 +660,8 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             no_soft_float=arch(p) in ("armv6l", "armv7l"),
             # Override `LD_LIBRARY_PATH` to avoid external settings mess it up.
             env=Dict("LD_LIBRARY_PATH"=>ld_library_path(platform, host_platform; csl_paths=false)),
+            sanitize=!isnothing(sanitize(p)),
+            lock_microarchitecture,
         )
     end
 
@@ -843,11 +855,6 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             "/opt/$(host_target)/bin/$(lld_string(p))";
             env=Dict("LD_LIBRARY_PATH"=>ld_library_path(platform, host_platform; csl_paths=false)), allow_ccache=false,
         )
-    end
-    # Write out a bunch of common tools
-    for tool in (:cpp, :ld, :nm, :libtool, :objcopy, :objdump, :otool,
-                 :strip, :install_name_tool, :dlltool, :windres, :winmc, :lipo)
-        @eval $(tool)(io::IO, p::AbstractPlatform) = $(wrapper)(io, string("/opt/", aatriplet(p), "/bin/", aatriplet(p), "-", $(string(tool))); allow_ccache=false)
     end
     as(io::IO, p::AbstractPlatform) =
         wrapper(io, string("/opt/", aatriplet(p), "/bin/", aatriplet(p), "-as");
