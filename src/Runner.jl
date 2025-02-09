@@ -170,7 +170,10 @@ function wrapper(io::IO,
                  hash_args::Bool = false,
                  extra_cmds::String = "",
                  env::Dict{String,String} = Dict{String,String}(),
-                 unsafe_flags = String[])
+                 unsafe_flags = String[],
+                 sanitize::Bool=false,
+                 lock_microarchitecture::Bool=true,
+                 )
     write(io, """
     #!/bin/bash
     # This compiler wrapper script brought into existence by `generate_compiler_wrappers!()`
@@ -226,7 +229,7 @@ function wrapper(io::IO,
 
     # If we're given both -fsanitize= and -Wl,--no-undefined, then try turning
     # the latter into a warning rather than an error.
-    if sanitize(platform) != nothing
+    if sanitize
         println(io, """
         if  [[ " \${ARGS[@]} " == *"-Wl,--no-undefined"* ]]; then
             PRE_FLAGS+=("-Wl,--warn-unresolved-symbols")
@@ -642,6 +645,8 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             no_soft_float=arch(p) in ("armv6l", "armv7l"),
             # Override `LD_LIBRARY_PATH` to avoid external settings mess it up.
             env=Dict("LD_LIBRARY_PATH"=>ld_library_path(platform, host_platform; csl_paths=false)),
+            sanitize=!isnothing(sanitize(p)),
+            lock_microarchitecture,
         )
     end
 
@@ -655,6 +660,8 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             no_soft_float=arch(p) in ("armv6l", "armv7l"),
             # Override `LD_LIBRARY_PATH` to avoid external settings mess it up.
             env=Dict("LD_LIBRARY_PATH"=>ld_library_path(platform, host_platform; csl_paths=false)),
+            sanitize=!isnothing(sanitize(p)),
+            lock_microarchitecture,
         )
     end
 
