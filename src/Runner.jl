@@ -1266,7 +1266,6 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
         "FC" => "gfortran",
 
         # We conditionally add on some compiler flags; we'll cull empty ones at the end
-        "USE_CCACHE" => "$(use_ccache[])",
         "LLVM_TARGET" => target,
         "LLVM_HOST_TARGET" => host_target,
 
@@ -1281,6 +1280,8 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
         "PKG_CONFIG_SYSROOT_DIR" => prefix,
 
         # ccache options
+        "USE_CCACHE" => "$(use_ccache[])",
+        "CCACHE_DIR" => "/root/.ccache",
         "CCACHE_COMPILERCHECK" => "content",
 
         # Things to help us step closer to reproducible builds; eliminate timestamp
@@ -1450,7 +1451,7 @@ function runner_setup!(workspaces, mappings, workspace_root, verbose, kwargs, pl
         if !isdir(ccache_dir())
             mkpath(ccache_dir())
         end
-        push!(workspaces, ccache_dir() => "/root/.ccache")
+        push!(workspaces, ccache_dir() => envs["CCACHE_DIR"])
     end
 
     return platform, envs, shards
