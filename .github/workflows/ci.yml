@@ -62,6 +62,10 @@ jobs:
             squashfs: true
             julia-version: "1.10"
 
+          - runner: privileged
+            squashfs: true
+            julia-version: "1.11"
+
           # - runner: privileged
           #   squashfs: true
           #   julia-version: "nightly"
