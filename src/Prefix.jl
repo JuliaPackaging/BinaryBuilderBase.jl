@@ -618,7 +618,7 @@ end
 function Pkg_add(ctx::Pkg.Types.Context, rest...; kwargs...)
     @static if VERSION >= v"1.13-"
         # No need to pass the context anymore.
-        _Pkg_add(rest...; kwargs...)
+        _Pkg_add(rest...; julia_version = ctx.julia_version, kwargs...)
     else
         _Pkg_add(ctx, rest...; kwargs...)
     end
