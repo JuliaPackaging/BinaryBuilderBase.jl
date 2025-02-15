@@ -376,32 +376,21 @@ end
                     PackageSpec(; name="CMake_jll", version = v"3.24.3")
                 ]
                 platform = Platform("x86_64", "linux"; libc="musl", cxxstring_abi="cxx11")
-                @show VERSION
-                @show VERSION>=v"1.9"
                 try
-                    @info "" @__LINE__
                     test_setup_dependencies(prefix, dependencies, platform)
-                    @info "" @__LINE__
                 catch
-                    @info "" @__LINE__
                     if VERSION>=v"1.9"
-                        @info "" @__LINE__
                         # This test is expected to be broken on Julia v1.9+
                         @test false broken=true
-                        @info "" @__LINE__
                     else
-                        @info "" @__LINE__
                         # For previous versions we don't expect errors and we
                         # want to see them.
                         rethrow()
-                        @info "" @__LINE__
                     end
                 end
-                @info "" @__LINE__
                 # The directory contains also executables from CMake dependencies.
                 # Test will fail if `setup_dependencies` above failed.
                 @test readdir(joinpath(destdir(dir, platform), "bin")) == ["c_rehash", "cmake", "cpack", "ctest", "openssl"] broken=VERSION>=v"1.9"
-                @info "" @__LINE__
             end
         end
 
