@@ -109,7 +109,7 @@ jobs:
               args+=(--code-coverage="@${PWD}")
           fi
           julia "${args[@]}" -e "using BinaryBuilderBase; BinaryBuilderBase.versioninfo()"
-      - name: Set up SSH agent
+      - name: Run tests
         run: |
           eval `ssh-agent`
           chmod 0600 test/id_ecdsa_deploy_helloworld_c_jll_read_only
@@ -117,7 +117,7 @@ jobs:
           touch ~/.ssh/known_hosts
           ssh-keyscan github.com >> ~/.ssh/known_hosts
           ssh-add test/id_ecdsa_deploy_helloworld_c_jll_read_only
-      - uses: julia-actions/julia-runtest@v1
+          julia --check-bounds=yes --color=yes --depwarn=yes --inline=yes --project=@. -e 'using Pkg; Pkg.instantiate(); Pkg.test(coverage=true)'
       - uses: julia-actions/julia-processcoverage@v1
       - uses: codecov/codecov-action@v5
         continue-on-error: true
