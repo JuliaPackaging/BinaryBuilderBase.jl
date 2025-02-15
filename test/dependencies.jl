@@ -367,6 +367,33 @@ end
                 end
             end
         end
+
+        @testset "PackageSpec with version" begin
+            # Install a dependency with a specific version number.
+            with_temp_project() do dir
+                prefix = Prefix(dir)
+                dependencies = [
+                    PackageSpec(; name="CMake_jll", version = v"3.24.3")
+                ]
+                platform = Platform("x86_64", "linux"; libc="musl", cxxstring_abi="cxx11")
+                try
+                    test_setup_dependencies(prefix, dependencies, platform)
+                catch
+                    if VERSION>=v"1.9"
+                        # This test is expected to be broken on Julia v1.9+
+                        @test false broken=true
+                    else
+                        # For previous versions we don't expect errors and we
+                        # want to see them.
+                        rethrow()
+                    end
+                end
+                # The directory contains also executables from CMake dependencies.
+                # Test will fail if `setup_dependencies` above failed.
+                @test readdir(joinpath(destdir(dir, platform), "bin")) == ["c_rehash", "cmake", "cpack", "ctest", "openssl"] broken=VERSION>=v"1.9"
+            end
+        end
+
     end
 end
 
