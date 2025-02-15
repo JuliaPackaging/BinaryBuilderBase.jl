@@ -602,7 +602,7 @@ function get_addable_spec(name::AbstractString, version::VersionNumber;
 end
 
 # Helper function to install packages also in Julia v1.8
-function Pkg_add(args...; kwargs...)
+function _Pkg_add(args...; kwargs...)
     @static if VERSION < v"1.8.0"
         Pkg.add(args...; kwargs...)
     else
@@ -612,6 +612,15 @@ function Pkg_add(args...; kwargs...)
         finally
             Pkg.respect_sysimage_versions(true)
         end
+    end
+end
+
+function Pkg_add(ctx::Pkg.Types.Context, rest...; kwargs...)
+    @static if VERSION >= v"1.13-"
+        # No need to pass the context anymore.
+        _Pkg_add(rest...; kwargs...)
+    else
+        _Pkg_add(ctx, rest...; kwargs...)
     end
 end
 

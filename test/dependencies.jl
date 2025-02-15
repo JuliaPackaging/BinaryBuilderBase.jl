@@ -373,7 +373,7 @@ end
             with_temp_project() do dir
                 prefix = Prefix(dir)
                 dependencies = [
-                    PackageSpec(; name="CMake_jll", version = v"3.24.3")
+                    PackageSpec(; name="CMake_jll", version = "3.24.3")
                 ]
                 platform = Platform("x86_64", "linux"; libc="musl", cxxstring_abi="cxx11")
                 if v"1.9" <= VERSION < v"1.11"
