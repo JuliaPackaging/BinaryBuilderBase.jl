@@ -98,7 +98,9 @@ jobs:
       #     cache-artifacts: "true"
       #     cache-packages: "false"
       #     cache-registries: "false"
-      - uses: julia-actions/julia-buildpkg@latest
+      - uses: julia-actions/julia-buildpkg@v1
+        with:
+          ignore-no-cache: true
       - name: System info
         run: |
           args=(--check-bounds=yes --color=yes --depwarn=yes --inline=yes --project=@.)
@@ -116,7 +118,15 @@ jobs:
           ssh-keyscan github.com >> ~/.ssh/known_hosts
           ssh-add test/id_ecdsa_deploy_helloworld_c_jll_read_only
           julia --check-bounds=yes --color=yes --depwarn=yes --inline=yes --project=@. -e 'using Pkg; Pkg.instantiate(); Pkg.test(coverage=true)'
-      - uses: julia-actions/julia-uploadcodecov@v0.1
+      - uses: julia-actions/julia-processcoverage@v1
+      - uses: codecov/codecov-action@v5
         continue-on-error: true
-      - uses: julia-actions/julia-uploadcoveralls@v1.0
+        with:
+          files: lcov.info
+      - uses: coverallsapp/github-action@v2
         continue-on-error: true
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path-to-lcov: lcov.info
+          flag-name: run-${{ join(matrix.*, '-') }}
+          parallel: true
