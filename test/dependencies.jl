@@ -165,10 +165,8 @@ end
                 uuid="86de99a1-58d6-5da7-8064-bd56ce2e322c",
                 tree_hash=Base.SHA1("83481d62501cf2ef22bed745dbcedc4e75fa6e95"),
                 version=PKG_VERSIONS.VersionSpec("*"),
-                repo=Pkg.Types.GitRepo(
-                    source="https://github.com/JuliaBinaryWrappers/LLVM_jll.jl.git",
-                    rev="2772761b330d51146ace3125b26acdad0df4f30f",
-                ),
+                url="https://github.com/JuliaBinaryWrappers/LLVM_jll.jl.git",
+                rev="2772761b330d51146ace3125b26acdad0df4f30f",
             )
 
         with_temp_project() do dir
