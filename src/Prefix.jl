@@ -713,7 +713,7 @@ function setup_dependencies(prefix::Prefix,
                 push!(stdlib_pkgspecs, get_addable_spec(dep.name, dep.version; verbose))
             end
         end
-
+        @show stdlib_pkgspecs
         # Re-install stdlib dependencies, but this time with `julia_version = nothing`
         if !isempty(stdlib_pkgspecs)
             Pkg_add(stdlib_pkgspecs; io=outs, julia_version=nothing)
