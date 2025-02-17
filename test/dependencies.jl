@@ -177,6 +177,10 @@ end
                 Dependency("Zlib_jll")
             ]
             platform = HostPlatform()
+            @show dependencies getpkg.(dependencies)
+            _dependencies = deepcopy(getpkg.(dependencies))
+            foreach(Pkg.API.handle_package_input!, _dependencies)
+            @show _dependencies
             ap = test_setup_dependencies(prefix, getpkg.(dependencies), platform)
             @test "libz." * platform_dlext(platform) in readdir(last(libdirs(Prefix(destdir(dir, platform)))))
             @test sort!(readdir(joinpath(destdir(dir, platform), "include"))) == ["zconf.h", "zlib.h"]
