@@ -469,9 +469,9 @@ function gcc_version(p::AbstractPlatform,
         GCC_builds = filter(b -> getversion(b) ≥ v"6", GCC_builds)
     end
 
-    # We don't have GCC 6 or older for FreeBSD AArch64
+    # We don't have GCC 8 or older for FreeBSD 14.1+ on AArch64
     if Sys.isfreebsd(p) && arch(p) == "aarch64"
-        GCC_builds = filter(b -> getversion(b) ≥ v"7", GCC_builds)
+        GCC_builds = filter(b -> getversion(b) ≥ v"9", GCC_builds)
     end
 
     # We only use GCC 14 or newer for riscv64.
@@ -809,10 +809,8 @@ function expand_gfortran_versions(platform::AbstractPlatform)
     # If this is an platform that has limited GCC support (such as aarch64-apple-darwin),
     # the libgfortran versions we can expand to are similarly limited.
     local libgfortran_versions
-    if Sys.isapple(platform) && arch(platform) == "aarch64"
+    if Sys.isbsd(platform) && arch(platform) == "aarch64"
         libgfortran_versions = [v"5"]
-    elseif Sys.isfreebsd(platform) && arch(platform) == "aarch64"
-        libgfortran_versions = [v"4", v"5"]
     elseif arch(platform) == "riscv64"
         # We don't have older GCC versions
         libgfortran_versions = [v"5"]
