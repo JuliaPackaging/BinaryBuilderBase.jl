@@ -59,6 +59,28 @@ function Base.:(==)(a::CompilerShard, b::CompilerShard)
            a.archive_type == b.archive_type
 end
 
+# For a `CompilerShard` to match a `Platform`, the shard's target with OS version stripped
+# must match, and the OS version if present must be less than or equal to the platform's.
+# This is effectively `platforms_match` with a `compare_version_cap` comparison strategy for
+# OS version, except it works "correctly" (IMO) when both arguments have that strategy set.
+# It also ignores any strategy that's set.
+function Base.BinaryPlatforms.platforms_match(cs::CompilerShard, p::AbstractPlatform)
+    if cs.target === nothing
+        return platforms_match(cs.host, p)
+    elseif !platforms_match(os_version_agnostic(cs.target), os_version_agnostic(p))
+        return false
+    else
+        sv = os_version(cs.target)
+        pv = os_version(p)
+        return sv === nothing || pv === nothing || pv >= sv
+    end
+end
+
+Base.BinaryPlatforms.platforms_match(p::AbstractPlatform, cs::CompilerShard) = platforms_match(cs, p)
+
+Base.BinaryPlatforms.platforms_match(a::CompilerShard, b::CompilerShard) =
+    platforms_match(something(a.target, a.host), something(b.target, b.host))
+
 """
     artifact_name(cs::CompilerShard)
 
@@ -606,7 +628,7 @@ function choose_shards(p::AbstractPlatform;
 
         for cs in all_compiler_shards()
             if cs.name == name && cs.version == version &&
-               (target === nothing || platforms_match(cs.target, target)) &&
+               (target === nothing || platforms_match(cs, target)) &&
                cs.archive_type == archive_type
                 return cs
             end
@@ -711,7 +733,7 @@ function choose_shards(p::AbstractPlatform;
     else
         function find_latest_version(name)
             versions = [cs.version for cs in all_compiler_shards()
-                if cs.name == name && cs.archive_type == archive_type && platforms_match(something(cs.target, p), p)
+                if cs.name == name && cs.archive_type == archive_type && platforms_match(cs, p)
             ]
             isempty(versions) && error("No latest shard found for $name")
             return maximum(versions)
@@ -770,8 +792,8 @@ function supported_platforms(;exclude::Union{Vector{<:Platform},Function}=Return
         # BSDs
         Platform("x86_64", "macos"),
         Platform("aarch64", "macos"),
-        Platform("x86_64", "freebsd"),
-        Platform("aarch64", "freebsd"),
+        Platform("x86_64", "freebsd"; os_version="13.2"),
+        Platform("aarch64", "freebsd"; os_version="13.2"),
 
         # Windows
         Platform("i686", "windows"),
