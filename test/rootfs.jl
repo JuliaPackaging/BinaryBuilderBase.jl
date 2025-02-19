@@ -146,6 +146,7 @@ end
         shard = CompilerShard("GCCBootstrap", v"4.8.5", Platform("x86_64", "linux"; libc="musl"), :squashfs, target = platform)
         @test preferred_libgfortran_version(platform, shard) == v"3"
         @test preferred_cxxstring_abi(platform, shard) == "cxx03"
+        @test platforms_match(shard, platform)
         shard = CompilerShard("GCCBootstrap", v"5.2.0", Platform("x86_64", "linux"; libc="musl"), :squashfs, target = platform)
         @test preferred_libgfortran_version(platform, shard) == v"3"
         @test preferred_cxxstring_abi(platform, shard) == "cxx11"
@@ -215,6 +216,25 @@ end
         p = Platform("x86_64", "windows"; libgfortran_version=v"3")
         @test gcc_version(p, available_gcc_builds, [:c, :go]) == [v"4.8.5", v"5.2.0", v"6.1.0"]
         @test gcc_version(p, available_gcc_builds, [:c, :rust]) == [v"5.2.0", v"6.1.0"]
+    end
+
+    @testset "OS version handling" begin
+        # `platforms_match` for `CompilerShard`s and `Platform`s
+        shard = CompilerShard("GCCBootstrap", v"10.2.0", Platform("x86_64", "linux"; libc="musl"),
+                              :squashfs; target=Platform("x86_64", "freebsd"; os_version=v"13.2"))
+        # Target is for FreeBSD 13.2 so 14.1 should match
+        @test platforms_match(shard, Platform("x86_64", "freebsd"; os_version="14.1"))
+        # Reversed argument order should behave identically
+        @test platforms_match(Platform("x86_64", "freebsd"; os_version="14.1"), shard)
+        # Method largely exists for disambiguation, at least make sure it doesn't error
+        @test platforms_match(shard, shard)
+        # Target is for FreeBSD 13.2 so 11.1 should not match
+        @test !platforms_match(shard, Platform("x86_64", "freebsd"; os_version=v"11.1"))
+
+        # We didn't have AArch64 for FreeBSD < 13.2
+        @test isempty(choose_shards(Platform("aarch64", "freebsd"; os_version=v"11.1")))
+        # Shards built for earlier FreeBSD versions should be available for newer ones
+        @test !isempty(choose_shards(Platform("aarch64", "freebsd"; os_version=v"69.420")))
     end
 
     @testset "Compiler wrappers" begin
