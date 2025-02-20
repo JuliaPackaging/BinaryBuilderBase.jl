@@ -232,7 +232,7 @@ end
         @test !platforms_match(shard, Platform("x86_64", "freebsd"; os_version=v"11.1"))
 
         # We didn't have AArch64 for FreeBSD < 13.2
-        @test isempty(choose_shards(Platform("aarch64", "freebsd"; os_version=v"11.1")))
+        @test_throws ErrorException choose_shards(Platform("aarch64", "freebsd"; os_version=v"11.1"))
         # Shards built for earlier FreeBSD versions should be available for newer ones
         @test !isempty(choose_shards(Platform("aarch64", "freebsd"; os_version=v"69.420")))
     end

@@ -46,6 +46,11 @@ struct CompilerShard
             target = abi_agnostic(target)
         end
 
+        # If this compiler shard has an os_version, that should be interpreted as the bound it is.
+        if target !== nothing && os_version(target::Platform) !== nothing
+            set_compare_strategy!(target::Platform, "os_version", compare_version_cap)
+        end
+
         # Construct our shiny new CompilerShard object
         return new(name, version, target, host, archive_type)
     end
@@ -78,8 +83,17 @@ end
 
 Base.BinaryPlatforms.platforms_match(p::AbstractPlatform, cs::CompilerShard) = platforms_match(cs, p)
 
-Base.BinaryPlatforms.platforms_match(a::CompilerShard, b::CompilerShard) =
-    platforms_match(something(a.target, a.host), something(b.target, b.host))
+function Base.BinaryPlatforms.platforms_match(a::CompilerShard, b::CompilerShard)
+    if !platforms_match(a.host, b.host)
+        return false
+    elseif a.target === b.target === nothing
+        return true
+    elseif a.target !== nothing && b.target !== nothing
+        return platforms_match(a.target, b.target)
+    else
+        return false
+    end
+end
 
 """
     artifact_name(cs::CompilerShard)
@@ -100,11 +114,10 @@ function artifact_name(cs::CompilerShard)
     return "$(cs.name)$(target_str).v$(cs.version).$(triplet(cs.host)).$(ext)"
 end
 
-# The inverse of `artifact_name(cs)`
-function CompilerShard(art_name::String)
+function Base.tryparse(::Type{CompilerShard}, art_name::AbstractString)
     m = match(r"^([^-]+)(?:-(.+))?\.(v[\d\.]+(?:-[^\.]+)?)\.([^0-9].+-.+)\.(\w+)", art_name)
     if m === nothing
-        error("Unable to parse '$(art_name)'")
+        return nothing
     end
     return CompilerShard(
         m.captures[1],
@@ -113,6 +126,15 @@ function CompilerShard(art_name::String)
         Symbol(m.captures[5]);
         target=m.captures[2]
     )
+end
+
+# The inverse of `artifact_name(cs)`
+function CompilerShard(art_name::String)
+    cs = tryparse(CompilerShard, art_name)
+    if cs === nothing
+        error("Unable to parse '$(art_name)'")
+    end
+    return cs
 end
 
 const ALL_SHARDS = Ref{Union{Vector{CompilerShard},Nothing}}(nothing)
@@ -131,17 +153,10 @@ function all_compiler_shards()::Vector{CompilerShard}
             end
         end
         for name in names
-            cs = try
-                CompilerShard(name)
-            catch
-                continue
+            cs = tryparse(CompilerShard, name)
+            if cs !== nothing
+                push!(ALL_SHARDS[]::Vector{CompilerShard}, cs)
             end
-
-            # If this compiler shard has an os_version, that should be interpreted as the bound it is.
-            if cs.target !== nothing && os_version(cs.target::Platform) !== nothing
-                set_compare_strategy!(cs.target::Platform, "os_version", compare_version_cap)
-            end
-            push!(ALL_SHARDS[]::Vector{CompilerShard}, cs)
         end
     end
     return ALL_SHARDS[]::Vector{CompilerShard}
