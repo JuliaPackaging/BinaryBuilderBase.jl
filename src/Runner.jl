@@ -1003,32 +1003,32 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         xcrun_path = joinpath(bin_path, triplet(platform), "xcrun")
         write(xcrun_path, """
               #!/bin/sh
-                          
-              sdk_path=\$SDKROOT
-                          
+
+              sdk_path="\$SDKROOT"
+
               show_sdk_path() {
                   echo "\$1"
               }
-                          
+
               show_sdk_version() {
-                  plistutil -f xml -i \$1/SDKSettings.plist
-                  | grep -A1 '<key>Version</key>' \
-                  | tail -n1 \
+                  plistutil -f xml -i "\$1"/SDKSettings.plist \\
+                  | grep -A1 '<key>Version</key>' \\
+                  | tail -n1 \\
                   | sed -E -e 's/\\s*<string>([^<]+)<\\/string>\\s*/\\1/'
               }
-                          
+
               while [ \$# -gt 0 ]; do
                   case "\$1" in
                       --sdk)
-                          sdk_path=\$2
+                          sdk_path="\$2"
                           shift 2
                           ;;
                       --show-sdk-path)
-                          show_sdk_path \$sdk_path
+                          show_sdk_path "\$sdk_path"
                           shift
                           ;;
                       --show-sdk-version)
-                          show_sdk_version \$sdk_path
+                          show_sdk_version "\$sdk_path"
                           shift
                           ;;
                       *)
@@ -1036,9 +1036,9 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
                           ;;
                   esac
               done
-              
+
               if [ \$# -gt 0 ]; then
-                "\$@"
+                  "\$@"
               fi
               """)
         chmod(xcrun_path, 0o775)
