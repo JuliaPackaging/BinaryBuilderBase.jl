@@ -1011,7 +1011,8 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
               }
                           
               show_sdk_version() {
-                  grep -A1 '<key>Version</key>' \$1/SDKSettings.plist \
+                  plistutil -f xml -i \$1/SDKSettings.plist
+                  | grep -A1 '<key>Version</key>' \
                   | tail -n1 \
                   | sed -E -e 's/\\s*<string>([^<]+)<\\/string>\\s*/\\1/'
               }
