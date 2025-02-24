@@ -617,14 +617,18 @@ end
 
 # Helper function to install packages also in Julia v1.8
 function Pkg_add(args...; kwargs...)
-    @static if VERSION < v"1.8.0"
-        Pkg.add(args...; kwargs...)
-    else
-        try
-            Pkg.respect_sysimage_versions(false)
+    # we don't want to precompile packages during installation
+    # auto-precompilation also calls `Pkg.instantiate` which will warn about non-VERSION `julia_version` values
+    withenv("JULIA_PKG_PRECOMPILE_AUTO" => "false") do
+        @static if VERSION < v"1.8.0"
             Pkg.add(args...; kwargs...)
-        finally
-            Pkg.respect_sysimage_versions(true)
+        else
+            try
+                Pkg.respect_sysimage_versions(false)
+                Pkg.add(args...; kwargs...)
+            finally
+                Pkg.respect_sysimage_versions(true)
+            end
         end
     end
 end
