@@ -1037,10 +1037,47 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         # `xcrun` is another macOS-specific tool, which is occasionally needed to run some
         # commands, for example for the CGO linker.  Ref:
         # <https://github.com/JuliaPackaging/Yggdrasil/pull/2962>.
+        # Cf. <https://www.unix.com/man-page/osx/1/xcrun/>
         xcrun_path = joinpath(bin_path, triplet(platform), "xcrun")
         write(xcrun_path, """
               #!/bin/sh
-              exec "\${@}"
+
+              sdk_path="\${SDKROOT}"
+
+              show_sdk_path() {
+                  echo "\${1}"
+              }
+
+              show_sdk_version() {
+                  plistutil -f xml -i "\${1}"/SDKSettings.plist \\
+                  | grep -A1 '<key>Version</key>' \\
+                  | tail -n1 \\
+                  | sed -E -e 's/\\s*<string>([^<]+)<\\/string>\\s*/\\1/'
+              }
+
+              while [ "\${#}" -gt 0 ]; do
+                  case "\${1}" in
+                      --sdk)
+                          sdk_path="\${2}"
+                          shift 2
+                          ;;
+                      --show-sdk-path)
+                          show_sdk_path "\${sdk_path}"
+                          shift
+                          ;;
+                      --show-sdk-version)
+                          show_sdk_version "\${sdk_path}"
+                          shift
+                          ;;
+                      *)
+                          break
+                          ;;
+                  esac
+              done
+
+              if [ "\${#}" -gt 0 ]; then
+                  exec "\${@}"
+              fi
               """)
         chmod(xcrun_path, 0o775)
     end
@@ -1294,6 +1331,7 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
     if Sys.isapple(platform)
         mapping["LD"] = "/opt/bin/$(triplet(platform))/ld"
         mapping["MACOSX_DEPLOYMENT_TARGET"] = macos_version(platform)
+        mapping["SDKROOT"] = "/opt/$(aatriplet(platform))/$(aatriplet(platform))/sys-root"
     end
 
     # There is no broad agreement on what host compilers should be called,
