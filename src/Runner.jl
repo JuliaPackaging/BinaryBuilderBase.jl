@@ -1037,7 +1037,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
                   esac
               done
 
-              if [[ "\${#}" -gt 0 ]]; then
+              if [ "\${#}" -gt 0 ]; then
                   exec "\${@}"
               fi
               """)
