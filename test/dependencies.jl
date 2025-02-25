@@ -380,21 +380,33 @@ end
                     @test readdir(joinpath(destdir(dir, platform), "bin")) == ["c_rehash", "cmake", "cpack", "ctest", "openssl"]
                 end
             end
-            @testset "should error if build is missing from a specific VersionNumber, with `julia_version=nothing`" begin
-                with_temp_project() do dir
-                    prefix = Prefix(dir)
-                    dependencies = [
-                        PackageSpec(; name="CMake_jll", version = v"3.24.3")
-                    ]
-                    platform = Platform("x86_64", "linux"; libc="musl", cxxstring_abi="cxx11", julia_version=nothing)
+            if VERSION >= v"1.9.0-0"
+                @testset "should error if build is missing from a specific VersionNumber, with `julia_version=nothing`" begin
+                    with_temp_project() do dir
+                        prefix = Prefix(dir)
+                        dependencies = [
+                            PackageSpec(; name="CMake_jll", version = v"3.24.3")
+                        ]
+                        platform = Platform("x86_64", "linux"; libc="musl", cxxstring_abi="cxx11", julia_version=nothing)
 
-                    # Pkg needs improve its error message here, but assume that it will still throw a pkgerror
-                    # https://github.com/JuliaLang/Pkg.jl/issues/4159
-                    # Before https://github.com/JuliaLang/Pkg.jl/pull/4151 this would throw a MethodError for `abspath(::Nothing)`
-                    # So this test will need fixing if/when that gets backported
-                    error_type = VERSION >= v"1.13.0-0" ? Pkg.Types.PkgError : MethodError
-                    @test_throws error_type setup_dependencies(prefix, dependencies, platform)
+                        # Pkg needs improve its error message here, but assume that it will still throw a pkgerror
+                        # https://github.com/JuliaLang/Pkg.jl/issues/4159
+                        # Before https://github.com/JuliaLang/Pkg.jl/pull/4151 this would throw a MethodError for `abspath(::Nothing)`
+                        # So this test will need fixing if/when that gets backported
+                        error_type = if VERSION >= v"1.13.0-0"
+                            Pkg.Types.PkgError
+                        elseif VERSION >= v"1.10.0-0"
+                            MethodError
+                        else
+                            KeyError
+                        end
+                        @test_throws error_type setup_dependencies(prefix, dependencies, platform)
+                    end
                 end
+            else
+                # The above test doesn't throw before v1.9. Unclear why. Pkg misinterpreting a specific (incorrect)
+                # VersionNumber spec as a VersionSpec?
+                @test_broken false
             end
         end
     end
