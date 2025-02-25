@@ -393,7 +393,7 @@ end
                     # Before https://github.com/JuliaLang/Pkg.jl/pull/4151 this would throw a MethodError for `abspath(::Nothing)`
                     # So this test will need fixing if/when that gets backported
                     error_type = VERSION >= v"1.13.0-0" ? Pkg.Types.PkgError : MethodError
-                    @test_throws error_type test_setup_dependencies(prefix, dependencies, platform)
+                    @test_throws error_type setup_dependencies(prefix, dependencies, platform)
                 end
             end
         end
