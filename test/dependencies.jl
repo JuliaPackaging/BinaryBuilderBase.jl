@@ -388,9 +388,13 @@ end
                         PackageSpec(; name="CMake_jll", version = v"3.24.3")
                     ]
                     platform = Platform("x86_64", "linux"; libc="musl", cxxstring_abi="cxx11", julia_version=nothing)
+
                     # Pkg needs improve its error message here, but assume that it will still throw a pkgerror
                     # https://github.com/JuliaLang/Pkg.jl/issues/4159
-                    @test_throws Pkg.Types.PkgError test_setup_dependencies(prefix, dependencies, platform)
+                    # Before https://github.com/JuliaLang/Pkg.jl/pull/4151 this would throw a MethodError for `abspath(::Nothing)`
+                    # So this test will need fixing if/when that gets backported
+                    error_type = VERSION >= v"1.13.0-0" ? Pkg.Types.PkgError : MethodError
+                    @test_throws error_type test_setup_dependencies(prefix, dependencies, platform)
                 end
             end
         end
