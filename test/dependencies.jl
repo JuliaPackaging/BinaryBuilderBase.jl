@@ -389,7 +389,7 @@ end
                     ]
                     # Pkg needs improve its error message here, but assume that it will still throw a pkgerror
                     # https://github.com/JuliaLang/Pkg.jl/issues/4159
-                    @test_throws PKG_VERSIONS.PkgError test_setup_dependencies(prefix, dependencies, platform)
+                    @test_throws Pkg.Types.PkgError test_setup_dependencies(prefix, dependencies, platform)
                 end
             end
         end
