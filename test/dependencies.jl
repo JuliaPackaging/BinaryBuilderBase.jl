@@ -387,7 +387,9 @@ end
                     dependencies = [
                         PackageSpec(; name="CMake_jll", version = v"3.24.3")
                     ]
-                    @test_throws test_setup_dependencies(prefix, dependencies, platform)
+                    # Pkg needs improve its error message here, but assume that it will still throw a pkgerror
+                    # https://github.com/JuliaLang/Pkg.jl/issues/4159
+                    @test_throws PKG_VERSIONS.PkgError test_setup_dependencies(prefix, dependencies, platform)
                 end
             end
         end
