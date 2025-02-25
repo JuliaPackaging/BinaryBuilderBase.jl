@@ -26,10 +26,8 @@ using BinaryBuilderBase: RustBuild, CompilerShard
         Platform("x86_64",  "macos"; libgfortran_version=v"5"),
         Platform("aarch64", "macos"; libgfortran_version=v"5"),
     ]
-    @test expand_gfortran_versions(Platform("aarch64", "freebsd")) == [
-        Platform("aarch64", "freebsd"; libgfortran_version=v"4"),
-        Platform("aarch64", "freebsd"; libgfortran_version=v"5"),
-    ]
+    @test expand_gfortran_versions(Platform("aarch64", "freebsd")) ==
+        [Platform("aarch64", "freebsd"; libgfortran_version=v"5")]
     @test expand_gfortran_versions([Platform("x86_64", "linux"; sanitize="memory")]) ==
         [Platform("x86_64", "linux"; sanitize="memory")]
     @test expand_gfortran_versions(Platform[]) isa Vector{Platform}
@@ -178,9 +176,9 @@ end
         # With LLVM 12 we can only use GCC 6+
         @test gcc_version(Platform("x86_64", "freebsd"), available_gcc_builds; llvm_version=v"12") ==
             filter(≥(v"6"), getversion.(available_gcc_builds))
-        # We can only use GCC 7+ on AArch64
+        # We can only use GCC 9+ on AArch64
         @test gcc_version(Platform("aarch64", "freebsd"), available_gcc_builds) ==
-            filter(≥(v"7"), getversion.(available_gcc_builds))
+            filter(≥(v"9"), getversion.(available_gcc_builds))
 
         # libgfortran v3 and libstdcxx 22 restrict us to only v4.8, v5.2 and v6.1
         p = Platform("x86_64", "linux"; libgfortran_version=v"3", libstdcxx_version=v"3.4.22")
