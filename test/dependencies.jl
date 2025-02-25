@@ -367,7 +367,6 @@ end
         end
 
         @testset "PackageSpec with version" begin
-            platform = Platform("x86_64", "linux"; libc="musl", cxxstring_abi="cxx11")
             # Install a dependency with a specific version number.
             @testset for version in (v"3.24.3+0", "3.24.3")
                 with_temp_project() do dir
@@ -375,18 +374,20 @@ end
                     dependencies = [
                         PackageSpec(; name="CMake_jll", version = version)
                     ]
+                    platform = Platform("x86_64", "linux"; libc="musl", cxxstring_abi="cxx11")
                     test_setup_dependencies(prefix, dependencies, platform)
                     # The directory contains also executables from CMake dependencies.
                     # Test will fail if `setup_dependencies` above failed.
                     @test readdir(joinpath(destdir(dir, platform), "bin")) == ["c_rehash", "cmake", "cpack", "ctest", "openssl"] broken=VERSION>=v"1.9"
                 end
             end
-            @testset "should error if build is missing from a specific VersionNumber" begin
+            @testset "should error if build is missing from a specific VersionNumber, with `julia_version=nothing`" begin
                 with_temp_project() do dir
                     prefix = Prefix(dir)
                     dependencies = [
                         PackageSpec(; name="CMake_jll", version = v"3.24.3")
                     ]
+                    platform = Platform("x86_64", "linux"; libc="musl", cxxstring_abi="cxx11", julia_version=nothing)
                     # Pkg needs improve its error message here, but assume that it will still throw a pkgerror
                     # https://github.com/JuliaLang/Pkg.jl/issues/4159
                     @test_throws Pkg.Types.PkgError test_setup_dependencies(prefix, dependencies, platform)
