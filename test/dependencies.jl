@@ -377,8 +377,7 @@ end
                     platform = Platform("x86_64", "linux"; libc="musl", cxxstring_abi="cxx11")
                     test_setup_dependencies(prefix, dependencies, platform)
                     # The directory contains also executables from CMake dependencies.
-                    # Test will fail if `setup_dependencies` above failed.
-                    @test readdir(joinpath(destdir(dir, platform), "bin")) == ["c_rehash", "cmake", "cpack", "ctest", "openssl"] broken=VERSION>=v"1.9"
+                    @test readdir(joinpath(destdir(dir, platform), "bin")) == ["c_rehash", "cmake", "cpack", "ctest", "openssl"]
                 end
             end
             @testset "should error if build is missing from a specific VersionNumber, with `julia_version=nothing`" begin
