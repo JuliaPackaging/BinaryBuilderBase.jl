@@ -94,6 +94,14 @@ function toolchain_file(bt::CMake, p::AbstractPlatform, host_platform::AbstractP
         set(CMAKE_SYSROOT /opt/$(aatarget)/$(aatarget)/sys-root/)
         """
     end
+
+    if arch(p) == "riscv64"
+        # RISCV libraries are in a subdirectory corresponding to the ABI of the processor
+        file *= """
+        set(CMAKE_SYSTEM_LIBRARY_PATH \${CMAKE_SYSROOT}/usr/lib64/lp64d)
+        """
+    end
+
     file *= """
         set(CMAKE_INSTALL_PREFIX \$ENV{prefix})
 
