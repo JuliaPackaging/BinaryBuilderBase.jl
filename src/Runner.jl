@@ -749,7 +749,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
                 exit 1
             fi
         else
-            PRE_FLAGS+=( '--target=$(map_rust_target(p))' )
+            PRE_FLAGS+=( '--target=\${CARGO_BUILD_TARGET}' )
         fi
         """
         wrapper(io, "/opt/$(host_target)/bin/rustc"; flags=rust_flags!(p), allow_ccache=false, extra_cmds=extra_cmds)
