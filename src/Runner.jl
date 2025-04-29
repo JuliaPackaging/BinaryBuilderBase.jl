@@ -1489,7 +1489,9 @@ function runner_setup!(workspaces, mappings, workspace_root, verbose, kwargs, pl
         if !isdir(ccache_dir())
             mkpath(ccache_dir())
         end
-        push!(workspaces, ccache_dir() => envs["CCACHE_DIR"])
+        # During bootstrap `CCACHE_DIR` may not be defined, we provide a
+        # fallback for that case, otherwise rely on the environment variable.
+        push!(workspaces, ccache_dir() => get(envs, "CCACHE_DIR", "/root/.ccache"))
     end
 
     return platform, envs, shards
