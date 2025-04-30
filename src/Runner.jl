@@ -75,7 +75,7 @@ function ld_library_path(target::AbstractPlatform,
     # that can natively run within this environment
     if csl_paths
         append!(paths,
-                unique("/usr/lib/csl-$(libc(p))-$(arch(p))" for p in (host, target) if Sys.islinux(p) && proc_family(p) == "intel"),
+                unique("/usr/lib/csl-$(libc(p))-$(arch(p))" for p in (target, host) if Sys.islinux(p) && proc_family(p) == "intel"),
                 )
     end
 
