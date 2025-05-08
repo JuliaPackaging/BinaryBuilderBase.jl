@@ -3804,6 +3804,160 @@ os = "linux"
     sha256 = "80c9869b8421b7efdba72f13ec2c24c7ef77b533ad75d8c72739a312adcaef75"
     url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/LLVMBootstrap-v9.0.1+0/LLVMBootstrap.v9.0.1.x86_64-linux-musl.unpacked.tar.gz"
 
+[["OCaml-aarch64-apple-darwin.v5.4.0.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "1f9faa347127cf618ef813b387d721e8af22c276"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["OCaml-aarch64-apple-darwin.v5.4.0.x86_64-linux-musl.squashfs".download]]
+    sha256 = "ac11194f566997f6da4a86ef39e9e28e57d33884e8467b7a48555b84797e0ee2"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/OCaml-v5.4.0/OCaml-aarch64-apple-darwin.v5.4.0.x86_64-linux-musl.squashfs.tar.gz"
+
+[["OCaml-aarch64-apple-darwin.v5.4.0.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "9f0d650ccbd8200284ec7bb8100cc4c6ce44ca2c"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["OCaml-aarch64-apple-darwin.v5.4.0.x86_64-linux-musl.unpacked".download]]
+    sha256 = "8d1c3c9fdb01159c22380ff8b0178813b9b26adf78873ac970e56580fbe11037"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/OCaml-v5.4.0/OCaml-aarch64-apple-darwin.v5.4.0.x86_64-linux-musl.unpacked.tar.gz"
+
+[["OCaml-aarch64-linux-gnu.v5.4.0.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "43825a0f78b3cd4537bc7450e0b9d0ca9dab2468"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["OCaml-aarch64-linux-gnu.v5.4.0.x86_64-linux-musl.squashfs".download]]
+    sha256 = "cac028a1fec129df5ca919a1c978f5333a3673025c523ffb34e3b3a67c4208c6"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/OCaml-v5.4.0/OCaml-aarch64-linux-gnu.v5.4.0.x86_64-linux-musl.squashfs.tar.gz"
+
+[["OCaml-aarch64-linux-gnu.v5.4.0.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "8e050f2038df590797f3f69f158534324f7ce2c9"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["OCaml-aarch64-linux-gnu.v5.4.0.x86_64-linux-musl.unpacked".download]]
+    sha256 = "2b15cde9b66c82e4da4ec336566fb162f6bfae9d0c5187e1d23e8335de549c30"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/OCaml-v5.4.0/OCaml-aarch64-linux-gnu.v5.4.0.x86_64-linux-musl.unpacked.tar.gz"
+
+[["OCaml-aarch64-linux-musl.v5.4.0.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "c27e000b6061db267d69bb554142a6036b1a1883"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["OCaml-aarch64-linux-musl.v5.4.0.x86_64-linux-musl.squashfs".download]]
+    sha256 = "7352645dc52064131f9fc20d3c8db8708400bf1b9737701339cc4b3f7febf02b"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/OCaml-v5.4.0/OCaml-aarch64-linux-musl.v5.4.0.x86_64-linux-musl.squashfs.tar.gz"
+
+[["OCaml-aarch64-linux-musl.v5.4.0.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "10b7c45f5cdc390b07ac18f6de7b773bc6303070"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["OCaml-aarch64-linux-musl.v5.4.0.x86_64-linux-musl.unpacked".download]]
+    sha256 = "b3327ffe3525604f2793ab07b823ca70fcd73e0b97af733d98ccda0e0fc8f680"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/OCaml-v5.4.0/OCaml-aarch64-linux-musl.v5.4.0.x86_64-linux-musl.unpacked.tar.gz"
+
+[["OCaml-x86_64-apple-darwin.v5.4.0.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "ac1a2a8809bde935390af5d6e0681c68a00a4db1"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["OCaml-x86_64-apple-darwin.v5.4.0.x86_64-linux-musl.squashfs".download]]
+    sha256 = "2a4b7d421a203e217e99034f804f46c5e3c564671bafc172eecc711e4f382726"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/OCaml-v5.4.0/OCaml-x86_64-apple-darwin.v5.4.0.x86_64-linux-musl.squashfs.tar.gz"
+
+[["OCaml-x86_64-apple-darwin.v5.4.0.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "1ba0493deaa6ec2b3d1b468ef1cdd633af6e9ab1"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["OCaml-x86_64-apple-darwin.v5.4.0.x86_64-linux-musl.unpacked".download]]
+    sha256 = "0d824d99193c18b1ff6380a128605bd0237d6ed5f771ca6948ac0c796d302bd2"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/OCaml-v5.4.0/OCaml-x86_64-apple-darwin.v5.4.0.x86_64-linux-musl.unpacked.tar.gz"
+
+[["OCaml-x86_64-linux-gnu.v5.4.0.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "81ee49ddc2991943d42f5f958117b9a12e6d8542"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["OCaml-x86_64-linux-gnu.v5.4.0.x86_64-linux-musl.squashfs".download]]
+    sha256 = "f0e5b04a1beb69bcaab12289e5bc7237e14d8520c8b66edf0b8f90eda828b24e"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/OCaml-v5.4.0/OCaml-x86_64-linux-gnu.v5.4.0.x86_64-linux-musl.squashfs.tar.gz"
+
+[["OCaml-x86_64-linux-gnu.v5.4.0.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "adfa663e0cf79e8fa40afb1dfa3d5f2b13c144ed"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["OCaml-x86_64-linux-gnu.v5.4.0.x86_64-linux-musl.unpacked".download]]
+    sha256 = "57f6bbe7af42ef089809fc50b5881f4c8c6c5216813c455b8319b753b60d1b40"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/OCaml-v5.4.0/OCaml-x86_64-linux-gnu.v5.4.0.x86_64-linux-musl.unpacked.tar.gz"
+
+[["OCaml-x86_64-linux-musl.v5.4.0.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "e09f0e9d114794327a1d16f18fca33fbf9dac98b"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["OCaml-x86_64-linux-musl.v5.4.0.x86_64-linux-musl.squashfs".download]]
+    sha256 = "296cebca96f8e045292730426c5c3baab3a8785ad9a9c5d4c7638e63f556c71a"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/OCaml-v5.4.0/OCaml-x86_64-linux-musl.v5.4.0.x86_64-linux-musl.squashfs.tar.gz"
+
+[["OCaml-x86_64-linux-musl.v5.4.0.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "3b6ebd3c7d07a6eb2980d559c17f94ff921fa510"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["OCaml-x86_64-linux-musl.v5.4.0.x86_64-linux-musl.unpacked".download]]
+    sha256 = "ebf316f8c81be0c74439be1ec45d0ebc4c42b8303487d6bb3136f6e64ecc2ee9"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/OCaml-v5.4.0/OCaml-x86_64-linux-musl.v5.4.0.x86_64-linux-musl.unpacked.tar.gz"
+
+[["OCaml-x86_64-w64-mingw32.v5.4.0.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "85b2f93bedd5a49457a508522c9184221a85494b"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["OCaml-x86_64-w64-mingw32.v5.4.0.x86_64-linux-musl.squashfs".download]]
+    sha256 = "b7b4c0a802cd17a2f315186ac102318273fe044ae1c4a829ff01d7fa054d57fa"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/OCaml-v5.4.0/OCaml-x86_64-w64-mingw32.v5.4.0.x86_64-linux-musl.squashfs.tar.gz"
+
+[["OCaml-x86_64-w64-mingw32.v5.4.0.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "d49567a0c987074f9d3509c63ca73cce5b3512a0"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["OCaml-x86_64-w64-mingw32.v5.4.0.x86_64-linux-musl.unpacked".download]]
+    sha256 = "c35291496ff5f9d17abbc7182d0a835857a9ee5012b2d1c08421469e7a0bb9ef"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/OCaml-v5.4.0/OCaml-x86_64-w64-mingw32.v5.4.0.x86_64-linux-musl.unpacked.tar.gz"
+
 [["PlatformSupport-aarch64-apple-darwin20.v2021.8.10.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
 git-tree-sha1 = "e99cd089f71d5d9605621ba7dd6d32994bba3de8"
