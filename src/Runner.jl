@@ -729,6 +729,14 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     end
     gofmt(io::IO, p::AbstractPlatform) = wrapper(io, "/opt/$(host_target)/go/bin/gofmt"; allow_ccache=false)
 
+    # OCaml stuff
+    function ocaml_wrapper(io::IO, tool::String, p::AbstractPlatform)
+        return wrapper(io, "/opt/$(aatriplet(p))/bin/$(tool)")
+    end
+    ocamlc(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "ocamlc.opt", p)
+    ocamlopt(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "ocamlopt.opt", p)
+    flexlink(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "flexlink", p)
+
     # Rust stuff
     function rust_flags!(p::AbstractPlatform, flags::Vector{String} = String[])
         if Sys.islinux(p)
@@ -966,6 +974,16 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             end
         end
 
+        # Generate OCaml stuff
+        if :ocaml in compilers
+            write_wrapper(ocamlc, p, "$(t)-ocamlc.opt")
+            write_wrapper(ocamlopt, p, "$(t)-ocamlopt.opt")
+
+            if Sys.iswindows(p)
+                write_wrapper(flexlink, p, "$(t)-flexlink")
+            end
+        end
+
         # Generate go stuff
         if :go in compilers
             write_wrapper(go, p, "$(t)-go")
@@ -1011,6 +1029,12 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     end
     if :rust in compilers
         append!(default_tools, ("rustc","rustup","cargo"))
+    end
+    if :ocaml in compilers
+        append!(default_tools, ("ocamlc.opt", "ocamlopt.opt"))
+        if Sys.iswindows(platform)
+            push!(default_tools, "flexlink")
+        end
     end
     if :go in compilers
         append!(default_tools, ("go", "gofmt"))
@@ -1267,6 +1291,11 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
             "GOPATH" => "/workspace/.gopath",
             "GOARM" => GOARM(platform),
         ))
+    end
+
+    # OCaml stuff
+    if :ocaml in compilers
+        # no environment variables required (yet)
     end
 
     # Rust stuff
