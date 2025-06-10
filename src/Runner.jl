@@ -455,10 +455,10 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         ])
 
         if Sys.isapple(p)
-            macos_version_flags = clang_use_lld ? (min_macos_version_flags()[1],) : min_macos_version_flags()
-            append!(flags, String[
-                macos_version_flags...,
-            ])
+             # Only add the compile-time flag here
+             append!(flags, String[
+                 min_macos_version_flags()[1],  # -mmacosx-version-min=...
+             ])
         end
 
         sanitize_compile_flags!(p, flags)
@@ -534,6 +534,12 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         if Sys.isapple(p)
             push!(flags, "-headerpad_max_install_names")
         end
+
+        if Sys.isapple(p) && !clang_use_lld
+            # Add the linker-specific flag only when linking
+            push!(flags, min_macos_version_flags()[2])  # -Wl,-sdk_version,...
+        end
+        
         return flags
     end
 
