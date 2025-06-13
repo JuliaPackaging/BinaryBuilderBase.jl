@@ -382,9 +382,12 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         return flags
     end
 
-    function min_macos_version_flags()
-        # Ask compilers to compile for a minimum macOS version, targeting that SDK.
-        return ("-mmacosx-version-min=\${MACOSX_DEPLOYMENT_TARGET}", "-Wl,-sdk_version,\${MACOSX_DEPLOYMENT_TARGET}")
+    # Ask compilers to compile for a minimum macOS version, targeting that SDK.
+    function min_macos_version_compiler_flags()
+        return ("-mmacosx-version-min=\${MACOSX_DEPLOYMENT_TARGET}",)
+    end
+    function min_macos_version_linker_flags()
+        return ("-Wl,-sdk_version,\${MACOSX_DEPLOYMENT_TARGET}",)
     end
 
     function add_system_includedir(flags::Vector{String})
@@ -455,9 +458,8 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         ])
 
         if Sys.isapple(p)
-            macos_version_flags = clang_use_lld ? (min_macos_version_flags()[1],) : min_macos_version_flags()
             append!(flags, String[
-                macos_version_flags...,
+                min_macos_version_compiler_flags()...,
             ])
         end
 
@@ -529,10 +531,14 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         end
         sanitize_link_flags!(p, flags)
 
-        # On macos, we need to pass `-headerpad_max_install_names` so that we have lots of space
-        # for `install_name_tool` shenanigans during audit fixups.
         if Sys.isapple(p)
+            # On macos, we need to pass `-headerpad_max_install_names` so that we have lots
+            # of space for `install_name_tool` shenanigans during audit fixups.
             push!(flags, "-headerpad_max_install_names")
+            if !clang_use_lld
+                # The `-sdk_version` flag is not implemented in lld yet.
+                append!(flags, min_macos_version_linker_flags())
+            end
         end
         return flags
     end
@@ -544,7 +550,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         if gcc_version.major in (4, 5)
             push!(flags, "-Wl,-syslibroot,/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root")
         end
-        append!(flags, min_macos_version_flags())
+        append!(flags, min_macos_version_compiler_flags())
         return flags
     end
 
@@ -617,6 +623,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             ])
         elseif Sys.isapple(p)
             push!(flags, "-headerpad_max_install_names")
+            append!(flags, min_macos_version_linker_flags())
         elseif Sys.iswindows(p) && gcc_version ≥ v"5"
             # Do not embed timestamps, for reproducibility:
             # https://github.com/JuliaPackaging/BinaryBuilder.jl/issues/1232
