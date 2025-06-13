@@ -407,6 +407,11 @@ const available_gcc_builds = [
     # GCCBuild(v"11.0.0-iains", (libgfortran_version = v"5", libstdcxx_version = v"3.4.28", cxxstring_abi = "cxx11")),
     GCCBuild(v"12.0.1-iains", (libgfortran_version = v"5", libstdcxx_version = v"3.4.29", cxxstring_abi = "cxx11")),
 ]
+
+# Since we read the Artifacts.toml at compile time, we need to make sure that we-reprecompile
+# if the file changes - let Julia know.
+Base.include_dependency(joinpath(dirname(@__DIR__), "Artifacts.toml"))
+
 const available_llvm_builds = LLVMBuild.(get_available_builds("LLVMBootstrap."))
 
 const available_go_builds = GoBuild.(get_available_builds("Go."))
