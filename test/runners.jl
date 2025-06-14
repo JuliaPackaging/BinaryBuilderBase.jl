@@ -458,12 +458,14 @@ end
             platform = Platform("x86_64", "macos")
             test_script = raw"""
             set -e
-            prog='int main(void) { return 0; }'
-            echo "${prog}" | clang -x c - -o test-clang
+            echo 'int main(void) { return 0; }' > test.c
+            clang -Wall -Werror -Werror=unused-command-line-argument test.c -c -o test-clang.o
+            clang -Wall -Werror -Werror=unused-command-line-argument test-clang.o -o test-clang
             otool -lV test-clang | grep sdk
             # Set `MACOSX_DEPLOYMENT_TARGET` to override the value of the SDK
             export MACOSX_DEPLOYMENT_TARGET=10.14
-            echo "${prog}" | gcc -x c - -o test-gcc
+            gcc -Wall -Werror test.c -c -o test-gcc.o
+            gcc -Wall -Werror test-gcc.o -o test-gcc
             otool -lV test-gcc | grep sdk
             """
             cmd = `/bin/bash -c "$(test_script)"`
