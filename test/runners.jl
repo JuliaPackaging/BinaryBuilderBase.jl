@@ -584,7 +584,7 @@ end
     @testset "basic program" begin
         mktempdir() do dir
             compilers = [:c, :ocaml]
-            ur = preferred_runner()(dir; platform=Platform("x86_64", "linux"; libc="glibc"), preferred_gcc_version=v"5", compilers)
+            ur = preferred_runner()(dir; platform=Platform("x86_64", "linux"; libc="glibc"), preferred_gcc_version=v"6", compilers)
             # Make sure the runner platform is concrete even if the requested platform isn't
             @test !isnothing(libgfortran_version(ur.platform))
             @test !isnothing(cxxstring_abi(ur.platform))
