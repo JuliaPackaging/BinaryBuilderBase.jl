@@ -736,6 +736,9 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     ocamlc(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "ocamlc.opt", p)
     ocamlopt(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "ocamlopt.opt", p)
     flexlink(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "flexlink", p)
+    dune(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "dune", p)
+    ocamlbuild(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "ocamlbuild", p)
+    opam(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "opam", p)
 
     # Rust stuff
     function rust_flags!(p::AbstractPlatform, flags::Vector{String} = String[])
@@ -982,6 +985,10 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             if Sys.iswindows(p)
                 write_wrapper(flexlink, p, "$(t)-flexlink")
             end
+
+            write_wrapper(dune, p, "$(t)-dune")
+            write_wrapper(ocamlbuild, p, "$(t)-ocamlbuild")
+            write_wrapper(opam, p, "$(t)-opam")
         end
 
         # Generate go stuff
@@ -1035,6 +1042,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         if Sys.iswindows(platform)
             push!(default_tools, "flexlink")
         end
+        append!(default_tools, ("dune", "ocamlbuild", "opam"))
     end
     if :go in compilers
         append!(default_tools, ("go", "gofmt"))
