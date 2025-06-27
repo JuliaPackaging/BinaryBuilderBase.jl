@@ -597,7 +597,7 @@ function choose_shards(p::AbstractPlatform;
             bootstrap_list::Vector{Symbol} = bootstrap_list,
             # Because GCC has lots of compatibility issues, we always default to
             # the earliest version possible.
-            preferred_gcc_version::VersionNumber = getversion(GCC_builds[1]),
+            preferred_gcc_version::Union{Nothing,VersionNumber} = nothing,
             # Because LLVM doesn't have compatibility issues, we always default
             # to the newest version possible.
             preferred_llvm_version::VersionNumber = getversion(LLVM_builds[end]),
@@ -609,6 +609,17 @@ function choose_shards(p::AbstractPlatform;
             # Always default to the latest OCaml version
             preferred_ocaml_version::VersionNumber = maximum(getversion.(OCaml_builds)),
         )
+
+    # The preferred GCC version depends on the compilers we are using.
+    if preferred_gcc_version === nothing
+        preferred_gcc_version = if :ocaml in compilers
+            # OCaml shards have been compiled agains GCC 6
+            compatible_gcc_builds = filter(b -> getversion(b) >= v"6", GCC_builds)
+            getversion(compatible_gcc_builds[1])
+        else
+            getversion(GCC_builds[1])
+        end
+    end
 
     function find_shard(name, version, archive_type; target = nothing)
         # aarch64-apple-darwin is a special platform because it has a single GCCBootstrap
