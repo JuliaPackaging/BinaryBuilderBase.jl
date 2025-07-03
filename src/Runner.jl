@@ -1061,9 +1061,10 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     if :go in compilers
         append!(default_tools, ("go", "gofmt"))
     end
-    # Create symlinks for default compiler invocations, invoke target toolchain
+    # Create symlinks for default compiler invocations
     for tool in default_tools
         symlink("$(target)-$(tool)", joinpath(bin_path, triplet(platform), tool))
+        symlink("$(host_target)-$(tool)", joinpath(bin_path, triplet(host_platform), tool))
     end
 
     # Generate other fake system-specific tools.
