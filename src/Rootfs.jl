@@ -742,8 +742,15 @@ function choose_shards(p::AbstractPlatform;
                 error("Requested OCaml toolchain $(preferred_ocaml_version) not available in $(OCaml_builds)")
             end
 
+            # Add a host-native shard, which we often need to bootstrap
             push!(shards, find_shard("OCaml", OCaml_build, archive_type;
-                                     target = isa(p, AnyPlatform) ? default_host_platform : p))
+                                     target=default_host_platform))
+
+            # If needed, add a cross-compiling target shard
+            if !isa(p, AnyPlatform) && !platforms_match(p, default_host_platform)
+                push!(shards, find_shard("OCaml", OCaml_build, archive_type;
+                                         target=p))
+            end
         end
     else
         function find_latest_version(name)
