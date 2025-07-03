@@ -1318,7 +1318,9 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
 
     # OCaml stuff
     if :ocaml in compilers
-        # no environment variables required (yet)
+        merge!(mapping, Dict(
+            "OCAMLLIB" => "/opt/$(target)/lib/ocaml",
+        ))
     end
 
     # Rust stuff
