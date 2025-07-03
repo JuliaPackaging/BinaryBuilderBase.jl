@@ -733,12 +733,21 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     function ocaml_wrapper(io::IO, tool::String, p::AbstractPlatform)
         return wrapper(io, "/opt/$(aatriplet(p))/bin/$(tool)")
     end
-    ocamlc(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "ocamlc.opt", p)
-    ocamlopt(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "ocamlopt.opt", p)
+    ## cross-tools for the target
+    ocamlc(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "ocamlc", p)
+    ocamlopt(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "ocamlopt", p)
+    ocamldep(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "ocamldep", p)
     flexlink(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "flexlink", p)
-    dune(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "dune", p)
-    ocamlbuild(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "ocamlbuild", p)
-    opam(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "opam", p)
+    ocamllex(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "ocamllex", p)
+    # XXX: ocamlyacc not being a cross tool seems like a bug?
+    ocamlyacc(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "ocamlyacc", host_platform)
+    ## native parts of the toolchain
+    ocaml(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "ocaml", host_platform)
+    ocamlrun(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "ocamlrun", host_platform)
+    ## auxiliary tools that are only built for the host
+    dune(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "dune", host_platform)
+    ocamlbuild(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "ocamlbuild", host_platform)
+    ocamlfind(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "ocamlfind", host_platform)
 
     # Rust stuff
     function rust_flags!(p::AbstractPlatform, flags::Vector{String} = String[])
@@ -979,8 +988,13 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
 
         # Generate OCaml stuff
         if :ocaml in compilers
-            write_wrapper(ocamlc, p, "$(t)-ocamlc.opt")
-            write_wrapper(ocamlopt, p, "$(t)-ocamlopt.opt")
+            write_wrapper(ocaml, p, "$(t)-ocaml")
+            write_wrapper(ocamldep, p, "$(t)-ocamldep")
+            write_wrapper(ocamlc, p, "$(t)-ocamlc")
+            write_wrapper(ocamlopt, p, "$(t)-ocamlopt")
+            write_wrapper(ocamlrun, p, "$(t)-ocamlrun")
+            write_wrapper(ocamlyacc, p, "$(t)-ocamlyacc")
+            write_wrapper(ocamllex, p, "$(t)-ocamllex")
 
             if Sys.iswindows(p)
                 write_wrapper(flexlink, p, "$(t)-flexlink")
@@ -988,7 +1002,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
 
             write_wrapper(dune, p, "$(t)-dune")
             write_wrapper(ocamlbuild, p, "$(t)-ocamlbuild")
-            write_wrapper(opam, p, "$(t)-opam")
+            write_wrapper(ocamlfind, p, "$(t)-ocamlfind")
         end
 
         # Generate go stuff
@@ -1038,11 +1052,11 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         append!(default_tools, ("rustc","rustup","cargo"))
     end
     if :ocaml in compilers
-        append!(default_tools, ("ocamlc.opt", "ocamlopt.opt"))
+        append!(default_tools, ("ocaml", "ocamldep", "ocamlc", "ocamlopt", "ocamlrun", "ocamlyacc", "ocamllex"))
         if Sys.iswindows(platform)
             push!(default_tools, "flexlink")
         end
-        append!(default_tools, ("dune", "ocamlbuild", "opam"))
+        append!(default_tools, ("dune", "ocamlbuild", "ocamlfind"))
     end
     if :go in compilers
         append!(default_tools, ("go", "gofmt"))
