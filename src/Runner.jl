@@ -1064,7 +1064,9 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     # Create symlinks for default compiler invocations
     for tool in default_tools
         symlink("$(target)-$(tool)", joinpath(bin_path, triplet(platform), tool))
-        symlink("$(host_target)-$(tool)", joinpath(bin_path, triplet(host_platform), tool))
+        if target != host_target
+            symlink("$(host_target)-$(tool)", joinpath(bin_path, triplet(host_platform), tool))
+        end
     end
 
     # Generate other fake system-specific tools.
