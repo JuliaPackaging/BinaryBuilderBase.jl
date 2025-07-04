@@ -5390,24 +5390,24 @@ os = "linux"
 
 [["Rootfs.v2025.7.4.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
-git-tree-sha1 = "7e74660a66b2914c785c55092fc7bd6adf0ef8b9"
+git-tree-sha1 = "68d66eaf3d8ed99afea82229e16ce9eda2b454da"
 lazy = true
 libc = "musl"
 os = "linux"
 
     [["Rootfs.v2025.7.4.x86_64-linux-musl.squashfs".download]]
-    sha256 = "468d5c0fb3a6167171f2464555cd67257f1cdc87bcc0bdab5914208076f5fa8c"
+    sha256 = "303aa5972b7b5b92838de6d20208fcbce26dfc1ed41328cba8c78cd5b9fb7b30"
     url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/Rootfs-v2025.7.4/Rootfs.v2025.7.4.x86_64-linux-musl.squashfs.tar.gz"
 
 [["Rootfs.v2025.7.4.x86_64-linux-musl.unpacked"]]
 arch = "x86_64"
-git-tree-sha1 = "fcf20261875c921fae433a73e0ca11d5750770e6"
+git-tree-sha1 = "e8c56f9c44dbe45e2f378f5b44bf8e81190c3e62"
 lazy = true
 libc = "musl"
 os = "linux"
 
     [["Rootfs.v2025.7.4.x86_64-linux-musl.unpacked".download]]
-    sha256 = "3b36e51a960db22767f1ea2a4bbada2d09173b58a61b68e2d6334585b373cec1"
+    sha256 = "b0e3353902e74394387311cb3122a1856704c35257acf9bb39268860f7a77df6"
     url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/Rootfs-v2025.7.4/Rootfs.v2025.7.4.x86_64-linux-musl.unpacked.tar.gz"
 
 [["RustBase.v1.57.0.x86_64-linux-musl.squashfs"]]

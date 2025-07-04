@@ -142,8 +142,8 @@ end
         platform = Platform("x86_64", "linux")
         common_opts = (preferred_gcc_version=v"9", compilers=[:c, :ocaml])
 
-        shards = choose_shards(platform; preferred_ocaml_version = v"5.4", (common_opts)... )
-        @test filter(s-> s.name == "OCaml", shards)[end].version == v"5.4"
+        shards = choose_shards(platform; preferred_ocaml_version = v"5.3", (common_opts)... )
+        @test filter(s-> s.name == "OCaml", shards)[end].version == v"5.3"
 
         @test_throws ErrorException choose_shards(platform; preferred_ocaml_version = v"4.1", (common_opts)...)
     end
