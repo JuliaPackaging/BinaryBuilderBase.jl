@@ -1322,6 +1322,11 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
     if :ocaml in compilers
         merge!(mapping, Dict(
             "OCAMLLIB" => "/opt/$(target)/lib/ocaml",
+
+            # Default mappings for some tools
+            "OCAMLC" => "ocamlc",
+            "OCAMLOPT" => "ocamlopt",
+            "OCAMLFIND" => "ocamlfind",
         ))
     end
 
