@@ -866,6 +866,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     as(io::IO, p::AbstractPlatform) =
         wrapper(io, string("/opt/", aatriplet(p), "/bin/", aatriplet(p), "-as");
                 allow_ccache=false,
+                lock_microarchitecture,
                 # At the moment `as` for `aarch64-apple-darwin` is `clang-8`, which can't deal with
                 # `MACOSX_DEPLOYMENT_TARGET=11.0`, so we pretend to be on 10.16.  Note: a better check would be
                 # `VersionNumber(macos_version(p)) ≥ v"11"`, but sometimes `p` may not have `os_version` set, leading to
