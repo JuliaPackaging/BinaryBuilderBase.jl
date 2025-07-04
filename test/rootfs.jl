@@ -138,6 +138,16 @@ end
         @test_throws ErrorException choose_shards(platform; preferred_go_version = v"1.14", (common_opts)...)
     end
 
+    @testset "OCaml toolchain selection" begin
+        platform = Platform("x86_64", "linux")
+        common_opts = (preferred_gcc_version=v"9", compilers=[:c, :ocaml])
+
+        shards = choose_shards(platform; preferred_ocaml_version = v"5.3", (common_opts)... )
+        @test filter(s-> s.name == "OCaml", shards)[end].version == v"5.3"
+
+        @test_throws ErrorException choose_shards(platform; preferred_ocaml_version = v"4.1", (common_opts)...)
+    end
+
     @testset "GCC ABI matching" begin
         # Preferred libgfortran version and C++ string ABI
         platform = Platform("x86_64", "freebsd")
