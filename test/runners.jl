@@ -600,6 +600,8 @@ end
             ${prefix}/bin/hello_world${exeext}
             """
             @test run(ur, `/bin/bash -c "$(test_script)"`, iobuff)
+            seek(iobuff, 0)
+            @test readlines(iobuff)[end] == "hello world"
         end
     end
 end
