@@ -383,6 +383,10 @@ struct RustBuild <: CompilerBuild
     version::VersionNumber
 end
 
+struct OCamlBuild <: CompilerBuild
+    version::VersionNumber
+end
+
 getversion(c::CompilerBuild) = c.version
 getabi(c::CompilerBuild) = c.abi
 
@@ -417,6 +421,8 @@ const available_llvm_builds = LLVMBuild.(get_available_builds("LLVMBootstrap."))
 const available_go_builds = GoBuild.(get_available_builds("Go."))
 
 const available_rust_builds = RustBuild.(get_available_builds("RustBase."))
+
+const available_ocaml_builds = OCamlBuild.(get_available_builds("OCaml-"))
 
 """
     gcc_version(p::AbstractPlatform, GCC_builds::Vector{GCCBuild},
@@ -586,11 +592,12 @@ function choose_shards(p::AbstractPlatform;
             LLVM_builds::Vector{LLVMBuild}=available_llvm_builds,
             Rust_builds::Vector{RustBuild}=available_rust_builds,
             Go_builds::Vector{GoBuild}=available_go_builds,
+            OCaml_builds::Vector{OCamlBuild}=available_ocaml_builds,
             archive_type::Symbol = (use_squashfs[] ? :squashfs : :unpacked),
             bootstrap_list::Vector{Symbol} = bootstrap_list,
             # Because GCC has lots of compatibility issues, we always default to
             # the earliest version possible.
-            preferred_gcc_version::VersionNumber = getversion(GCC_builds[1]),
+            preferred_gcc_version::Union{Nothing,VersionNumber} = nothing,
             # Because LLVM doesn't have compatibility issues, we always default
             # to the newest version possible.
             preferred_llvm_version::VersionNumber = getversion(LLVM_builds[end]),
@@ -599,7 +606,20 @@ function choose_shards(p::AbstractPlatform;
             preferred_rust_version::VersionNumber = maximum(getversion.(Rust_builds)),
             # Always default to the latest Go version
             preferred_go_version::VersionNumber = maximum(getversion.(Go_builds)),
+            # Always default to the latest OCaml version
+            preferred_ocaml_version::VersionNumber = maximum(getversion.(OCaml_builds)),
         )
+
+    # The preferred GCC version depends on the compilers we are using.
+    if preferred_gcc_version === nothing
+        preferred_gcc_version = if :ocaml in compilers
+            # OCaml shards have been compiled agains GCC 6
+            compatible_gcc_builds = filter(b -> getversion(b) >= v"6", GCC_builds)
+            getversion(compatible_gcc_builds[1])
+        else
+            getversion(GCC_builds[1])
+        end
+    end
 
     function find_shard(name, version, archive_type; target = nothing)
         # aarch64-apple-darwin is a special platform because it has a single GCCBootstrap
@@ -712,6 +732,25 @@ function choose_shards(p::AbstractPlatform;
             end
 
             push!(shards, find_shard("Go", Go_build, archive_type))
+        end
+
+        if :ocaml in compilers
+            # Make sure the selected OCaml toolchain version is available
+            if preferred_ocaml_version in getversion.(OCaml_builds)
+                OCaml_build = preferred_ocaml_version
+            else
+                error("Requested OCaml toolchain $(preferred_ocaml_version) not available in $(OCaml_builds)")
+            end
+
+            # Add a host-native shard, which we often need to bootstrap
+            push!(shards, find_shard("OCaml", OCaml_build, archive_type;
+                                     target=default_host_platform))
+
+            # If needed, add a cross-compiling target shard
+            if !isa(p, AnyPlatform) && !platforms_match(p, default_host_platform)
+                push!(shards, find_shard("OCaml", OCaml_build, archive_type;
+                                         target=p))
+            end
         end
     else
         function find_latest_version(name)

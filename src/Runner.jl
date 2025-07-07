@@ -729,6 +729,26 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     end
     gofmt(io::IO, p::AbstractPlatform) = wrapper(io, "/opt/$(host_target)/go/bin/gofmt"; allow_ccache=false)
 
+    # OCaml stuff
+    function ocaml_wrapper(io::IO, tool::String, p::AbstractPlatform)
+        return wrapper(io, "/opt/$(aatriplet(p))/bin/$(tool)")
+    end
+    ## cross-tools for the target
+    ocamlc(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "ocamlc", p)
+    ocamlopt(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "ocamlopt", p)
+    ocamldep(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "ocamldep", p)
+    flexlink(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "flexlink", p)
+    ocamllex(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "ocamllex", p)
+    # XXX: ocamlyacc not being a cross tool seems like a bug?
+    ocamlyacc(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "ocamlyacc", host_platform)
+    ## native parts of the toolchain
+    ocaml(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "ocaml", host_platform)
+    ocamlrun(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "ocamlrun", host_platform)
+    ## auxiliary tools that are only built for the host
+    dune(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "dune", host_platform)
+    ocamlbuild(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "ocamlbuild", host_platform)
+    ocamlfind(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "ocamlfind", host_platform)
+
     # Rust stuff
     function rust_flags!(p::AbstractPlatform, flags::Vector{String} = String[])
         if Sys.islinux(p)
@@ -966,6 +986,25 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             end
         end
 
+        # Generate OCaml stuff
+        if :ocaml in compilers
+            write_wrapper(ocaml, p, "$(t)-ocaml")
+            write_wrapper(ocamldep, p, "$(t)-ocamldep")
+            write_wrapper(ocamlc, p, "$(t)-ocamlc")
+            write_wrapper(ocamlopt, p, "$(t)-ocamlopt")
+            write_wrapper(ocamlrun, p, "$(t)-ocamlrun")
+            write_wrapper(ocamlyacc, p, "$(t)-ocamlyacc")
+            write_wrapper(ocamllex, p, "$(t)-ocamllex")
+
+            if Sys.iswindows(p)
+                write_wrapper(flexlink, p, "$(t)-flexlink")
+            end
+
+            write_wrapper(dune, p, "$(t)-dune")
+            write_wrapper(ocamlbuild, p, "$(t)-ocamlbuild")
+            write_wrapper(ocamlfind, p, "$(t)-ocamlfind")
+        end
+
         # Generate go stuff
         if :go in compilers
             write_wrapper(go, p, "$(t)-go")
@@ -1012,12 +1051,22 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     if :rust in compilers
         append!(default_tools, ("rustc","rustup","cargo"))
     end
+    if :ocaml in compilers
+        append!(default_tools, ("ocaml", "ocamldep", "ocamlc", "ocamlopt", "ocamlrun", "ocamlyacc", "ocamllex"))
+        if Sys.iswindows(platform)
+            push!(default_tools, "flexlink")
+        end
+        append!(default_tools, ("dune", "ocamlbuild", "ocamlfind"))
+    end
     if :go in compilers
         append!(default_tools, ("go", "gofmt"))
     end
-    # Create symlinks for default compiler invocations, invoke target toolchain
+    # Create symlinks for default compiler invocations
     for tool in default_tools
         symlink("$(target)-$(tool)", joinpath(bin_path, triplet(platform), tool))
+        if target != host_target
+            symlink("$(host_target)-$(tool)", joinpath(bin_path, triplet(host_platform), tool))
+        end
     end
 
     # Generate other fake system-specific tools.
@@ -1266,6 +1315,18 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
             "GOCACHE" => "/workspace/.gocache",
             "GOPATH" => "/workspace/.gopath",
             "GOARM" => GOARM(platform),
+        ))
+    end
+
+    # OCaml stuff
+    if :ocaml in compilers
+        merge!(mapping, Dict(
+            "OCAMLLIB" => "/opt/$(target)/lib/ocaml",
+
+            # Default mappings for some tools
+            "OCAMLC" => "ocamlc",
+            "OCAMLOPT" => "ocamlopt",
+            "OCAMLFIND" => "ocamlfind",
         ))
     end
 
