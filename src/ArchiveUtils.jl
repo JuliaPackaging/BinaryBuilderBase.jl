@@ -1,6 +1,7 @@
 using Base: SHA1
 using Downloads, Tar, p7zip_jll, pigz_jll, SimpleBufferStream, SHA
 using Pkg.Artifacts: artifact_exists, artifact_path, query_override
+using XZ_jll: xz
 
 export unpack, list_tarball_files, verify, download_verify
 
@@ -146,14 +147,16 @@ end
 # function
 function archive_artifact(hash::SHA1, tarball_path::String;
                           honor_overrides::Bool=false,
-                          package::Function=package)
+                          package::Function=package,
+                          compression_format::String="gzip",
+                          )
 
     if !artifact_exists(hash)
         error("Unable to archive artifact $(bytes2hex(hash.bytes)): does not exist!")
     end
 
     # Package it up
-    package(artifact_path(hash), tarball_path)
+    package(artifact_path(hash), tarball_path; format=compression_format)
 
     # Calculate its sha256 and return that
     return open(tarball_path, "r") do io
@@ -170,6 +173,8 @@ function package(src_dir::AbstractString, tarball_path::AbstractString;
     # does not.
     compress_cmd = if format == "gzip"
         pipeline(`$(pigz()) --no-time --no-name -9`, stdout=tarball_path)
+    elseif format == "xz"
+        pipeline(`$(xz()) -T0 -9`; stdout=tarball_path)
     else
         pipeline(`$(p7zip()) a -si -t$format -mx9 $tarball_path`, stdout=devnull)
     end

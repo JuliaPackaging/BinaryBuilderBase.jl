@@ -69,20 +69,25 @@ end
             write(f, "use_julia=true\n")
         end
 
-        # Next, package it up as a .tar.gz file
-        tarball_path, tarball_hash = @test_logs (:info, r"^Tree hash of contents of") (:info, r"^SHA256 of") begin
-            package(prefix, "./libfoo", v"1.0.0"; verbose=true)
-        end
-        @test isfile(tarball_path)
+        for compression_format in ("gzip", "xz", "bzip2")
+            # Next, package it up as a tarball
+            tarball_path, tarball_hash = @test_logs (:info, r"^Tree hash of contents of") (:info, r"^SHA256 of") begin
+                package(prefix, "./libfoo", v"1.0.0"; verbose=true, compression_format)
+            end
+            @test isfile(tarball_path)
 
-        # Check that we are calculating the hash properly
-        tarball_hash_check = open(tarball_path, "r") do f
-            bytes2hex(sha256(f))
+            # Check that we are calculating the hash properly
+            tarball_hash_check = open(tarball_path, "r") do f
+                bytes2hex(sha256(f))
+            end
+            @test tarball_hash_check == tarball_hash
         end
-        @test tarball_hash_check == tarball_hash
 
         # Test that packaging into a file that already exists fails
         @test_throws ErrorException package(prefix, "./libfoo", v"1.0.0")
+
+        # Test error path with unsupported compression format
+        @test_throws ErrorException package(prefix, "./libfoo-new", v"1.0.0"; compression_format="unknown")
     end
 
     # Test that we can inspect the contents of the tarball
