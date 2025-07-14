@@ -122,7 +122,9 @@ end
             version::VersionNumber;
             platform::AbstractPlatform = HostPlatform(),
             verbose::Bool = false, force::Bool = false,
-            filter = Returns(true))
+            filter = Returns(true),
+            compression_format::String = "gzip",
+           )
 
 Build a tarball of the `prefix`, storing the tarball at `output_base`, appending the version
 number `version`, a platform-dependent suffix and a file extension.  If `platform` is not
@@ -137,7 +139,8 @@ The are additional keyword arguments:
   should be packaged, and `false` otherwise.  The arguments are `(prefix, path)`, where
   `prefix` is the directory where the prefix is stored, and `path` is the path, within the
   prefix, of the file or directory.  This keyword allows you to filter out from the tarball
-  certain files or directories.
+  certain files or directories
+* `compression_format` specifies the compression format used for the tarball.
 """
 function package(prefix::Prefix,
                  output_base::AbstractString,
@@ -146,9 +149,19 @@ function package(prefix::Prefix,
                  verbose::Bool = false,
                  force::Bool = false,
                  filter = Returns(true),
+                 compression_format::String = "gzip",
                  )
     # Calculate output path
-    out_path = "$(output_base).v$(version).$(triplet(platform)).tar.gz"
+    extension = if compression_format == "gzip"
+        "gz"
+    elseif compression_format == "xz"
+        "xz"
+    elseif compression_format == "bzip2"
+        "bz2"
+    else
+        error("Unsupported compression format $(compression_format)")
+    end
+    out_path = "$(output_base).v$(version).$(triplet(platform)).tar.$(extension)"
 
     if isfile(out_path)
         if force

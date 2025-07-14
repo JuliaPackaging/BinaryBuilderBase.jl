@@ -97,7 +97,7 @@ using Test
 
                 # Test custom `package` function and ensure failure if no `tarball_path` file
                 # is created.
-                package_alt(src_dir, tarball_path) = nothing
+                package_alt(src_dir, tarball_path; format=nothing) = nothing
                 @test !isfile(tarball_path)
                 @test_throws SystemError archive_artifact(hash, tarball_path, package=package_alt)
 
