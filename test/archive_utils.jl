@@ -1,4 +1,4 @@
-using BinaryBuilderBase: Prefix, archive_artifact, package, list_tarball_files
+using BinaryBuilderBase: Prefix, archive_artifact, package, list_tarball_files, detect_compressor
 using Pkg.Artifacts: create_artifact, remove_artifact, with_artifacts_directory
 using SHA
 using Test
@@ -27,13 +27,16 @@ using Test
 
             mktempdir() do output_dir
                 for (format, ext, hash) in (("gzip", "gz", "568f743e965b63d3187b6a2647700a71d1d7520b4596fbf2bfb39ffa67c4bb55"),
-                                            # Compressing with p7zip/xz doesn't seem to be fully reproducible, at least not
-                                            # across different systems. We'll try to investigate more, but for the time being
-                                            # skip the reproducibility test for it.
-                                            ("xz", "xz", ""))
+                                            ("xz", "xz", "293736704ee772836edf67ba4bac55c9604721d6df332cef9bdf4c9c06b39a8c"))
                     tarball_path =  joinpath(output_dir, "foo.tar.$ext")
                     package(prefix, tarball_path; format=format)
                     @test isfile(tarball_path)
+
+                    compressor = open(tarball_path) do io
+                        detect_compressor(read(io, 6))
+                    end
+                    # Make sure the compression format is what we expect
+                    @test compressor == format
 
                     if !isempty(hash)
                         tarball_hash = open(tarball_path, "r") do io

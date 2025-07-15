@@ -81,6 +81,12 @@ end
                 bytes2hex(sha256(f))
             end
             @test tarball_hash_check == tarball_hash
+
+            compressor = open(tarball_path) do io
+                BinaryBuilderBase.detect_compressor(read(io, 6))
+            end
+            # Make sure the compression format is what we expect
+            @test compressor == compression_format
         end
 
         # Test that packaging into a file that already exists fails
