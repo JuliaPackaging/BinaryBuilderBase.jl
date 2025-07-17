@@ -332,7 +332,9 @@ function setup(source::SetupSource{ArchiveSource}, targetdir, verbose; tar_flags
                 libpath = vcat(XZ_jll.LIBPATH_list, libpath)
             end
             if Zstd_jll.is_available()
-                path = vcat(dirname(Zstd_jll.zstd_path), path)
+                # Zstd_jll became a stdlib in Julia v1.13.0 and the path variable changed name
+                zpath = isdefined(Zstd_jll, :libzstd_path) ? Zstd_jll.libzstd_path : Zstd_jll.zstd_path
+                path = vcat(dirname(zpath), path)
                 libpath = vcat(Zstd_jll.LIBPATH_list, libpath)
             end
             unique!(filter!(!isempty, path))
