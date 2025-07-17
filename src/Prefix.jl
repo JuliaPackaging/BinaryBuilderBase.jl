@@ -332,8 +332,10 @@ function setup(source::SetupSource{ArchiveSource}, targetdir, verbose; tar_flags
                 libpath = vcat(XZ_jll.LIBPATH_list, libpath)
             end
             if Zstd_jll.is_available()
-                path = vcat(dirname(Zstd_jll.zstd_path), path)
-                libpath = vcat(XZ_jll.LIBPATH_list, libpath)
+                # Zstd_jll became a stdlib in Julia v1.13.0 and the path variable changed name
+                zpath = isdefined(Zstd_jll, :libzstd_path) ? Zstd_jll.libzstd_path : Zstd_jll.zstd_path
+                path = vcat(dirname(zpath), path)
+                libpath = vcat(Zstd_jll.LIBPATH_list, libpath)
             end
             unique!(filter!(!isempty, path))
             unique!(filter!(!isempty, libpath))
@@ -610,20 +612,25 @@ function get_addable_spec(name::AbstractString, version::VersionNumber;
         uuid=uuid,
         #version=version,
         tree_hash=tree_hash_sha1,
-        repo=Pkg.Types.GitRepo(rev=git_commit_sha, source=valid_url),
+        rev=git_commit_sha,
+        url=valid_url,
     )
 end
 
 # Helper function to install packages also in Julia v1.8
 function Pkg_add(args...; kwargs...)
-    @static if VERSION < v"1.8.0"
-        Pkg.add(args...; kwargs...)
-    else
-        try
-            Pkg.respect_sysimage_versions(false)
+    # we don't want to precompile packages during installation
+    # auto-precompilation also calls `Pkg.instantiate` which will warn about non-VERSION `julia_version` values
+    withenv("JULIA_PKG_PRECOMPILE_AUTO" => "false") do
+        @static if VERSION < v"1.8.0"
             Pkg.add(args...; kwargs...)
-        finally
-            Pkg.respect_sysimage_versions(true)
+        else
+            try
+                Pkg.respect_sysimage_versions(false)
+                Pkg.add(args...; kwargs...)
+            finally
+                Pkg.respect_sysimage_versions(true)
+            end
         end
     end
 end
@@ -682,18 +689,16 @@ function setup_dependencies(prefix::Prefix,
     deps_project = joinpath(prefix, triplet(platform), ".project")
     Pkg.activate(deps_project) do
         # Update registry first, in case the jll packages we're looking for have just been registered/updated
-        ctx = Pkg.Types.Context(;julia_version)
         outs = verbose ? stdout : devnull
         update_registry(outs)
 
-        # Add all dependencies.  Note: Pkg.add(ctx, deps) modifies in-place `deps` without
-        # notice.  We need to `deepcopy` the argument to prevent it from modying our
-        # dependencies from under our feet: <https://github.com/JuliaLang/Pkg.jl/issues/3112>.
-        Pkg_add(ctx, deepcopy(dependencies); platform=platform, io=outs)
+        # Add all dependencies.
+        Pkg_add(dependencies; platform=platform, io=outs, julia_version=julia_version)
 
         # Ony Julia v1.6, `Pkg.add()` doesn't mutate `dependencies`, so we can't use the `UUID`
         # that was found during resolution there.  Instead, we'll make use of `ctx.env` to figure
         # out the UUIDs of all our packages.
+        ctx = Pkg.Types.Context()
         dependency_uuids = Set([uuid for (uuid, pkg) in ctx.env.manifest if pkg.name ∈ dependencies_names])
 
         # Some JLLs are also standard libraries that may be present in the manifest because
@@ -731,7 +736,8 @@ function setup_dependencies(prefix::Prefix,
 
         # Re-install stdlib dependencies, but this time with `julia_version = nothing`
         if !isempty(stdlib_pkgspecs)
-            Pkg_add(ctx, stdlib_pkgspecs; io=outs, julia_version=nothing)
+            # TODO: shouldn't this take platform?
+            Pkg_add(stdlib_pkgspecs; io=outs, julia_version=nothing)
         end
 
         # Load their Artifacts.toml files
