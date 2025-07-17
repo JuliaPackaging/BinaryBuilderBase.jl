@@ -333,7 +333,7 @@ function setup(source::SetupSource{ArchiveSource}, targetdir, verbose; tar_flags
             end
             if Zstd_jll.is_available()
                 path = vcat(dirname(Zstd_jll.zstd_path), path)
-                libpath = vcat(XZ_jll.LIBPATH_list, libpath)
+                libpath = vcat(Zstd_jll.LIBPATH_list, libpath)
             end
             unique!(filter!(!isempty, path))
             unique!(filter!(!isempty, libpath))
