@@ -610,7 +610,7 @@ function get_addable_spec(name::AbstractString, version::VersionNumber;
     return Pkg.Types.PackageSpec(
         name=name,
         uuid=uuid,
-        version=version,
+        # version=version, # cannot set this because build_tarballs will complain
         tree_hash=tree_hash_sha1,
         rev=git_commit_sha,
         url=valid_url,
