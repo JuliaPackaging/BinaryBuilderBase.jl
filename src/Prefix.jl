@@ -669,7 +669,7 @@ function setup_dependencies(prefix::Prefix,
     # We occasionally generate "illegal" package specs, where we provide both version and tree hash.
     # we trust the treehash over the version, so drop the version for any that exists here:
     function filter_redundant_version(p::PkgSpec)
-        if p.version !== nothing && p.tree_hash !== nothing
+        if p.version != PKG_VERSIONS.VersionSpec("*") && p.tree_hash !== nothing
             return Pkg.Types.PackageSpec(;name=p.name, tree_hash=p.tree_hash, repo=p.repo)
         end
         return p
