@@ -393,7 +393,7 @@ end
                         # https://github.com/JuliaLang/Pkg.jl/issues/4159
                         # Before https://github.com/JuliaLang/Pkg.jl/pull/4151 this would throw a MethodError for `abspath(::Nothing)`
                         # So this test will need fixing if/when that gets backported
-                        error_type = if VERSION >= v"1.13.0-0"
+                        error_type = if VERSION >= v"1.12.0-0"
                             Pkg.Types.PkgError
                         elseif VERSION >= v"1.10.0-0"
                             MethodError
