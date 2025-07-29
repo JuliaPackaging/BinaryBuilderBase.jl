@@ -185,7 +185,7 @@ end
             @test run(ur, cmd, iobuff)
             seekstart(iobuff)
             # Make sure the compiled library has the note section for the build-id
-            @test occursin(r".note.gnu.build-id", readchomp(iobuff))
+            @test occursin(".note.gnu.build-id", readchomp(iobuff))
         end
     end
 
