@@ -130,8 +130,10 @@ end
     if lowercase(get(ENV, "BINARYBUILDER_FULL_SHARD_TEST", "false")) == "true"
         @info("Beginning full shard test... (this can take a while)")
         platforms = supported_platforms()
+        elf_platforms = filter(p -> Sys.islinux(p) || Sys.isfreebsd(p), supported_platforms())
     else
         platforms = (default_host_platform,)
+        elf_platforms = (default_host_platform,)
     end
 
     # Checks that the wrappers provide the correct C++ string ABI
@@ -150,6 +152,40 @@ end
             echo 'int main() {return 0;}' | SUPER_VERBOSE=1 ${HOSTCC} -x c - 2>&1 | grep -v -- "-D_GLIBCXX_USE_CXX11_ABI=0"
             """
             @test run(ur, `/bin/bash -c "$(test_script)"`, iobuff; tee_stream=devnull)
+        end
+    end
+
+    # Checks that the compiler/linker include a build-id
+    # This is only available on ELF-based platforms
+    @testset "Compilation - build-id note $(platform) - $(compiler)" for platform in elf_platforms, compiler in ("cc", "gcc", "clang", "c++", "g++", "clang++")
+        mktempdir() do dir
+            ur = preferred_runner()(dir; platform=platform)
+            iobuff = IOBuffer()
+            test_c = """
+                #include <stdlib.h>
+                int test(void) {
+                    return 0;
+                }
+                """
+            test_script = """
+                set -e
+                # Make sure setting `CCACHE` doesn't affect the compiler wrappers.
+                export CCACHE=pwned
+                export USE_CCACHE=false
+                echo '$(test_c)' > test.c
+                # Build object file
+                $(compiler) -Werror -c test.c -o test.o
+                # Build shared library
+                $(compiler) -Werror -shared test.c -o libtest.\${dlext}
+
+                # Print out the notes in the library
+                readelf -n libtest.\${dlext}
+                """
+            cmd = `/bin/bash -c "$(test_script)"`
+            @test run(ur, cmd, iobuff)
+            seekstart(iobuff)
+            # Make sure the compiled library has the note section for the build-id
+            @test occursin(r".note.gnu.build-id", readchomp(iobuff))
         end
     end
 
