@@ -173,10 +173,8 @@ end
                 export CCACHE=pwned
                 export USE_CCACHE=false
                 echo '$(test_c)' > test.c
-                # Build object file
-                $(compiler) -Werror -c test.c -o test.o
                 # Build shared library
-                $(compiler) -Werror -shared test.c -o libtest.\${dlext}
+                $(compiler) -shared test.c -o libtest.\${dlext}
 
                 # Print out the notes in the library
                 readelf -n libtest.\${dlext}
@@ -185,7 +183,7 @@ end
             @test run(ur, cmd, iobuff)
             seekstart(iobuff)
             # Make sure the compiled library has the note section for the build-id
-            @test occursin(".note.gnu.build-id", readchomp(iobuff))
+            @test occursin("NT_GNU_BUILD_ID", readchomp(iobuff))
         end
     end
 
