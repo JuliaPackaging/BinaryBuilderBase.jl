@@ -439,8 +439,11 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     function buildid_link_flags!(p::AbstractPlatform, flags::Vector{String})
         # build-id is not supported on macOS compilers
         if !Sys.isapple(p)
-            # Use a known algorithm to embed the build-id for reproducibility
-            push!(flags, "-Wl,--build-id=sha1")
+            # Windows build-id requires binutils 2.25+, which we only have for GCC 5+
+            if !Sys.iswindows(p) || (Sys.iswindows(p) && gcc_version ≥ v"5")
+                # Use a known algorithm to embed the build-id for reproducibility
+                push!(flags, "-Wl,--build-id=sha1")
+            end
         end
     end
 

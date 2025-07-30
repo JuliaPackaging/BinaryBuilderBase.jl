@@ -131,9 +131,11 @@ end
         @info("Beginning full shard test... (this can take a while)")
         platforms = supported_platforms()
         elf_platforms = filter(p -> Sys.islinux(p) || Sys.isfreebsd(p), supported_platforms())
+        win_platforms = filter(p -> Sys.iswindows(p), supported_platforms())
     else
         platforms = (default_host_platform,)
         elf_platforms = (default_host_platform,)
+        win_platforms = (Platform("x86_64", "windows"),)
     end
 
     # Checks that the wrappers provide the correct C++ string ABI
@@ -157,7 +159,7 @@ end
 
     # Checks that the compiler/linker include a build-id
     # This is only available on ELF-based platforms
-    @testset "Compilation - build-id note $(platform) - $(compiler)" for platform in elf_platforms, compiler in ("cc", "gcc", "clang", "c++", "g++", "clang++")
+    @testset "Compilation - Linux build-id note $(platform) - $(compiler)" for platform in elf_platforms, compiler in ("cc", "gcc", "clang", "c++", "g++", "clang++")
         mktempdir() do dir
             ur = preferred_runner()(dir; platform=platform)
             iobuff = IOBuffer()
@@ -184,6 +186,40 @@ end
             seekstart(iobuff)
             # Make sure the compiled library has the note section for the build-id
             @test occursin("NT_GNU_BUILD_ID", readchomp(iobuff))
+        end
+    end
+
+    # Checks that Windows can include a build-id
+    @testset "Compilation - Windows build-id note $(platform) - $(compiler)" for platform in win_platforms, compiler in ("cc", "gcc", "clang", "c++", "g++", "clang++")
+        mktempdir() do dir
+            # Windows build-id support requires binutils 2.25, which is part of our GCC 5
+            ur = preferred_runner()(dir; platform=platform, preferred_gcc_version=v"5")
+            iobuff = IOBuffer()
+            test_c = """
+                #include <stdlib.h>
+                int test(void) {
+                    return 0;
+                }
+                """
+            test_script = """
+                set -e
+                # We need readpe to get the information from the library
+                apk add pev
+                # Make sure setting `CCACHE` doesn't affect the compiler wrappers.
+                export CCACHE=pwned
+                export USE_CCACHE=false
+                echo '$(test_c)' > test.c
+                # Build shared library
+                $(compiler) -shared test.c -o libtest.\${dlext}
+
+                # Print out the notes in the library
+                readpe libtest.\${dlext}
+                """
+            cmd = `/bin/bash -c "$(test_script)"`
+            @test run(ur, cmd, iobuff)
+            seekstart(iobuff)
+            # Make sure the compiled library has the section for the build-id
+            @test occursin(".buildid", readchomp(iobuff))
         end
     end
 
