@@ -2,6 +2,7 @@ using Test
 using BinaryBuilderBase
 using BinaryBuilderBase: platform_dlext, platform_exeext, prefer_clang
 using Pkg
+using ObjectFile
 
 @testset "Wrappers utilities" begin
     @test nbits(Platform("i686", "linux")) == 32
@@ -171,21 +172,26 @@ end
                 """
             test_script = """
                 set -e
+                cd /workspace
                 # Make sure setting `CCACHE` doesn't affect the compiler wrappers.
                 export CCACHE=pwned
                 export USE_CCACHE=false
                 echo '$(test_c)' > test.c
                 # Build shared library
                 $(compiler) -shared test.c -o libtest.\${dlext}
-
-                # Print out the notes in the library
-                readelf -n libtest.\${dlext}
                 """
             cmd = `/bin/bash -c "$(test_script)"`
             @test run(ur, cmd, iobuff)
-            seekstart(iobuff)
-            # Make sure the compiled library has the note section for the build-id
-            @test occursin("NT_GNU_BUILD_ID", readchomp(iobuff))
+
+            # Load the library file and test it for the build-id
+            lib_path = joinpath(dir, "libtest."*platform_dlext(platform))
+            lib = open(lib_path)
+            obj_handles = readmeta(lib)
+            obj = first(obj_handles)
+            secs = Sections(obj)
+
+            # The section must exist for the build-id to be present
+            @test !isnothing(findfirst(s -> section_name(s) == ".note.gnu.build-id", secs))
         end
     end
 
@@ -203,23 +209,26 @@ end
                 """
             test_script = """
                 set -e
-                # We need readpe to get the information from the library
-                apk add pev
+                cd /workspace
                 # Make sure setting `CCACHE` doesn't affect the compiler wrappers.
                 export CCACHE=pwned
                 export USE_CCACHE=false
                 echo '$(test_c)' > test.c
                 # Build shared library
                 $(compiler) -shared test.c -o libtest.\${dlext}
-
-                # Print out the notes in the library
-                readpe libtest.\${dlext}
                 """
             cmd = `/bin/bash -c "$(test_script)"`
             @test run(ur, cmd, iobuff)
-            seekstart(iobuff)
-            # Make sure the compiled library has the section for the build-id
-            @test occursin(".buildid", readchomp(iobuff))
+
+            # Load the library file and test it for the build-id
+            lib_path = joinpath(dir, "libtest."*platform_dlext(platform))
+            lib = open(lib_path)
+            obj_handles = readmeta(lib)
+            obj = first(obj_handles)
+            secs = Sections(obj)
+
+            # The section must exist for the build-id to be present
+            @test !isnothing(findfirst(s -> section_name(s) == ".buildid", secs))
         end
     end
 
