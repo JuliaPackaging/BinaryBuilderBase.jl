@@ -437,8 +437,8 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     end
 
     function buildid_link_flags!(p::AbstractPlatform, flags::Vector{String})
-        # build-id is only supported in the ELF format, which is linux+FreeBSD
-        if Sys.islinux(p) || Sys.isfreebsd(p)
+        # build-id is not supported on macOS compilers
+        if !Sys.isapple(p)
             # Use a known algorithm to embed the build-id for reproducibility
             push!(flags, "-Wl,--build-id=sha1")
         end
