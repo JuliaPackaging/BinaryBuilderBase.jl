@@ -6,8 +6,6 @@ using SHA, CodecZlib, TOML, LibGit2_jll
 import Bzip2_jll, Gzip_jll, Tar_jll, XZ_jll, Zstd_jll, unzip_jll
 using JLLWrappers: pathsep, LIBPATH_env
 
-@debug "Prefix module loaded with debug logging enabled"
-
 export Prefix, bindir, libdirs, includedir, logdir, temp_prefix, package
 
 """
@@ -364,10 +362,8 @@ function setup(source::SetupSource{ArchiveSource}, targetdir, verbose; tar_flags
                 libpath = vcat(XZ_jll.LIBPATH_list, libpath)
             end
             if Zstd_jll.is_available()
-                # Zstd_jll became a stdlib in Julia v1.13.0 and the path variable changed name
-                zpath = isdefined(Zstd_jll, :libzstd_path) ? Zstd_jll.libzstd_path : Zstd_jll.zstd_path
-                path = vcat(dirname(zpath), path)
-                libpath = vcat(Zstd_jll.LIBPATH_list, libpath)
+                path = vcat(dirname(Zstd_jll.zstd_path), path)
+                libpath = vcat(XZ_jll.LIBPATH_list, libpath)
             end
             unique!(filter!(!isempty, path))
             unique!(filter!(!isempty, libpath))
