@@ -165,10 +165,8 @@ end
                 uuid="86de99a1-58d6-5da7-8064-bd56ce2e322c",
                 tree_hash=Base.SHA1("83481d62501cf2ef22bed745dbcedc4e75fa6e95"),
                 version=PKG_VERSIONS.VersionSpec("*"),
-                repo=Pkg.Types.GitRepo(
-                    source="https://github.com/JuliaBinaryWrappers/LLVM_jll.jl.git",
-                    rev="2772761b330d51146ace3125b26acdad0df4f30f",
-                ),
+                url="https://github.com/JuliaBinaryWrappers/LLVM_jll.jl.git",
+                rev="2772761b330d51146ace3125b26acdad0df4f30f",
             )
 
         with_temp_project() do dir
@@ -370,39 +368,47 @@ end
 
         @testset "PackageSpec with version" begin
             # Install a dependency with a specific version number.
-            with_temp_project() do dir
-                prefix = Prefix(dir)
-                dependencies = [
-                    PackageSpec(; name="CMake_jll", version = v"3.24.3")
-                ]
-                platform = Platform("x86_64", "linux"; libc="musl", cxxstring_abi="cxx11")
-                if v"1.9" <= VERSION < v"1.11"
-                    # For reasons I can't understand, in CI on GitHub Actions (and only
-                    # there, can't reproduce the same behaviour locally) the error thrown
-                    # inside the `setup_dependencies` "escapes" the `try` block. For lack of
-                    # time to debug this stupid thing we just mark this step as broken and
-                    # move on, it's really broken anyway.
-                    @test false broken=true
-                else
-                    try
-                        test_setup_dependencies(prefix, dependencies, platform)
-                    catch
-                        if VERSION>=v"1.9"
-                            # This test is expected to be broken on Julia v1.9+
-                            @test false broken=true
+            @testset for version in (v"3.24.3+0", "3.24.3")
+                with_temp_project() do dir
+                    prefix = Prefix(dir)
+                    dependencies = [
+                        PackageSpec(; name="CMake_jll", version = version)
+                    ]
+                    platform = Platform("x86_64", "linux"; libc="musl", cxxstring_abi="cxx11")
+                    test_setup_dependencies(prefix, dependencies, platform)
+                    # The directory contains also executables from CMake dependencies.
+                    @test readdir(joinpath(destdir(dir, platform), "bin")) == ["c_rehash", "cmake", "cpack", "ctest", "openssl"]
+                end
+            end
+            if VERSION >= v"1.9.0-0"
+                @testset "should error if build is missing from a specific VersionNumber, with `julia_version=nothing`" begin
+                    with_temp_project() do dir
+                        prefix = Prefix(dir)
+                        dependencies = [
+                            PackageSpec(; name="CMake_jll", version = v"3.24.3")
+                        ]
+                        platform = Platform("x86_64", "linux"; libc="musl", cxxstring_abi="cxx11", julia_version=nothing)
+
+                        # Pkg needs improve its error message here, but assume that it will still throw a pkgerror
+                        # https://github.com/JuliaLang/Pkg.jl/issues/4159
+                        # Before https://github.com/JuliaLang/Pkg.jl/pull/4151 this would throw a MethodError for `abspath(::Nothing)`
+                        # So this test will need fixing if/when that gets backported
+                        error_type = if VERSION >= v"1.12.0-0"
+                            Pkg.Types.PkgError
+                        elseif VERSION >= v"1.10.0-0"
+                            MethodError
                         else
-                            # For previous versions we don't expect errors and we
-                            # want to see them.
-                            rethrow()
+                            KeyError
                         end
+                        @test_throws error_type setup_dependencies(prefix, dependencies, platform)
                     end
                 end
-                # The directory contains also executables from CMake dependencies.
-                # Test will fail if `setup_dependencies` above failed.
-                @test readdir(joinpath(destdir(dir, platform), "bin")) == ["c_rehash", "cmake", "cpack", "ctest", "openssl"] broken=VERSION>=v"1.9"
+            else
+                # The above test doesn't throw before v1.9. Unclear why. Pkg misinterpreting a specific (incorrect)
+                # VersionNumber spec as a VersionSpec?
+                @test_broken false
             end
         end
-
     end
 end
 

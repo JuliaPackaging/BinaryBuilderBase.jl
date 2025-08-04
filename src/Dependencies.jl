@@ -332,6 +332,9 @@ patch(v::VersionNumber) = v.patch
 major(v::Pkg.Types.VersionBound) = v.t[1]
 minor(v::Pkg.Types.VersionBound) = v.t[2]
 patch(v::Pkg.Types.VersionBound) = v.t[3]
+
+# If a version in a PackageSpec is given as a string it signifies being a VersionSpec that Pkg will handle as such.
+__version(v::AbstractString) = __version(PKG_VERSIONS.VersionSpec(v))
 __version(v::VersionNumber) = v
 __version(v::PKG_VERSIONS.VersionSpec) = v.ranges[1].lower
 version(d::AbstractDependency) = __version(getpkg(d).version)

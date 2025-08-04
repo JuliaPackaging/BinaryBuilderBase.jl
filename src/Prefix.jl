@@ -27,6 +27,7 @@ Usage example:
     end
 """
 function temp_prefix(func::Function)
+    @debug "Creating temporary prefix"
     # Helper function to create a docker-mountable temporary directory
     function _tempdir()
         @static if Sys.isapple()
@@ -40,7 +41,9 @@ function temp_prefix(func::Function)
     end
 
     mktempdir(_tempdir()) do path
+        @debug "Created temporary directory" path
         prefix = Prefix(path)
+        @debug "Created prefix object" prefix
 
         # Run the user function
         func(prefix)
@@ -56,9 +59,12 @@ struct Prefix
     A `Prefix` represents a binary installation location.
     """
     function Prefix(path::AbstractString)
+        @debug "Creating Prefix" path
         # Canonicalize immediately, create the overall prefix, then return
         path = abspath(path)
+        @debug "Canonicalized path" path
         mkpath(path)
+        @debug "Created directory structure for prefix" path
         return new(path)
     end
 end
@@ -151,6 +157,7 @@ function package(prefix::Prefix,
                  filter = Returns(true),
                  compression_format::String = "gzip",
                  )
+    @debug "Packaging prefix" prefix output_base version platform compression_format
     # Calculate output path
     extension = if compression_format == "gzip"
         "gz"
@@ -162,12 +169,14 @@ function package(prefix::Prefix,
         error("Unsupported compression format $(compression_format)")
     end
     out_path = "$(output_base).v$(version).$(triplet(platform)).tar.$(extension)"
+    @debug "Calculated output path" out_path
 
     if isfile(out_path)
         if force
             if verbose
                 @info("$(out_path) already exists, force-overwriting...")
             end
+            @debug "Removing existing output file" out_path
             rm(out_path; force=true)
         else
             msg = replace(strip("""
@@ -178,12 +187,15 @@ function package(prefix::Prefix,
         end
     end
 
+    @debug "Creating artifact from prefix"
     # Copy our build prefix into an Artifact
     tree_hash = create_artifact() do art_path
         for f in readdir(prefix.path)
             if !filter(prefix.path, f)
+                @debug "Filtering out file" f
                 continue
             end
+            @debug "Copying file to artifact" f
             cp(joinpath(prefix.path, f), joinpath(art_path, f))
         end
 
@@ -201,11 +213,14 @@ function package(prefix::Prefix,
     if verbose
         @info("Tree hash of contents of $(basename(out_path)): $(tree_hash)")
     end
+    @debug "Generated tree hash" tree_hash
 
+    @debug "Archiving artifact to tarball"
     tarball_hash = archive_artifact(tree_hash, out_path; honor_overrides=false, compression_format)
     if verbose
         @info("SHA256 of $(basename(out_path)): $(tarball_hash)")
     end
+    @debug "Generated tarball hash" tarball_hash
 
     return out_path, tarball_hash, tree_hash
 end
@@ -214,6 +229,7 @@ end
 
 
 function symlink_tree(src::AbstractString, dest::AbstractString)
+    @debug "Symlinking tree" src dest
     for (root, dirs, files) in walkdir(src)
         # Create all directories
         for d in dirs
@@ -221,12 +237,14 @@ function symlink_tree(src::AbstractString, dest::AbstractString)
             d_path = joinpath(root, d)
             dest_dir = joinpath(dest, relpath(root, src), d)
             if islink(d_path)
+                @debug "Recreating symlinked directory" d_path dest_dir
                 if ispath(dest_dir)
                     # We can't overwrite an existing file on disk with a symlink
                     error("Symlink $(d) from artifact $(basename(src)) already exists on disk")
                 end
                 symlink(readlink(d_path), dest_dir)
             else
+                @debug "Creating directory" dest_dir
                 if ispath(dest_dir) && !isdir(realpath(dest_dir))
                     # We can't create a directory if the destination exists and
                     # is not a directory or a symlink to a directory.
@@ -241,6 +259,7 @@ function symlink_tree(src::AbstractString, dest::AbstractString)
             src_file = joinpath(root, f)
             dest_file = joinpath(dest, relpath(root, src), f)
             if isfile(dest_file)
+                @debug "Destination file exists, checking for conflicts" dest_file
                 # Ugh, destination file already exists.  If source and destination files
                 # have the same size and SHA256 hash, just move on, otherwise issue a
                 # warning.
@@ -248,6 +267,7 @@ function symlink_tree(src::AbstractString, dest::AbstractString)
                     src_file_hash = open(io -> bytes2hex(sha256(io)), src_file, "r")
                     dest_file_hash = open(io -> bytes2hex(sha256(io)), dest_file, "r")
                     if src_file_hash == dest_file_hash
+                        @debug "Files are identical, skipping" src_file dest_file
                         continue
                     end
                 end
@@ -260,9 +280,11 @@ function symlink_tree(src::AbstractString, dest::AbstractString)
             else
                 # If it's already a symlink, copy over the exact symlink target
                 if islink(src_file)
+                    @debug "Creating symlink to symlink" src_file dest_file
                     symlink(readlink(src_file), dest_file)
                 else
                     # Otherwise, point it at the proper location
+                    @debug "Creating symlink to file" src_file dest_file
                     symlink(relpath(src_file, dirname(dest_file)), dest_file)
                 end
             end
@@ -271,11 +293,13 @@ function symlink_tree(src::AbstractString, dest::AbstractString)
 end
 
 function unsymlink_tree(src::AbstractString, dest::AbstractString)
+    @debug "Unsymlinking tree" src dest
     for (root, dirs, files) in walkdir(src)
         # Unsymlink all symlinked directories, non-symlink directories will be culled in audit.
         for d in dirs
             dest_dir = joinpath(dest, relpath(root, src), d)
             if islink(dest_dir)
+                @debug "Removing symlinked directory" dest_dir
                 rm(dest_dir)
             end
         end
@@ -284,6 +308,7 @@ function unsymlink_tree(src::AbstractString, dest::AbstractString)
         for f in files
             dest_file = joinpath(dest, relpath(root, src), f)
             if islink(dest_file)
+                @debug "Removing symlinked file" dest_file
                 rm(dest_file)
             end
         end
@@ -291,10 +316,12 @@ function unsymlink_tree(src::AbstractString, dest::AbstractString)
 end
 
 function setup(source::SetupSource{GitSource}, targetdir, verbose)
+    @debug "Setting up Git source" source.path targetdir
     mkpath(targetdir)
     # Chop off the `.git-$(sha256(url))` at the end of the source.path (`.git` is optional).
     name = replace(basename(source.path), r"(\.git)?-[0-9a-fA-F]{64}$" => "")
     repo_dir = joinpath(targetdir, name)
+    @debug "Git clone destination" repo_dir source.hash
     if verbose
         # Need to strip the trailing separator
         path = strip_path_separator(targetdir)
@@ -303,12 +330,15 @@ function setup(source::SetupSource{GitSource}, targetdir, verbose)
     LibGit2.with(LibGit2.clone(source.path, repo_dir)) do repo
         LibGit2.checkout!(repo, source.hash)
     end
+    @debug "Git source setup complete" repo_dir
 end
 
 function setup(source::SetupSource{ArchiveSource}, targetdir, verbose; tar_flags = verbose ? "xvof" : "xof")
+    @debug "Setting up Archive source" source.path targetdir
     mkpath(targetdir)
     cd(targetdir) do
         if any(endswith(source.path, ext) for ext in tar_extensions)
+            @debug "Extracting tarball" source.path
             if verbose
                 @info "Extracting tarball $(basename(source.path))..."
             end
@@ -339,8 +369,10 @@ function setup(source::SetupSource{ArchiveSource}, targetdir, verbose; tar_flags
             unique!(filter!(!isempty, libpath))
             tar = addenv(tar, "PATH" => join(path, pathsep), LIBPATH_env => join(libpath, pathsep))
             # Unpack the tarball
+            @debug "Running tar command" tar tar_flags
             run(`$(tar) -$(tar_flags) $(source.path)`)
         elseif endswith(source.path, ".zip")
+            @debug "Extracting zipball" source.path
             if verbose
                 @info "Extracting zipball $(basename(source.path))..."
             end
@@ -348,12 +380,14 @@ function setup(source::SetupSource{ArchiveSource}, targetdir, verbose; tar_flags
                 run(`$(unzip_jll.unzip()) -q $(source.path)`)
             end
         elseif endswith(source.path, ".conda")
+            @debug "Extracting conda package" source.path
             if verbose
                 @info "Extracting conda package $(basename(source.path))..."
             end
             # The .conda file contains an archive called pkg-*.tar.zst
             # Replace initial hash with pkg, and change the file extension to obtain the name
             pkg_name = replace(basename(source.path), r"^[a-z0-9]{64}-" => "pkg-", ".conda" => ".tar.zst")
+            @debug "Conda package name" pkg_name
             # First unzip the pkg tarball from .conda file
             if unzip_jll.is_available()
                 run(`$(unzip_jll.unzip()) -q $(source.path) $(pkg_name)`)
@@ -366,9 +400,11 @@ function setup(source::SetupSource{ArchiveSource}, targetdir, verbose; tar_flags
             error("Unknown archive format")
         end
     end
+    @debug "Archive source setup complete" targetdir
 end
 
 function setup(source::SetupSource{FileSource}, target, verbose)
+    @debug "Setting up File source" source.path target
     if isdir(target)
         target = joinpath(target, basename(source.path))
     end
@@ -376,9 +412,11 @@ function setup(source::SetupSource{FileSource}, target, verbose)
         @info "Copying $(basename(source.path)) in $(basename(target))..."
     end
     cp(source.path, target)
+    @debug "File source setup complete" target
 end
 
 function setup(source::SetupSource{DirectorySource}, targetdir, verbose)
+    @debug "Setting up Directory source" source.path targetdir
     mkpath(targetdir)
     # Need to strip the trailing separator also here
     srcpath = strip_path_separator(source.path)
@@ -387,18 +425,24 @@ function setup(source::SetupSource{DirectorySource}, targetdir, verbose)
     end
     for file_dir in readdir(srcpath)
         # Copy the content of the source directory to the destination
+        @debug "Copying directory item" file_dir
         cp(joinpath(srcpath, file_dir), joinpath(targetdir, basename(file_dir));
            follow_symlinks=source.follow_symlinks)
     end
+    @debug "Directory source setup complete" targetdir
 end
 
 function setup(source::PatchSource, targetdir, verbose)
+    @debug "Setting up Patch source" source.name targetdir
     if verbose
         @info "Adding patch $(source.name)..."
     end
     patches_dir = joinpath(targetdir, "patches")
     mkdir(patches_dir)
-    open(f->write(f, source.patch), joinpath(patches_dir, source.name), "w")
+    patch_file = joinpath(patches_dir, source.name)
+    @debug "Writing patch file" patch_file
+    open(f->write(f, source.patch), patch_file, "w")
+    @debug "Patch source setup complete" patch_file
 end
 
 destdir(prefix, platform::AbstractPlatform) =
@@ -419,9 +463,11 @@ function setup_workspace(build_path::AbstractString, sources::Vector,
                          target_platform::AbstractPlatform,
                          host_platform::AbstractPlatform=default_host_platform;
                          verbose::Bool = false)
+    @debug "Setting up workspace" build_path target_platform host_platform
     # Use a random nonce to make detection of paths in embedded binary easier
     nonce = randstring()
     workspace = joinpath(build_path, nonce)
+    @debug "Created workspace with nonce" workspace nonce
     mkdir(workspace)
 
     # We now set up two directories, one as a source dir, one as a dest dir
@@ -429,27 +475,36 @@ function setup_workspace(build_path::AbstractString, sources::Vector,
     target_destdir = destdir(workspace, target_platform)
     host_destdir = destdir(workspace, host_platform)
     metadir = joinpath(workspace, "metadir")
+    @debug "Created workspace directories" srcdir target_destdir host_destdir metadir
     mkpath.((srcdir, target_destdir, host_destdir, metadir))
     # Create the symlink /workspace/destdir -> /workspace/TARGET_TRIPLET/destdir
     # Necessary for compatibility with recipes that hardcode `/workspace/destdir` in them,
     # as well as `.pc` files that contain absolute paths to `/workspace/destdir/...`
-    symlink("$(triplet(target_platform))/destdir", joinpath(workspace, "destdir"))
+    symlink_target = "$(triplet(target_platform))/destdir"
+    symlink_path = joinpath(workspace, "destdir")
+    @debug "Creating workspace destdir symlink" symlink_target symlink_path
+    symlink(symlink_target, symlink_path)
 
     # Setup all sources
+    @debug "Setting up sources" length(sources)
     for source in sources
         if isa(source, SetupSource)
             target = joinpath(srcdir, source.target)
             # Trailing directory separator matters for `basename`, so let's strip it
             # to avoid confusion
             target = strip_path_separator(target)
+            @debug "Setting up SetupSource" source target
             setup(source, target, verbose)
         else
+            @debug "Setting up source" source
             setup(source, srcdir, verbose)
         end
     end
 
     # Return the build prefix
-    return Prefix(realpath(workspace))
+    workspace_prefix = Prefix(realpath(workspace))
+    @debug "Workspace setup complete" workspace_prefix
+    return workspace_prefix
 end
 
 """
@@ -499,8 +554,10 @@ The return value is the commit SHA as a `String`, if the corresponding revision 
 `nothing` otherwise.
 """
 function get_commit_sha(url::String, tree_hash::Base.SHA1; verbose::Bool=false)
+    @debug "Finding commit SHA for tree hash" url tree_hash
     git_commit_sha = nothing
     dir = cached_git_clone(url; verbose)
+    @debug "Using cached git directory" dir
 
     LibGit2.with(LibGit2.GitRepo(dir)) do repo
         LibGit2.with(LibGit2.GitRevWalker(repo)) do walker
@@ -514,15 +571,18 @@ function get_commit_sha(url::String, tree_hash::Base.SHA1; verbose::Bool=false)
             end
             # For each commit in the git repo, check to see if its treehash
             # matches the one we're looking for.
+            @debug "Walking git history to find matching tree hash"
             for oid in walker
                 tree = LibGit2.peel(LibGit2.GitTree, LibGit2.GitCommit(repo, oid))
                 if all(get_tree_hash(tree).val .== tree_hash.bytes)
                     git_commit_sha = LibGit2.string(oid)
+                    @debug "Found matching commit SHA" git_commit_sha
                     break
                 end
             end
         end
     end
+    @debug "Commit SHA search complete" git_commit_sha
     return git_commit_sha
 end
 
@@ -538,10 +598,12 @@ Given a JLL name and registered version, return a `PackageSpec` that, when passe
 """
 function get_addable_spec(name::AbstractString, version::VersionNumber;
                           ctx = Pkg.Types.Context(), verbose::Bool = false)
+    @debug "Getting addable spec" name version
     # Zeroth, update the registry
     update_registry(verbose ? stdout : devnull)
     # First, resolve the UUID
     uuid = first(Pkg.Types.registry_resolve!(ctx.registries, Pkg.Types.PackageSpec(;name))).uuid
+    @debug "Resolved UUID" name uuid
 
     # Next, determine the tree hash from the registry
     repo_urls = Set{String}()
@@ -562,6 +624,7 @@ function get_addable_spec(name::AbstractString, version::VersionNumber;
             end
         end
     end
+    @debug "Found registry info" repo_urls tree_hashes
 
     if isempty(tree_hashes)
         @error("Unable to find dependency!",
@@ -582,15 +645,18 @@ function get_addable_spec(name::AbstractString, version::VersionNumber;
     end
 
     tree_hash_sha1 = first(tree_hashes)
+    @debug "Using tree hash" tree_hash_sha1
 
     # Once we have a tree hash, turn that into a git commit sha
     git_commit_sha = nothing
     valid_url = nothing
     for url in repo_urls
+        @debug "Searching for commit SHA in repository" url
         git_commit_sha = get_commit_sha(url, tree_hash_sha1; verbose)
         # Stop searching urls as soon as we find one
         if git_commit_sha !== nothing
             valid_url = url
+            @debug "Found valid commit SHA" git_commit_sha valid_url
             break
         end
     end
@@ -605,25 +671,32 @@ function get_addable_spec(name::AbstractString, version::VersionNumber;
         error("Unable to find revision for specified dependency!")
     end
 
-    return Pkg.Types.PackageSpec(
+    package_spec = Pkg.Types.PackageSpec(
         name=name,
         uuid=uuid,
-        #version=version,
+        # version=version, # cannot set this because build_tarballs will complain
         tree_hash=tree_hash_sha1,
-        repo=Pkg.Types.GitRepo(rev=git_commit_sha, source=valid_url),
+        rev=git_commit_sha,
+        url=valid_url,
     )
+    @debug "Created package spec" package_spec
+    return package_spec
 end
 
 # Helper function to install packages also in Julia v1.8
 function Pkg_add(args...; kwargs...)
-    @static if VERSION < v"1.8.0"
-        Pkg.add(args...; kwargs...)
-    else
-        try
-            Pkg.respect_sysimage_versions(false)
+    # we don't want to precompile packages during installation
+    # auto-precompilation also calls `Pkg.instantiate` which will warn about non-VERSION `julia_version` values
+    withenv("JULIA_PKG_PRECOMPILE_AUTO" => "false") do
+        @static if VERSION < v"1.8.0"
             Pkg.add(args...; kwargs...)
-        finally
-            Pkg.respect_sysimage_versions(true)
+        else
+            try
+                Pkg.respect_sysimage_versions(false)
+                Pkg.add(args...; kwargs...)
+            finally
+                Pkg.respect_sysimage_versions(true)
+            end
         end
     end
 end
@@ -654,47 +727,54 @@ function setup_dependencies(prefix::Prefix,
                             dependencies::Vector{PkgSpec},
                             platform::AbstractPlatform;
                             verbose::Bool = false)
+    @debug "Setting up dependencies" prefix platform length(dependencies)
     artifact_paths = String[]
     if isempty(dependencies)
+        @debug "No dependencies to set up"
         return artifact_paths
     end
 
     # We occasionally generate "illegal" package specs, where we provide both version and tree hash.
     # we trust the treehash over the version, so drop the version for any that exists here:
     function filter_redundant_version(p::PkgSpec)
-        if p.version !== nothing && p.tree_hash !== nothing
+        if p.version != PKG_VERSIONS.VersionSpec("*") && p.tree_hash !== nothing
             return Pkg.Types.PackageSpec(;name=p.name, tree_hash=p.tree_hash, repo=p.repo)
         end
         return p
     end
     dependencies = filter_redundant_version.(dependencies)
     dependencies_names = getname.(dependencies)
+    @debug "Filtered dependencies" dependencies_names
 
     # Get julia version specificity, if it exists, from the `Platform` object
     julia_version = nothing
     if haskey(platform, "julia_version")
         julia_version = VersionNumber(platform["julia_version"])
+        @debug "Found julia version in platform" julia_version
     end
 
     # We're going to create a project and install all dependent packages within
     # it, then create symlinks from those installed products to our build prefix
-    mkpath(joinpath(prefix, triplet(platform), "artifacts"))
+    artifacts_dir = joinpath(prefix, triplet(platform), "artifacts")
     deps_project = joinpath(prefix, triplet(platform), ".project")
+    @debug "Creating dependency project" artifacts_dir deps_project
+    mkpath(artifacts_dir)
     Pkg.activate(deps_project) do
         # Update registry first, in case the jll packages we're looking for have just been registered/updated
-        ctx = Pkg.Types.Context(;julia_version)
         outs = verbose ? stdout : devnull
+        @debug "Updating registry"
         update_registry(outs)
 
-        # Add all dependencies.  Note: Pkg.add(ctx, deps) modifies in-place `deps` without
-        # notice.  We need to `deepcopy` the argument to prevent it from modying our
-        # dependencies from under our feet: <https://github.com/JuliaLang/Pkg.jl/issues/3112>.
-        Pkg_add(ctx, deepcopy(dependencies); platform=platform, io=outs)
+        # Add all dependencies.
+        @debug "Adding dependencies to project" dependencies
+        Pkg_add(dependencies; platform=platform, io=outs, julia_version=julia_version)
 
         # Ony Julia v1.6, `Pkg.add()` doesn't mutate `dependencies`, so we can't use the `UUID`
         # that was found during resolution there.  Instead, we'll make use of `ctx.env` to figure
         # out the UUIDs of all our packages.
+        ctx = Pkg.Types.Context()
         dependency_uuids = Set([uuid for (uuid, pkg) in ctx.env.manifest if pkg.name ∈ dependencies_names])
+        @debug "Found dependency UUIDs" dependency_uuids
 
         # Some JLLs are also standard libraries that may be present in the manifest because
         # they were pulled by other stdlibs (e.g. through dependence on `Pkg`), not beacuse
@@ -709,6 +789,7 @@ function setup_dependencies(prefix::Prefix,
                 path=pkg.path,
             ) for (uuid, pkg) in ctx.env.manifest if uuid ∈ installed_jll_uuids
         ]
+        @debug "Installed JLL packages" [pkg.name for pkg in installed_jlls]
 
         # Check for stdlibs lurking in the installed JLLs
         stdlib_pkgspecs = PackageSpec[]
@@ -716,6 +797,7 @@ function setup_dependencies(prefix::Prefix,
             # If the dependency doesn't have a path yet and the `tree_hash` is
             # `nothing`, then this JLL is probably an stdlib.
             if dep.path === nothing && dep.tree_hash === nothing
+                @debug "Processing stdlib dependency" dep.name
                 # Figure out what version this stdlib _should_ be at for this version
                 dep.version = stdlib_version(dep.uuid, julia_version)
 
@@ -731,15 +813,20 @@ function setup_dependencies(prefix::Prefix,
 
         # Re-install stdlib dependencies, but this time with `julia_version = nothing`
         if !isempty(stdlib_pkgspecs)
-            Pkg_add(ctx, stdlib_pkgspecs; io=outs, julia_version=nothing)
+            @debug "Re-installing stdlib dependencies" [pkg.name for pkg in stdlib_pkgspecs]
+            # TODO: shouldn't this take platform?
+            Pkg_add(stdlib_pkgspecs; io=outs, julia_version=nothing)
         end
 
         # Load their Artifacts.toml files
+        @debug "Loading Artifacts.toml files for dependencies"
         for dep in installed_jlls
             name = getname(dep)
+            @debug "Processing dependency" name dep.uuid dep.tree_hash
             # If the package has a path, use it, otherwise ask Pkg where it
             # should have been installed.
             dep_path = dep.path !== nothing ? dep.path : Pkg.Operations.find_installed(name, dep.uuid, dep.tree_hash)
+            @debug "Found dependency path" name dep_path
 
             # Skip dependencies that didn't get installed?
             if dep_path === nothing
@@ -757,20 +844,24 @@ function setup_dependencies(prefix::Prefix,
                     continue
                 end
             end
+            @debug "Found artifacts TOML file" name artifacts_toml
 
             # If the artifact is available for the given platform, make sure it
             # is also installed.  It may not be the case for lazy artifacts or stdlibs.
             normalized_platform = normalize_platform(platform)
+            @debug "Using normalized platform" normalized_platform
             meta = artifact_meta(name[1:end-4], artifacts_toml; platform=normalized_platform)
             if meta === nothing
                 @warn("Dependency $(name) does not have a mapping for artifact $(name[1:end-4]) for platform $(triplet(platform))")
                 continue
             end
+            @debug "Found artifact metadata" name meta["git-tree-sha1"]
             ensure_artifact_installed(name[1:end-4], meta, artifacts_toml; platform=normalized_platform)
 
             # Copy the artifact from the global installation location into this build-specific artifacts collection
             src_path = Pkg.Artifacts.artifact_path(Base.SHA1(meta["git-tree-sha1"]))
             dest_path = joinpath(prefix, triplet(platform), "artifacts", basename(src_path))
+            @debug "Copying artifact" name src_path dest_path
             rm(dest_path; force=true, recursive=true)
             cp(src_path, dest_path)
 
@@ -780,20 +871,26 @@ function setup_dependencies(prefix::Prefix,
     end
 
     # Symlink all the deps into the prefix
+    @debug "Symlinking dependencies into prefix" length(artifact_paths)
     for art_path in artifact_paths
+        @debug "Symlinking artifact" art_path
         symlink_tree(art_path, destdir(prefix, platform))
     end
 
     # Return the artifact_paths so that we can clean them up later
+    @debug "Setup dependencies complete" length(artifact_paths)
     return artifact_paths
 end
 
 function cleanup_dependencies(prefix::Prefix, artifact_paths, platform)
+    @debug "Cleaning up dependencies" prefix platform length(artifact_paths)
     for art_path in artifact_paths
+        @debug "Cleaning up artifact" art_path
         # Unsymlink all destdirs within the prefix
         for dir in readdir(prefix.path; join=true)
             ddir = destdir(prefix, platform)
             if isdir(ddir)
+                @debug "Unsymlinking from destdir" ddir art_path
                 unsymlink_tree(art_path, ddir)
             end
         end
@@ -816,6 +913,7 @@ function compress_dir(dir::AbstractString;
                       level::Int = 9,
                       extension::AbstractString = ".gz",
                       verbose::Bool = false)
+    @debug "Compressing directory" dir extension level
     if isdir(dir)
         if verbose
             @info "Compressing files in $(dir)"
@@ -823,6 +921,7 @@ function compress_dir(dir::AbstractString;
         for f in readdir(dir)
             filename = joinpath(dir, f)
             if isfile(filename)
+                @debug "Compressing file" filename
                 text = read(filename, String)
                 stream = compressor_stream(open(filename * extension, "w"); level=level)
                 write(stream, text)
@@ -831,4 +930,5 @@ function compress_dir(dir::AbstractString;
             end
         end
     end
+    @debug "Directory compression complete" dir
 end
