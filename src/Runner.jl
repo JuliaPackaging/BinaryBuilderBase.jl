@@ -436,6 +436,17 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         end
     end
 
+    function buildid_link_flags!(p::AbstractPlatform, flags::Vector{String})
+        # build-id is not supported on macOS compilers
+        if !Sys.isapple(p)
+            # Windows build-id requires binutils 2.25+, which we only have for GCC 5+
+            if !Sys.iswindows(p) || (Sys.iswindows(p) && gcc_version ≥ v"5")
+                # Use a known algorithm to embed the build-id for reproducibility
+                push!(flags, "-Wl,--build-id=sha1")
+            end
+        end
+    end
+
     function clang_compile_flags!(p::AbstractPlatform, flags::Vector{String} = String[])
         if lock_microarchitecture
             append!(flags, get_march_flags(arch(p), march(p), "clang"))
@@ -540,6 +551,9 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
                 append!(flags, min_macos_version_linker_flags())
             end
         end
+
+        buildid_link_flags!(p, flags)
+
         return flags
     end
 
@@ -630,6 +644,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             push!(flags, "-Wl,--no-insert-timestamp")
         end
         sanitize_link_flags!(p, flags)
+        buildid_link_flags!(p, flags)
         return flags
     end
 

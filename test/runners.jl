@@ -2,6 +2,7 @@ using Test
 using BinaryBuilderBase
 using BinaryBuilderBase: platform_dlext, platform_exeext, prefer_clang
 using Pkg
+using ObjectFile
 
 @testset "Wrappers utilities" begin
     @test nbits(Platform("i686", "linux")) == 32
@@ -130,8 +131,12 @@ end
     if lowercase(get(ENV, "BINARYBUILDER_FULL_SHARD_TEST", "false")) == "true"
         @info("Beginning full shard test... (this can take a while)")
         platforms = supported_platforms()
+        elf_platforms = filter(p -> Sys.islinux(p) || Sys.isfreebsd(p), supported_platforms())
+        win_platforms = filter(p -> Sys.iswindows(p), supported_platforms())
     else
         platforms = (default_host_platform,)
+        elf_platforms = (default_host_platform,)
+        win_platforms = (Platform("x86_64", "windows"),)
     end
 
     # Checks that the wrappers provide the correct C++ string ABI
@@ -150,6 +155,80 @@ end
             echo 'int main() {return 0;}' | SUPER_VERBOSE=1 ${HOSTCC} -x c - 2>&1 | grep -v -- "-D_GLIBCXX_USE_CXX11_ABI=0"
             """
             @test run(ur, `/bin/bash -c "$(test_script)"`, iobuff; tee_stream=devnull)
+        end
+    end
+
+    # Checks that the compiler/linker include a build-id
+    # This is only available on ELF-based platforms
+    @testset "Compilation - Linux build-id note $(platform) - $(compiler)" for platform in elf_platforms, compiler in ("cc", "gcc", "clang", "c++", "g++", "clang++")
+        mktempdir() do dir
+            ur = preferred_runner()(dir; platform=platform)
+            iobuff = IOBuffer()
+            test_c = """
+                #include <stdlib.h>
+                int test(void) {
+                    return 0;
+                }
+                """
+            test_script = """
+                set -e
+                cd /workspace
+                # Make sure setting `CCACHE` doesn't affect the compiler wrappers.
+                export CCACHE=pwned
+                export USE_CCACHE=false
+                echo '$(test_c)' > test.c
+                # Build shared library
+                $(compiler) -shared test.c -o libtest.\${dlext}
+                """
+            cmd = `/bin/bash -c "$(test_script)"`
+            @test run(ur, cmd, iobuff)
+
+            # Load the library file and test it for the build-id
+            lib_path = joinpath(dir, "libtest."*platform_dlext(platform))
+            lib = open(lib_path)
+            obj_handles = readmeta(lib)
+            obj = first(obj_handles)
+            secs = Sections(obj)
+
+            # The section must exist for the build-id to be present
+            @test !isnothing(findfirst(s -> section_name(s) == ".note.gnu.build-id", secs))
+        end
+    end
+
+    # Checks that Windows can include a build-id
+    @testset "Compilation - Windows build-id note $(platform) - $(compiler)" for platform in win_platforms, compiler in ("cc", "gcc", "clang", "c++", "g++", "clang++")
+        mktempdir() do dir
+            # Windows build-id support requires binutils 2.25, which is part of our GCC 5
+            ur = preferred_runner()(dir; platform=platform, preferred_gcc_version=v"5")
+            iobuff = IOBuffer()
+            test_c = """
+                #include <stdlib.h>
+                int test(void) {
+                    return 0;
+                }
+                """
+            test_script = """
+                set -e
+                cd /workspace
+                # Make sure setting `CCACHE` doesn't affect the compiler wrappers.
+                export CCACHE=pwned
+                export USE_CCACHE=false
+                echo '$(test_c)' > test.c
+                # Build shared library
+                $(compiler) -shared test.c -o libtest.\${dlext}
+                """
+            cmd = `/bin/bash -c "$(test_script)"`
+            @test run(ur, cmd, iobuff)
+
+            # Load the library file and test it for the build-id
+            lib_path = joinpath(dir, "libtest."*platform_dlext(platform))
+            lib = open(lib_path)
+            obj_handles = readmeta(lib)
+            obj = first(obj_handles)
+            secs = Sections(obj)
+
+            # The section must exist for the build-id to be present
+            @test !isnothing(findfirst(s -> section_name(s) == ".buildid", secs))
         end
     end
 
