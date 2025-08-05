@@ -75,7 +75,7 @@ function ld_library_path(target::AbstractPlatform,
     # that can natively run within this environment
     if csl_paths
         append!(paths,
-                unique("/usr/lib/csl-$(libc(p))-$(arch(p))" for p in (host, target) if Sys.islinux(p) && proc_family(p) == "intel"),
+                unique("/usr/lib/csl-$(libc(p))-$(arch(p))" for p in (target, host) if Sys.islinux(p) && proc_family(p) == "intel"),
                 )
     end
 
@@ -1573,7 +1573,9 @@ function runner_setup!(workspaces, mappings, workspace_root, verbose, kwargs, pl
         if !isdir(ccache_dir())
             mkpath(ccache_dir())
         end
-        push!(workspaces, ccache_dir() => envs["CCACHE_DIR"])
+        # During bootstrap `CCACHE_DIR` may not be defined, we provide a
+        # fallback for that case, otherwise rely on the environment variable.
+        push!(workspaces, ccache_dir() => get(envs, "CCACHE_DIR", "/root/.ccache"))
     end
 
     return platform, envs, shards
