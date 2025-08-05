@@ -19,28 +19,33 @@ nbits(::AnyPlatform) = nbits(default_host_platform)
 proc_family(::AnyPlatform) = "any"
 Base.show(io::IO, ::AnyPlatform) = print(io, "AnyPlatform")
 
+function _agnostic(p::Platform, keeps)
+    filtered_tags = (Symbol(k) => convert(String, v) for (k, v) in tags(p) if k ∈ keeps)
+    return Platform(arch(p)::String, os(p)::String; filtered_tags...)
+end
+_agnostic(p::AnyPlatform, _) = p
+
 """
     abi_agnostic(p::AbstractPlatform)
 
 Strip out any tags that are not the basic annotations like `libc` and `call_abi`.
 """
-function abi_agnostic(p::Platform)
-    keeps = ("libc", "call_abi", "os_version")
-    filtered_tags = Dict{Symbol,String}(Symbol(k) => v for (k, v) in tags(p) if k ∈ keeps)
-    return Platform(arch(p)::String, os(p)::String; filtered_tags...)
-end
-abi_agnostic(p::AnyPlatform) = p
+abi_agnostic(p::AbstractPlatform) = _agnostic(p, ("libc", "call_abi", "os_version"))
 
 """
-    abi_agnostic(p::AbstractPlatform)
+    libabi_agnostic(p::AbstractPlatform)
 
 Like `abi_agnostic`, but keep the sanitizer ABI tags.
 """
-function libabi_agnostic(p::Platform)
-    keeps = ("libc", "call_abi", "os_version", "sanitize")
-    filtered_tags = Dict{Symbol,String}(Symbol(k) => v for (k, v) in tags(p) if k ∈ keeps)
-    return Platform(arch(p)::String, os(p)::String; filtered_tags...)
-end
+libabi_agnostic(p::AbstractPlatform) = _agnostic(p, ("libc", "call_abi", "os_version", "sanitize"))
+
+"""
+    os_version_agnostic(p::AbstractPlatform)
+
+Strip out an `os_version` tag if it exists.
+"""
+os_version_agnostic(p::AbstractPlatform) =
+    _agnostic(p, filter(!in(("arch", "os", "os_version")), keys(tags(p))))
 
 platforms_match_with_sanitize(a::AbstractPlatform, b::AbstractPlatform) =
     platforms_match(a, b) && sanitize(a) == sanitize(b)
