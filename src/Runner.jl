@@ -382,9 +382,12 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         return flags
     end
 
-    function min_macos_version_flags()
-        # Ask compilers to compile for a minimum macOS version, targeting that SDK.
-        return ("-mmacosx-version-min=\${MACOSX_DEPLOYMENT_TARGET}", "-Wl,-sdk_version,\${MACOSX_DEPLOYMENT_TARGET}")
+    # Ask compilers to compile for a minimum macOS version, targeting that SDK.
+    function min_macos_version_compiler_flags()
+        return ("-mmacosx-version-min=\${MACOSX_DEPLOYMENT_TARGET}",)
+    end
+    function min_macos_version_linker_flags()
+        return ("-Wl,-sdk_version,\${MACOSX_DEPLOYMENT_TARGET}",)
     end
 
     function add_system_includedir(flags::Vector{String})
@@ -433,6 +436,17 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         end
     end
 
+    function buildid_link_flags!(p::AbstractPlatform, flags::Vector{String})
+        # build-id is not supported on macOS compilers
+        if !Sys.isapple(p)
+            # Windows build-id requires binutils 2.25+, which we only have for GCC 5+
+            if !Sys.iswindows(p) || (Sys.iswindows(p) && gcc_version ≥ v"5")
+                # Use a known algorithm to embed the build-id for reproducibility
+                push!(flags, "-Wl,--build-id=sha1")
+            end
+        end
+    end
+
     function clang_compile_flags!(p::AbstractPlatform, flags::Vector{String} = String[])
         if lock_microarchitecture
             append!(flags, get_march_flags(arch(p), march(p), "clang"))
@@ -455,9 +469,8 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         ])
 
         if Sys.isapple(p)
-            macos_version_flags = clang_use_lld ? (min_macos_version_flags()[1],) : min_macos_version_flags()
             append!(flags, String[
-                macos_version_flags...,
+                min_macos_version_compiler_flags()...,
             ])
         end
 
@@ -529,11 +542,18 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         end
         sanitize_link_flags!(p, flags)
 
-        # On macos, we need to pass `-headerpad_max_install_names` so that we have lots of space
-        # for `install_name_tool` shenanigans during audit fixups.
         if Sys.isapple(p)
+            # On macos, we need to pass `-headerpad_max_install_names` so that we have lots
+            # of space for `install_name_tool` shenanigans during audit fixups.
             push!(flags, "-headerpad_max_install_names")
+            if !clang_use_lld
+                # The `-sdk_version` flag is not implemented in lld yet.
+                append!(flags, min_macos_version_linker_flags())
+            end
         end
+
+        buildid_link_flags!(p, flags)
+
         return flags
     end
 
@@ -544,7 +564,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         if gcc_version.major in (4, 5)
             push!(flags, "-Wl,-syslibroot,/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root")
         end
-        append!(flags, min_macos_version_flags())
+        append!(flags, min_macos_version_compiler_flags())
         return flags
     end
 
@@ -617,12 +637,14 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             ])
         elseif Sys.isapple(p)
             push!(flags, "-headerpad_max_install_names")
+            append!(flags, min_macos_version_linker_flags())
         elseif Sys.iswindows(p) && gcc_version ≥ v"5"
             # Do not embed timestamps, for reproducibility:
             # https://github.com/JuliaPackaging/BinaryBuilder.jl/issues/1232
             push!(flags, "-Wl,--no-insert-timestamp")
         end
         sanitize_link_flags!(p, flags)
+        buildid_link_flags!(p, flags)
         return flags
     end
 
@@ -721,6 +743,26 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         return wrapper(io, "/opt/$(host_target)/go/bin/go"; env=env, allow_ccache=false)
     end
     gofmt(io::IO, p::AbstractPlatform) = wrapper(io, "/opt/$(host_target)/go/bin/gofmt"; allow_ccache=false)
+
+    # OCaml stuff
+    function ocaml_wrapper(io::IO, tool::String, p::AbstractPlatform)
+        return wrapper(io, "/opt/$(aatriplet(p))/bin/$(tool)")
+    end
+    ## cross-tools for the target
+    ocamlc(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "ocamlc", p)
+    ocamlopt(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "ocamlopt", p)
+    ocamldep(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "ocamldep", p)
+    flexlink(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "flexlink", p)
+    ocamllex(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "ocamllex", p)
+    # XXX: ocamlyacc not being a cross tool seems like a bug?
+    ocamlyacc(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "ocamlyacc", host_platform)
+    ## native parts of the toolchain
+    ocaml(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "ocaml", host_platform)
+    ocamlrun(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "ocamlrun", host_platform)
+    ## auxiliary tools that are only built for the host
+    dune(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "dune", host_platform)
+    ocamlbuild(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "ocamlbuild", host_platform)
+    ocamlfind(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "ocamlfind", host_platform)
 
     # Rust stuff
     function rust_flags!(p::AbstractPlatform, flags::Vector{String} = String[])
@@ -859,6 +901,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     as(io::IO, p::AbstractPlatform) =
         wrapper(io, string("/opt/", aatriplet(p), "/bin/", aatriplet(p), "-as");
                 allow_ccache=false,
+                lock_microarchitecture,
                 # At the moment `as` for `aarch64-apple-darwin` is `clang-8`, which can't deal with
                 # `MACOSX_DEPLOYMENT_TARGET=11.0`, so we pretend to be on 10.16.  Note: a better check would be
                 # `VersionNumber(macos_version(p)) ≥ v"11"`, but sometimes `p` may not have `os_version` set, leading to
@@ -958,6 +1001,25 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             end
         end
 
+        # Generate OCaml stuff
+        if :ocaml in compilers
+            write_wrapper(ocaml, p, "$(t)-ocaml")
+            write_wrapper(ocamldep, p, "$(t)-ocamldep")
+            write_wrapper(ocamlc, p, "$(t)-ocamlc")
+            write_wrapper(ocamlopt, p, "$(t)-ocamlopt")
+            write_wrapper(ocamlrun, p, "$(t)-ocamlrun")
+            write_wrapper(ocamlyacc, p, "$(t)-ocamlyacc")
+            write_wrapper(ocamllex, p, "$(t)-ocamllex")
+
+            if Sys.iswindows(p)
+                write_wrapper(flexlink, p, "$(t)-flexlink")
+            end
+
+            write_wrapper(dune, p, "$(t)-dune")
+            write_wrapper(ocamlbuild, p, "$(t)-ocamlbuild")
+            write_wrapper(ocamlfind, p, "$(t)-ocamlfind")
+        end
+
         # Generate go stuff
         if :go in compilers
             write_wrapper(go, p, "$(t)-go")
@@ -1004,12 +1066,22 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     if :rust in compilers
         append!(default_tools, ("rustc","rustup","cargo"))
     end
+    if :ocaml in compilers
+        append!(default_tools, ("ocaml", "ocamldep", "ocamlc", "ocamlopt", "ocamlrun", "ocamlyacc", "ocamllex"))
+        if Sys.iswindows(platform)
+            push!(default_tools, "flexlink")
+        end
+        append!(default_tools, ("dune", "ocamlbuild", "ocamlfind"))
+    end
     if :go in compilers
         append!(default_tools, ("go", "gofmt"))
     end
-    # Create symlinks for default compiler invocations, invoke target toolchain
+    # Create symlinks for default compiler invocations
     for tool in default_tools
         symlink("$(target)-$(tool)", joinpath(bin_path, triplet(platform), tool))
+        if target != host_target
+            symlink("$(host_target)-$(tool)", joinpath(bin_path, triplet(host_platform), tool))
+        end
     end
 
     # Generate other fake system-specific tools.
@@ -1258,6 +1330,18 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
             "GOCACHE" => "/workspace/.gocache",
             "GOPATH" => "/workspace/.gopath",
             "GOARM" => GOARM(platform),
+        ))
+    end
+
+    # OCaml stuff
+    if :ocaml in compilers
+        merge!(mapping, Dict(
+            "OCAMLLIB" => "/opt/$(target)/lib/ocaml",
+
+            # Default mappings for some tools
+            "OCAMLC" => "ocamlc",
+            "OCAMLOPT" => "ocamlopt",
+            "OCAMLFIND" => "ocamlfind",
         ))
     end
 
