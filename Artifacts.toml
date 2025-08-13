@@ -4772,6 +4772,28 @@ os = "linux"
     sha256 = "6743f4d60e5ba1bdcbfa2f2d98f3cefb8e18b4a8a8822091921a78c52453363a"
     url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2025.2.15/PlatformSupport-i686-w64-mingw32.v2025.2.15.x86_64-linux-musl.unpacked.tar.gz"
 
+[["PlatformSupport-i686-w64-mingw32.v2025.8.13.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "9275154ff3c942463c69875f7b295971e72ff435"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["PlatformSupport-i686-w64-mingw32.v2025.8.13.x86_64-linux-musl.squashfs".download]]
+    sha256 = "1279ec4f4abdc9f23c2dc06a660b753fa4c1cc613a80002962848d338a242f6c"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2025.8.13/PlatformSupport-i686-w64-mingw32.v2025.8.13.x86_64-linux-musl.squashfs.tar.gz"
+
+[["PlatformSupport-i686-w64-mingw32.v2025.8.13.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "59749ddfafee9ad44ab0bd1ec51230be13ab9787"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["PlatformSupport-i686-w64-mingw32.v2025.8.13.x86_64-linux-musl.unpacked".download]]
+    sha256 = "e1962794d210aeaaddd9d16507673d87d42b14370b6584dbd47bad657544b7f9"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2025.8.13/PlatformSupport-i686-w64-mingw32.v2025.8.13.x86_64-linux-musl.unpacked.tar.gz"
+
 [["PlatformSupport-powerpc64le-linux-gnu.v2021.8.10.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
 git-tree-sha1 = "198246d0ca4e14793083922c86c5e7f18ee3bb14"
@@ -5387,6 +5409,28 @@ os = "linux"
     [["PlatformSupport-x86_64-w64-mingw32.v2025.2.15.x86_64-linux-musl.unpacked".download]]
     sha256 = "52cc47c4b37c7c71b1deb54de47ab4faad4131fa2a0df8e068f29c76457e4962"
     url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2025.2.15/PlatformSupport-x86_64-w64-mingw32.v2025.2.15.x86_64-linux-musl.unpacked.tar.gz"
+
+[["PlatformSupport-x86_64-w64-mingw32.v2025.8.13.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "54ea75e70612c8430dcf48484d0ff0675e3716fb"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["PlatformSupport-x86_64-w64-mingw32.v2025.8.13.x86_64-linux-musl.squashfs".download]]
+    sha256 = "f9c497131011a11a2345c0ac17206d377193191a00ba965b78d4a5d0d8668d3e"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2025.8.13/PlatformSupport-x86_64-w64-mingw32.v2025.8.13.x86_64-linux-musl.squashfs.tar.gz"
+
+[["PlatformSupport-x86_64-w64-mingw32.v2025.8.13.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "440b5a5af0c486ab79cb4d9310176067aecc2631"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["PlatformSupport-x86_64-w64-mingw32.v2025.8.13.x86_64-linux-musl.unpacked".download]]
+    sha256 = "7653dd182e780cc3ddaaf75e8bed11452a27406d083f4fd8e328d5e71ae57726"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2025.8.13/PlatformSupport-x86_64-w64-mingw32.v2025.8.13.x86_64-linux-musl.unpacked.tar.gz"
 
 [["Rootfs.v2025.7.4.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
