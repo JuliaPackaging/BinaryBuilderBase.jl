@@ -176,7 +176,7 @@ function __init__()
 
     # Allow the user to override the default value for `storage_dir`
     storage_cache[] = get(ENV, "BINARYBUILDER_STORAGE_DIR",
-                          abspath(joinpath(@__DIR__, "..", "deps")))
+                          @get_scratch!("storage_cache"))
 
     # If the user has signalled that they really want us to automatically
     # accept apple EULAs, do that.

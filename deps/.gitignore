@@ -1,7 +1,0 @@
-# Ignore ccache
-/ccache
-
-# Ignore cached downloads
-/downloads
-
-/enable_apple
