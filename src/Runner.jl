@@ -1573,7 +1573,7 @@ function runner_setup!(workspaces, mappings, workspace_root, verbose, kwargs, pl
         if !isdir(ccache_dir())
             mkpath(ccache_dir())
         end
-        if haskey(ENV, "CCACHE_DIR")
+        if haskey(envs, "CCACHE_DIR")
             # When bootstrapping, `CCACHE_DIR` is not defined.
             push!(workspaces, ccache_dir() => envs["CCACHE_DIR"])
         end
