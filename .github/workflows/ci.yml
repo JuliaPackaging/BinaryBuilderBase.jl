@@ -86,13 +86,13 @@ jobs:
 
     steps:
       - run: sudo rm -rf /opt/*
-      - uses: actions/checkout@v4
-      - uses: julia-actions/setup-julia@v1
+      - uses: actions/checkout@v5
+      - uses: julia-actions/setup-julia@v2
         with:
           version: ${{ matrix.julia-version }}
           arch: x64
       # We can't cache artifacts at the moment, it'd require more than 10 GiB.
-      # - uses: julia-actions/cache@v1
+      # - uses: julia-actions/cache@v2
       #   # For the time being cache artifacts only for squashfs, we need too much
       #   # storage for the unpacked shards
       #   if: ${{ matrix.squashfs == true }}

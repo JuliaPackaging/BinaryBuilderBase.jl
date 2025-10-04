@@ -440,9 +440,13 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         # build-id is not supported on macOS compilers
         if !Sys.isapple(p)
             # Windows build-id requires binutils 2.25+, which we only have for GCC 5+
-            if !Sys.iswindows(p) || (Sys.iswindows(p) && gcc_version ≥ v"5")
+            if !Sys.iswindows(p) || (Sys.iswindows(p) && gcc_version ≥ v"5" && !clang_use_lld)
                 # Use a known algorithm to embed the build-id for reproducibility
                 push!(flags, "-Wl,--build-id=sha1")
+            elseif Sys.iswindows(p) && clang_use_lld
+                # This is reproducible as we set `-Wl,--no-insert-timestamp` elsewhere
+                # See https://github.com/llvm/llvm-project/issues/74238#issuecomment-1839640836
+                push!(flags, "-Wl,--build-id")
             end
         end
     end
@@ -550,6 +554,10 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
                 # The `-sdk_version` flag is not implemented in lld yet.
                 append!(flags, min_macos_version_linker_flags())
             end
+        elseif Sys.iswindows(p) && gcc_version ≥ v"5"
+            # Do not embed timestamps, for reproducibility:
+            # https://github.com/JuliaPackaging/BinaryBuilder.jl/issues/1232
+            push!(flags, "-Wl,--no-insert-timestamp")
         end
 
         buildid_link_flags!(p, flags)
@@ -1573,7 +1581,10 @@ function runner_setup!(workspaces, mappings, workspace_root, verbose, kwargs, pl
         if !isdir(ccache_dir())
             mkpath(ccache_dir())
         end
-        push!(workspaces, ccache_dir() => envs["CCACHE_DIR"])
+        if haskey(envs, "CCACHE_DIR")
+            # When bootstrapping, `CCACHE_DIR` is not defined.
+            push!(workspaces, ccache_dir() => envs["CCACHE_DIR"])
+        end
     end
 
     return platform, envs, shards

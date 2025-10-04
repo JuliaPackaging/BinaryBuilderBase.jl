@@ -160,9 +160,9 @@ end
 
     # Checks that the compiler/linker include a build-id
     # This is only available on ELF-based platforms
-    @testset "Compilation - Linux build-id note $(platform) - $(compiler)" for platform in elf_platforms, compiler in ("cc", "gcc", "clang", "c++", "g++", "clang++")
+    @testset "Compilation - Linux build-id note $(platform) - $(compiler) - clang_use_lld=$(clang_use_lld)" for platform in elf_platforms, compiler in ("cc", "gcc", "clang", "c++", "g++", "clang++"), clang_use_lld in (true, false)
         mktempdir() do dir
-            ur = preferred_runner()(dir; platform=platform)
+            ur = preferred_runner()(dir; platform=platform, clang_use_lld=clang_use_lld)
             iobuff = IOBuffer()
             test_c = """
                 #include <stdlib.h>
@@ -196,10 +196,10 @@ end
     end
 
     # Checks that Windows can include a build-id
-    @testset "Compilation - Windows build-id note $(platform) - $(compiler)" for platform in win_platforms, compiler in ("cc", "gcc", "clang", "c++", "g++", "clang++")
+    @testset "Compilation - Windows build-id note $(platform) - $(compiler) - clang_use_lld=$(clang_use_lld)" for platform in win_platforms, compiler in ("cc", "gcc", "clang", "c++", "g++", "clang++"), clang_use_lld in (true, false)
         mktempdir() do dir
             # Windows build-id support requires binutils 2.25, which is part of our GCC 5
-            ur = preferred_runner()(dir; platform=platform, preferred_gcc_version=v"5")
+            ur = preferred_runner()(dir; platform=platform, preferred_gcc_version=v"5", clang_use_lld=clang_use_lld)
             iobuff = IOBuffer()
             test_c = """
                 #include <stdlib.h>
