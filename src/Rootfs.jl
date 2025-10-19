@@ -850,17 +850,8 @@ function expand_gfortran_versions(platform::AbstractPlatform)
         return [platform] #MSAN doesn't use libgfortran, it uses libflang
     end
 
-    # If this is an platform that has limited GCC support (such as aarch64-apple-darwin),
-    # the libgfortran versions we can expand to are similarly limited.
-    local libgfortran_versions
-    if Sys.isbsd(platform) && arch(platform) == "aarch64"
-        libgfortran_versions = [v"5"]
-    elseif arch(platform) == "riscv64"
-        # We don't have older GCC versions
-        libgfortran_versions = [v"5"]
-    else
-        libgfortran_versions = [v"3", v"4", v"5"]
-    end
+    # At the moment we only support libgfortran 5.
+    libgfortran_versions = [v"5",]
 
     # Create a new platform for each libgfortran version
     return map(libgfortran_versions) do v
@@ -899,8 +890,8 @@ function expand_cxxstring_abis(platform::AbstractPlatform; skip=Sys.isbsd)
         return [p]
     end
 
-    # Otherwise, generate new versions!
-    map(["cxx03", "cxx11"]) do abi
+    # Otherwise, generate new versions! At the moment we only support the C++11 string ABI.
+    map(["cxx11",]) do abi
         p = deepcopy(platform)
         p["cxxstring_abi"] = abi
         return p

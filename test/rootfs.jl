@@ -6,23 +6,15 @@ using BinaryBuilderBase: RustBuild, CompilerShard
 @testset "Expand platforms" begin
     # expand_gfortran_versions
     @test expand_gfortran_versions(Platform("i686", "windows")) == [
-        Platform("i686", "windows"; libgfortran_version=v"3"),
-        Platform("i686", "windows"; libgfortran_version=v"4"),
         Platform("i686", "windows"; libgfortran_version=v"5"),
     ]
     @test expand_gfortran_versions([Platform("i686", "windows"), Platform("x86_64", "windows")]) == [
-        Platform("i686", "windows"; libgfortran_version=v"3"),
-        Platform("i686", "windows"; libgfortran_version=v"4"),
         Platform("i686", "windows"; libgfortran_version=v"5"),
-        Platform("x86_64", "windows"; libgfortran_version=v"3"),
-        Platform("x86_64", "windows"; libgfortran_version=v"4"),
         Platform("x86_64", "windows"; libgfortran_version=v"5"),
     ]
     @test expand_gfortran_versions([Platform("x86_64", "freebsd"; libgfortran_version=v"3")]) ==
         [Platform("x86_64", "freebsd"; libgfortran_version=v"3")]
     @test expand_gfortran_versions([Platform("x86_64", "macos"), Platform("aarch64", "macos")]) == [
-        Platform("x86_64",  "macos"; libgfortran_version=v"3"),
-        Platform("x86_64",  "macos"; libgfortran_version=v"4"),
         Platform("x86_64",  "macos"; libgfortran_version=v"5"),
         Platform("aarch64", "macos"; libgfortran_version=v"5"),
     ]
@@ -34,7 +26,6 @@ using BinaryBuilderBase: RustBuild, CompilerShard
 
     # expand_cxxstring_abis
     @test expand_cxxstring_abis(Platform("x86_64", "linux"; libc="musl")) == [
-        Platform("x86_64", "linux", libc="musl", cxxstring_abi="cxx03"),
         Platform("x86_64", "linux", libc="musl", cxxstring_abi="cxx11"),
     ]
     @test expand_cxxstring_abis([Platform("x86_64", "freebsd"), Platform("x86_64", "macos")]) == [
@@ -42,13 +33,10 @@ using BinaryBuilderBase: RustBuild, CompilerShard
         Platform("x86_64", "macos"),
     ]
     @test expand_cxxstring_abis([Platform("x86_64", "freebsd"), Platform("x86_64", "macos")]; skip=_->false) == [
-        Platform("x86_64", "freebsd"; cxxstring_abi="cxx03"),
         Platform("x86_64", "freebsd"; cxxstring_abi="cxx11"),
-        Platform("x86_64", "macos"; cxxstring_abi="cxx03"),
         Platform("x86_64", "macos"; cxxstring_abi="cxx11"),
     ]
     @test expand_cxxstring_abis([Platform("x86_64", "freebsd"), Platform("x86_64", "linux")]; skip=Sys.islinux) == [
-        Platform("x86_64", "freebsd"; cxxstring_abi="cxx03"),
         Platform("x86_64", "freebsd"; cxxstring_abi="cxx11"),
         Platform("x86_64", "linux"),
     ]
