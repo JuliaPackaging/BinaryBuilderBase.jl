@@ -831,16 +831,18 @@ function supported_platforms(;exclude::Union{Vector{<:Platform},Function}=Return
 end
 
 """
-    expand_gfortran_versions(p::AbstractPlatform)
+    expand_gfortran_versions(p::AbstractPlatform; old_abis::Bool=false)
 
 Given a `Platform`, returns an array of `Platforms` with a spread of identical
 entries with the exception of the `libgfortran_version` tag within the
 `Platform`.  This is used to take, for example, a list of supported platforms
 and expand them to include multiple GCC versions for the purposes of ABI
 matching.  If the given `Platform` already specifies a `libgfortran_version`
-(as opposed to `nothing`) only that `Platform` is returned.
+(as opposed to `nothing`) only that `Platform` is returned.  If `old_abis` is
+`true`, old ABIs are included in the expanded list, otherwise only the new
+ones are included.
 """
-function expand_gfortran_versions(platform::AbstractPlatform)
+function expand_gfortran_versions(platform::AbstractPlatform; old_abis::Bool=false)
     # If this platform is already explicitly libgfortran-versioned, exit out fast here.
     if libgfortran_version(platform) !== nothing
         return [platform]
@@ -850,8 +852,16 @@ function expand_gfortran_versions(platform::AbstractPlatform)
         return [platform] #MSAN doesn't use libgfortran, it uses libflang
     end
 
-    # At the moment we only support libgfortran 5.
-    libgfortran_versions = [v"5",]
+    # If this is an platform that has limited GCC support (such as aarch64-apple-darwin),
+    # the libgfortran versions we can expand to are similarly limited.
+    libgfortran_versions = if Sys.isbsd(platform) && arch(platform) == "aarch64"
+        [v"5"]
+    elseif arch(platform) == "riscv64"
+        # We don't have older GCC versions
+        [v"5"]
+    else
+        old_abis ? [v"3", v"4", v"5"] : [v"5"]
+    end
 
     # Create a new platform for each libgfortran version
     return map(libgfortran_versions) do v
@@ -860,12 +870,12 @@ function expand_gfortran_versions(platform::AbstractPlatform)
         return p
     end
 end
-function expand_gfortran_versions(ps::Vector{T}) where {T<:AbstractPlatform}
-    return collect(T,Iterators.flatten(expand_gfortran_versions.(ps)))
+function expand_gfortran_versions(ps::Vector{T}; old_abis::Bool=false) where {T<:AbstractPlatform}
+    return collect(T,Iterators.flatten(expand_gfortran_versions.(ps; old_abis)))
 end
 
 """
-    expand_cxxstring_abis(p::AbstractPlatform; skip=Sys.isbsd)
+    expand_cxxstring_abis(p::AbstractPlatform; skip=Sys.isbsd, old_abis::Bool=false)
 
 Given a `Platform`, returns an array of `Platforms` with a spread of identical
 entries with the exception of the `cxxstring_abi` tag within the `Platform`
@@ -877,8 +887,12 @@ If the given `Platform` already specifies a `cxxstring_abi` (as opposed to
 `skip(platform)` evaluates to `true`, the given platform is not expanded.  By
 default FreeBSD and macOS platforms are skipped, due to their lack of a
 dependence on `libstdc++` and not needing this compatibility shim.
+
+If `old_abis` is `true`, old ABIs are included in the expanded list, otherwise
+only the new ones are included.
+
 """
-function expand_cxxstring_abis(platform::AbstractPlatform; skip=Sys.isbsd)
+function expand_cxxstring_abis(platform::AbstractPlatform; skip=Sys.isbsd, old_abis::Bool=false)
     # If this platform cannot/should not be expanded, then exit out fast here.
     if cxxstring_abi(platform) !== nothing || skip(platform)
         return [platform]
@@ -891,7 +905,8 @@ function expand_cxxstring_abis(platform::AbstractPlatform; skip=Sys.isbsd)
     end
 
     # Otherwise, generate new versions! At the moment we only support the C++11 string ABI.
-    map(["cxx11",]) do abi
+    abis = old_abis ? ["cxx03", "cxx11"] : ["cxx11"]
+    map(abis) do abi
         p = deepcopy(platform)
         p["cxxstring_abi"] = abi
         return p
