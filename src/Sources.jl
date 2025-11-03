@@ -62,7 +62,7 @@ ArchiveSource(url::String, hash::String; unpack_target::String = "") =
     ArchiveSource(url, hash, unpack_target)
 
 # List of optionally compressed TAR archives that we know how to deal with
-const tar_extensions = [".tar", ".tar.gz", ".tgz", ".tar.bz", ".tar.bz2",
+const tar_extensions = [".tar", ".tar.gz", ".tgz", ".tar.bz", ".tar.bz2", ".tbz",
                         ".tar.xz", ".tar.Z", ".txz", ".tar.zst"]
 # List of general archives that we know about
 const archive_extensions = vcat(tar_extensions, ".zip", ".conda")
