@@ -3,7 +3,7 @@
 #  environment variables must be updated to, etc...
 import Base: convert, joinpath, show
 using SHA, CodecZlib, TOML, LibGit2_jll
-import Bzip2_jll, Gzip_jll, Tar_jll, XZ_jll, Zstd_jll, unzip_jll
+import Bzip2_jll, Gzip_jll, Tar_jll, XZ_jll, Zstd_jll, p7zip_jll
 using JLLWrappers: pathsep, LIBPATH_env
 
 export Prefix, bindir, libdirs, includedir, logdir, temp_prefix, package
@@ -376,8 +376,8 @@ function setup(source::SetupSource{ArchiveSource}, targetdir, verbose; tar_flags
             if verbose
                 @info "Extracting zipball $(basename(source.path))..."
             end
-            if unzip_jll.is_available()
-                run(`$(unzip_jll.unzip()) -q $(source.path)`)
+            if p7zip_jll.is_available()
+                run(pipeline(`$(p7zip_jll.p7zip()) x -tzip -- $(source.path)`, devnull))
             end
         elseif endswith(source.path, ".conda")
             @debug "Extracting conda package" source.path
@@ -389,8 +389,8 @@ function setup(source::SetupSource{ArchiveSource}, targetdir, verbose; tar_flags
             pkg_name = replace(basename(source.path), r"^[a-z0-9]{64}-" => "pkg-", ".conda" => ".tar.zst")
             @debug "Conda package name" pkg_name
             # First unzip the pkg tarball from .conda file
-            if unzip_jll.is_available()
-                run(`$(unzip_jll.unzip()) -q $(source.path) $(pkg_name)`)
+            if p7zip_jll.is_available()
+                run(pipeline(`$(p7zip_jll.p7zip()) x -tzip -- $(source.path) $(pkg_name)`, devnull))
             end
             # Second untar the pkg tarball
             pkg_source = SetupSource{ArchiveSource}(joinpath(targetdir, pkg_name), source.hash, source.target)
