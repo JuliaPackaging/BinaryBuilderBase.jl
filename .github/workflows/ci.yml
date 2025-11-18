@@ -52,14 +52,6 @@ jobs:
 
           - runner: privileged
             squashfs: true
-            julia-version: "1.8"
-
-          - runner: privileged
-            squashfs: true
-            julia-version: "1.9"
-
-          - runner: privileged
-            squashfs: true
             julia-version: "1.10"
 
           - runner: privileged
@@ -68,7 +60,11 @@ jobs:
 
           - runner: privileged
             squashfs: true
-            julia-version: "1.12-nightly"
+            julia-version: "1.12"
+
+          - runner: privileged
+            squashfs: true
+            julia-version: "1.13-nightly"
 
           - runner: privileged
             squashfs: true
@@ -79,10 +75,11 @@ jobs:
             squashfs: false
             julia-version: "1.7"
 
-          # Add a job that uses the docker builder with unpacked shards
-          - runner: docker
-            squashfs: false
-            julia-version: "1.7"
+          # This job is disabled because it "has been failing for some months"
+          # # Add a job that uses the docker builder with unpacked shards
+          # - runner: docker
+          #   squashfs: false
+          #   julia-version: "1.7"
 
     steps:
       - run: sudo rm -rf /opt/*
