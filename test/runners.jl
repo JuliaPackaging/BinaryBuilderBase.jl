@@ -2,6 +2,7 @@ using Test
 using BinaryBuilderBase
 using BinaryBuilderBase: platform_dlext, platform_exeext, prefer_clang
 using Pkg
+using ObjectFile
 
 @testset "Wrappers utilities" begin
     @test nbits(Platform("i686", "linux")) == 32
@@ -130,8 +131,12 @@ end
     if lowercase(get(ENV, "BINARYBUILDER_FULL_SHARD_TEST", "false")) == "true"
         @info("Beginning full shard test... (this can take a while)")
         platforms = supported_platforms()
+        elf_platforms = filter(p -> Sys.islinux(p) || Sys.isfreebsd(p), supported_platforms())
+        win_platforms = filter(p -> Sys.iswindows(p), supported_platforms())
     else
         platforms = (default_host_platform,)
+        elf_platforms = (default_host_platform,)
+        win_platforms = (Platform("x86_64", "windows"),)
     end
 
     # Checks that the wrappers provide the correct C++ string ABI
@@ -150,6 +155,80 @@ end
             echo 'int main() {return 0;}' | SUPER_VERBOSE=1 ${HOSTCC} -x c - 2>&1 | grep -v -- "-D_GLIBCXX_USE_CXX11_ABI=0"
             """
             @test run(ur, `/bin/bash -c "$(test_script)"`, iobuff; tee_stream=devnull)
+        end
+    end
+
+    # Checks that the compiler/linker include a build-id
+    # This is only available on ELF-based platforms
+    @testset "Compilation - Linux build-id note $(platform) - $(compiler) - clang_use_lld=$(clang_use_lld)" for platform in elf_platforms, compiler in ("cc", "gcc", "clang", "c++", "g++", "clang++"), clang_use_lld in (true, false)
+        mktempdir() do dir
+            ur = preferred_runner()(dir; platform=platform, clang_use_lld=clang_use_lld)
+            iobuff = IOBuffer()
+            test_c = """
+                #include <stdlib.h>
+                int test(void) {
+                    return 0;
+                }
+                """
+            test_script = """
+                set -e
+                cd /workspace
+                # Make sure setting `CCACHE` doesn't affect the compiler wrappers.
+                export CCACHE=pwned
+                export USE_CCACHE=false
+                echo '$(test_c)' > test.c
+                # Build shared library
+                $(compiler) -shared test.c -o libtest.\${dlext}
+                """
+            cmd = `/bin/bash -c "$(test_script)"`
+            @test run(ur, cmd, iobuff)
+
+            # Load the library file and test it for the build-id
+            lib_path = joinpath(dir, "libtest."*platform_dlext(platform))
+            lib = open(lib_path)
+            obj_handles = readmeta(lib)
+            obj = first(obj_handles)
+            secs = Sections(obj)
+
+            # The section must exist for the build-id to be present
+            @test !isnothing(findfirst(s -> section_name(s) == ".note.gnu.build-id", secs))
+        end
+    end
+
+    # Checks that Windows can include a build-id
+    @testset "Compilation - Windows build-id note $(platform) - $(compiler) - clang_use_lld=$(clang_use_lld)" for platform in win_platforms, compiler in ("cc", "gcc", "clang", "c++", "g++", "clang++"), clang_use_lld in (true, false)
+        mktempdir() do dir
+            # Windows build-id support requires binutils 2.25, which is part of our GCC 5
+            ur = preferred_runner()(dir; platform=platform, preferred_gcc_version=v"5", clang_use_lld=clang_use_lld)
+            iobuff = IOBuffer()
+            test_c = """
+                #include <stdlib.h>
+                int test(void) {
+                    return 0;
+                }
+                """
+            test_script = """
+                set -e
+                cd /workspace
+                # Make sure setting `CCACHE` doesn't affect the compiler wrappers.
+                export CCACHE=pwned
+                export USE_CCACHE=false
+                echo '$(test_c)' > test.c
+                # Build shared library
+                $(compiler) -shared test.c -o libtest.\${dlext}
+                """
+            cmd = `/bin/bash -c "$(test_script)"`
+            @test run(ur, cmd, iobuff)
+
+            # Load the library file and test it for the build-id
+            lib_path = joinpath(dir, "libtest."*platform_dlext(platform))
+            lib = open(lib_path)
+            obj_handles = readmeta(lib)
+            obj = first(obj_handles)
+            secs = Sections(obj)
+
+            # The section must exist for the build-id to be present
+            @test !isnothing(findfirst(s -> section_name(s) == ".buildid", secs))
         end
     end
 
@@ -458,12 +537,14 @@ end
             platform = Platform("x86_64", "macos")
             test_script = raw"""
             set -e
-            prog='int main(void) { return 0; }'
-            echo "${prog}" | clang -x c - -o test-clang
+            echo 'int main(void) { return 0; }' > test.c
+            clang -Wall -Werror -Werror=unused-command-line-argument test.c -c -o test-clang.o
+            clang -Wall -Werror -Werror=unused-command-line-argument test-clang.o -o test-clang
             otool -lV test-clang | grep sdk
             # Set `MACOSX_DEPLOYMENT_TARGET` to override the value of the SDK
             export MACOSX_DEPLOYMENT_TARGET=10.14
-            echo "${prog}" | gcc -x c - -o test-gcc
+            gcc -Wall -Werror test.c -c -o test-gcc.o
+            gcc -Wall -Werror test-gcc.o -o test-gcc
             otool -lV test-gcc | grep sdk
             """
             cmd = `/bin/bash -c "$(test_script)"`
@@ -577,6 +658,29 @@ end
             make -j${nproc} -sC /usr/share/testsuite install
             """
             @test run(ur, `/bin/bash -c "$(test_script)"`, iobuff)
+        end
+    end
+    @testset "basic program" begin
+        mktempdir() do dir
+            compilers = [:c, :ocaml]
+            ur = preferred_runner()(dir; platform=Platform("x86_64", "linux"; libc="glibc"), preferred_gcc_version=v"6", compilers)
+            # Make sure the runner platform is concrete even if the requested platform isn't
+            @test !isnothing(libgfortran_version(ur.platform))
+            @test !isnothing(cxxstring_abi(ur.platform))
+            iobuff = IOBuffer()
+            test_script = raw"""
+            set -e
+            mkdir -p ${prefix}/bin
+            echo 'let () = print_endline "hello world"' > hello.ml
+            ocamlopt -o ${prefix}/bin/hello_world${exeext} hello.ml
+            install_license /usr/share/licenses/MIT
+
+            # Make sure it runs
+            ${prefix}/bin/hello_world${exeext}
+            """
+            @test run(ur, `/bin/bash -c "$(test_script)"`, iobuff)
+            seek(iobuff, 0)
+            @test readlines(iobuff)[end] == "hello world"
         end
     end
 end

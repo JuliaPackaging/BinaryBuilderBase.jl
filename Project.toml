@@ -1,7 +1,7 @@
 name = "BinaryBuilderBase"
 uuid = "7f725544-6523-48cd-82d1-3fa08ff4056e"
 authors = ["Elliot Saba <staticfloat@gmail.com>"]
-version = "1.37.0"
+version = "1.42.0"
 
 [deps]
 Bzip2_jll = "6e34b625-4abd-537c-b88f-471c36dfa7a0"
@@ -56,7 +56,7 @@ Printf = "1.7"
 ProgressMeter = "1"
 REPL = "1.7"
 Random = "1.7"
-SHA = "0.7, 1.7"
+SHA = "0.7, 1"
 Scratch = "1.0"
 SimpleBufferStream = "1"
 TOML = "1"

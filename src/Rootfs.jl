@@ -383,6 +383,10 @@ struct RustBuild <: CompilerBuild
     version::VersionNumber
 end
 
+struct OCamlBuild <: CompilerBuild
+    version::VersionNumber
+end
+
 getversion(c::CompilerBuild) = c.version
 getabi(c::CompilerBuild) = c.abi
 
@@ -407,11 +411,18 @@ const available_gcc_builds = [
     # GCCBuild(v"11.0.0-iains", (libgfortran_version = v"5", libstdcxx_version = v"3.4.28", cxxstring_abi = "cxx11")),
     GCCBuild(v"12.0.1-iains", (libgfortran_version = v"5", libstdcxx_version = v"3.4.29", cxxstring_abi = "cxx11")),
 ]
+
+# Since we read the Artifacts.toml at compile time, we need to make sure that we-reprecompile
+# if the file changes - let Julia know.
+Base.include_dependency(joinpath(dirname(@__DIR__), "Artifacts.toml"))
+
 const available_llvm_builds = LLVMBuild.(get_available_builds("LLVMBootstrap."))
 
 const available_go_builds = GoBuild.(get_available_builds("Go."))
 
 const available_rust_builds = RustBuild.(get_available_builds("RustBase."))
+
+const available_ocaml_builds = OCamlBuild.(get_available_builds("OCaml-"))
 
 """
     gcc_version(p::AbstractPlatform, GCC_builds::Vector{GCCBuild},
@@ -576,16 +587,17 @@ function choose_shards(p::AbstractPlatform;
             compilers::Vector{Symbol} = [:c],
             # We always just use the latest Rootfs embedded within our Artifacts.toml
             rootfs_build::VersionNumber=last(BinaryBuilderBase.get_available_builds("Rootfs")),
-            ps_build::VersionNumber=v"2025.02.15",
+            ps_build::VersionNumber=v"2025.08.13",
             GCC_builds::Vector{GCCBuild}=available_gcc_builds,
             LLVM_builds::Vector{LLVMBuild}=available_llvm_builds,
             Rust_builds::Vector{RustBuild}=available_rust_builds,
             Go_builds::Vector{GoBuild}=available_go_builds,
+            OCaml_builds::Vector{OCamlBuild}=available_ocaml_builds,
             archive_type::Symbol = (use_squashfs[] ? :squashfs : :unpacked),
             bootstrap_list::Vector{Symbol} = bootstrap_list,
             # Because GCC has lots of compatibility issues, we always default to
             # the earliest version possible.
-            preferred_gcc_version::VersionNumber = getversion(GCC_builds[1]),
+            preferred_gcc_version::Union{Nothing,VersionNumber} = nothing,
             # Because LLVM doesn't have compatibility issues, we always default
             # to the newest version possible.
             preferred_llvm_version::VersionNumber = getversion(LLVM_builds[end]),
@@ -594,7 +606,20 @@ function choose_shards(p::AbstractPlatform;
             preferred_rust_version::VersionNumber = maximum(getversion.(Rust_builds)),
             # Always default to the latest Go version
             preferred_go_version::VersionNumber = maximum(getversion.(Go_builds)),
+            # Always default to the latest OCaml version
+            preferred_ocaml_version::VersionNumber = maximum(getversion.(OCaml_builds)),
         )
+
+    # The preferred GCC version depends on the compilers we are using.
+    if preferred_gcc_version === nothing
+        preferred_gcc_version = if :ocaml in compilers
+            # OCaml shards have been compiled agains GCC 6
+            compatible_gcc_builds = filter(b -> getversion(b) >= v"6", GCC_builds)
+            getversion(compatible_gcc_builds[1])
+        else
+            getversion(GCC_builds[1])
+        end
+    end
 
     function find_shard(name, version, archive_type; target = nothing)
         # aarch64-apple-darwin is a special platform because it has a single GCCBootstrap
@@ -708,6 +733,25 @@ function choose_shards(p::AbstractPlatform;
 
             push!(shards, find_shard("Go", Go_build, archive_type))
         end
+
+        if :ocaml in compilers
+            # Make sure the selected OCaml toolchain version is available
+            if preferred_ocaml_version in getversion.(OCaml_builds)
+                OCaml_build = preferred_ocaml_version
+            else
+                error("Requested OCaml toolchain $(preferred_ocaml_version) not available in $(OCaml_builds)")
+            end
+
+            # Add a host-native shard, which we often need to bootstrap
+            push!(shards, find_shard("OCaml", OCaml_build, archive_type;
+                                     target=default_host_platform))
+
+            # If needed, add a cross-compiling target shard
+            if !isa(p, AnyPlatform) && !platforms_match(p, default_host_platform)
+                push!(shards, find_shard("OCaml", OCaml_build, archive_type;
+                                         target=p))
+            end
+        end
     else
         function find_latest_version(name)
             versions = [cs.version for cs in all_compiler_shards()
@@ -787,16 +831,18 @@ function supported_platforms(;exclude::Union{Vector{<:Platform},Function}=Return
 end
 
 """
-    expand_gfortran_versions(p::AbstractPlatform)
+    expand_gfortran_versions(p::AbstractPlatform; old_abis::Bool=false)
 
 Given a `Platform`, returns an array of `Platforms` with a spread of identical
 entries with the exception of the `libgfortran_version` tag within the
 `Platform`.  This is used to take, for example, a list of supported platforms
 and expand them to include multiple GCC versions for the purposes of ABI
 matching.  If the given `Platform` already specifies a `libgfortran_version`
-(as opposed to `nothing`) only that `Platform` is returned.
+(as opposed to `nothing`) only that `Platform` is returned.  If `old_abis` is
+`true`, old ABIs are included in the expanded list, otherwise only the new
+ones are included.
 """
-function expand_gfortran_versions(platform::AbstractPlatform)
+function expand_gfortran_versions(platform::AbstractPlatform; old_abis::Bool=false)
     # If this platform is already explicitly libgfortran-versioned, exit out fast here.
     if libgfortran_version(platform) !== nothing
         return [platform]
@@ -808,14 +854,13 @@ function expand_gfortran_versions(platform::AbstractPlatform)
 
     # If this is an platform that has limited GCC support (such as aarch64-apple-darwin),
     # the libgfortran versions we can expand to are similarly limited.
-    local libgfortran_versions
-    if Sys.isbsd(platform) && arch(platform) == "aarch64"
-        libgfortran_versions = [v"5"]
+    libgfortran_versions = if Sys.isbsd(platform) && arch(platform) == "aarch64"
+        [v"5"]
     elseif arch(platform) == "riscv64"
         # We don't have older GCC versions
-        libgfortran_versions = [v"5"]
+        [v"5"]
     else
-        libgfortran_versions = [v"3", v"4", v"5"]
+        old_abis ? [v"3", v"4", v"5"] : [v"5"]
     end
 
     # Create a new platform for each libgfortran version
@@ -825,12 +870,12 @@ function expand_gfortran_versions(platform::AbstractPlatform)
         return p
     end
 end
-function expand_gfortran_versions(ps::Vector{T}) where {T<:AbstractPlatform}
-    return collect(T,Iterators.flatten(expand_gfortran_versions.(ps)))
+function expand_gfortran_versions(ps::Vector{T}; old_abis::Bool=false) where {T<:AbstractPlatform}
+    return collect(T,Iterators.flatten(expand_gfortran_versions.(ps; old_abis)))
 end
 
 """
-    expand_cxxstring_abis(p::AbstractPlatform; skip=Sys.isbsd)
+    expand_cxxstring_abis(p::AbstractPlatform; skip=Sys.isbsd, old_abis::Bool=false)
 
 Given a `Platform`, returns an array of `Platforms` with a spread of identical
 entries with the exception of the `cxxstring_abi` tag within the `Platform`
@@ -842,8 +887,12 @@ If the given `Platform` already specifies a `cxxstring_abi` (as opposed to
 `skip(platform)` evaluates to `true`, the given platform is not expanded.  By
 default FreeBSD and macOS platforms are skipped, due to their lack of a
 dependence on `libstdc++` and not needing this compatibility shim.
+
+If `old_abis` is `true`, old ABIs are included in the expanded list, otherwise
+only the new ones are included.
+
 """
-function expand_cxxstring_abis(platform::AbstractPlatform; skip=Sys.isbsd)
+function expand_cxxstring_abis(platform::AbstractPlatform; skip=Sys.isbsd, old_abis::Bool=false)
     # If this platform cannot/should not be expanded, then exit out fast here.
     if cxxstring_abi(platform) !== nothing || skip(platform)
         return [platform]
@@ -855,8 +904,9 @@ function expand_cxxstring_abis(platform::AbstractPlatform; skip=Sys.isbsd)
         return [p]
     end
 
-    # Otherwise, generate new versions!
-    map(["cxx03", "cxx11"]) do abi
+    # Otherwise, generate new versions! At the moment we only support the C++11 string ABI.
+    abis = old_abis ? ["cxx03", "cxx11"] : ["cxx11"]
+    map(abis) do abi
         p = deepcopy(platform)
         p["cxxstring_abi"] = abi
         return p
