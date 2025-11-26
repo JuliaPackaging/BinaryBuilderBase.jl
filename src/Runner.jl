@@ -792,14 +792,17 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     end
     function rustc(io::IO, p::AbstractPlatform)
         extra_cmds = """
+        # Default to this platform's target unless overridden in the environment
+        rust_target="\${CARGO_BUILD_TARGET:-$(map_rust_target(p))}"
+
         if [[ " \${ARGS[@]} " == *'--target'* ]]; then
-            if ! [[ " \${ARGS[@]} " =~ --target(=| )\${CARGO_BUILD_TARGET} ]]; then
-                echo "Attempting to invoke targeted 'rustc' wrapper with a different target! (Expected \${CARGO_BUILD_TARGET}, which is CARGO_BUILD_TARGET)" >&2
+            if ! [[ " \${ARGS[@]} " =~ --target(=| )\${rust_target} ]]; then
+                echo "Attempting to invoke targeted 'rustc' wrapper with a different target! (Expected \${rust_target} from CARGO_BUILD_TARGET or default)" >&2
                 echo "args: \${ARGS[@]}" >&2
                 exit 1
             fi
         else
-            PRE_FLAGS+=( "--target=\${CARGO_BUILD_TARGET}" )
+            PRE_FLAGS+=( "--target=\${rust_target}" )
         fi
         """
         wrapper(io, "/opt/$(host_target)/bin/rustc"; flags=rust_flags!(p), allow_ccache=false, extra_cmds=extra_cmds)
