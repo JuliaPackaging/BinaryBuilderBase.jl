@@ -1362,7 +1362,8 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
             "RUSTC" => "rustc",
             "CARGO" => "cargo",
             "CARGO_BUILD_JOBS" => nproc,
-            "CARGO_BUILD_TARGET" => map_rust_target(platform),
+            # "CARGO_BUILD_TARGET" => map_rust_target(platform),
+            "CARGO_HOST_WRAPPER" => "$(host_target)-cargo",
             "CARGO_HOME" => "/opt/$(host_target)",
             "RUSTUP_HOME" => "/opt/$(host_target)",
         ))
