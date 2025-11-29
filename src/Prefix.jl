@@ -613,7 +613,7 @@ function get_addable_spec(name::AbstractString, version::VersionNumber;
             continue
         end
 
-        pkg_info = registry_info(reg[uuid])
+        pkg_info = registry_info(reg, reg[uuid])
         if pkg_info.repo !== nothing
             push!(repo_urls, pkg_info.repo)
         end
