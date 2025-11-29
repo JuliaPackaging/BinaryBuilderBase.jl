@@ -29,16 +29,3 @@ if !isdefined(Pkg.Types, :stdlib_version)
 else
     const stdlib_version = Pkg.Types.stdlib_version
 end
-
-if isdefined(Pkg, :Registry) && isdefined(Pkg.Registry, :registry_info)
-    const _Pkg_registry_info = Pkg.Registry.registry_info
-elseif isdefined(Pkg, :RegistryHandling) && isdefined(Pkg.RegistryHandling, :registry_info)
-    const _Pkg_registry_info = Pkg.RegistryHandling.registry_info
-end
-
-# Handle Pkg.jl signature change: registry_info(pkg) -> registry_info(registry, pkg)
-if @isdefined(_Pkg_registry_info) && hasmethod(_Pkg_registry_info, Tuple{Pkg.Registry.PkgEntry})
-    registry_info(::Pkg.Registry.RegistryInstance, pkg::Pkg.Registry.PkgEntry) = _Pkg_registry_info(pkg)
-else
-    const registry_info = _Pkg_registry_info
-end
