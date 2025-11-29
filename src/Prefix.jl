@@ -597,18 +597,32 @@ Given a JLL name and registered version, return a `PackageSpec` that, when passe
     ]
 """
 function get_addable_spec(name::AbstractString, version::VersionNumber;
-                          ctx = Pkg.Types.Context(), verbose::Bool = false)
+                          verbose::Bool = false)
     @debug "Getting addable spec" name version
     # Zeroth, update the registry
     update_registry(verbose ? stdout : devnull)
+
+    # Get registries using RegistryInstances
+    registries = reachable_registries()
+
     # First, resolve the UUID
-    uuid = first(Pkg.Types.registry_resolve!(ctx.registries, Pkg.Types.PackageSpec(;name))).uuid
+    uuid = nothing
+    for reg in registries
+        uuids = uuids_from_name(reg, name)
+        if !isempty(uuids)
+            uuid = first(uuids)
+            break
+        end
+    end
+    if uuid === nothing
+        error("Unable to find package $name in any registry")
+    end
     @debug "Resolved UUID" name uuid
 
     # Next, determine the tree hash from the registry
     repo_urls = Set{String}()
     tree_hashes = Set{Base.SHA1}()
-    for reg in ctx.registries
+    for reg in registries
         if !haskey(reg, uuid)
             continue
         end
@@ -630,7 +644,7 @@ function get_addable_spec(name::AbstractString, version::VersionNumber;
         @error("Unable to find dependency!",
             name,
             version,
-            registries=ctx.registries,
+            registries,
         )
         error("Unable to find dependency!")
     end
@@ -639,7 +653,7 @@ function get_addable_spec(name::AbstractString, version::VersionNumber;
             name,
             version,
             tree_hashes,
-            registries=ctx.registries,
+            registries,
         )
         error("Multiple treehashes found!")
     end

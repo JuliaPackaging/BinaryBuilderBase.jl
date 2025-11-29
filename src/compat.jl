@@ -29,9 +29,3 @@ if !isdefined(Pkg.Types, :stdlib_version)
 else
     const stdlib_version = Pkg.Types.stdlib_version
 end
-
-if isdefined(Pkg, :Registry) && isdefined(Pkg.Registry, :registry_info)
-    const registry_info = Pkg.Registry.registry_info
-elseif isdefined(Pkg, :RegistryHandling) && isdefined(Pkg.RegistryHandling, :registry_info)
-    const registry_info = Pkg.RegistryHandling.registry_info
-end
