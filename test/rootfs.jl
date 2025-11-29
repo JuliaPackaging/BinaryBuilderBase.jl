@@ -310,7 +310,9 @@ end
                 @test occursin("-L/opt/$(triplet(platform))/$(triplet(platform))/lib", clang)
                 # Other compilers
                 @test occursin("GOOS=\"freebsd\"", read(joinpath(platform_bin_dir, "go"), String))
-                @test occursin("--target=x86_64-unknown-freebsd", read(joinpath(platform_bin_dir, "rustc"), String))
+                rustc_script = read(joinpath(platform_bin_dir, "rustc"), String)
+                @test occursin("rust_target=\"\${CARGO_BUILD_TARGET:-x86_64-unknown-freebsd}\"", rustc_script)
+                @test occursin("--target=\${rust_target}", rustc_script)
             end
         end
         platform = Platform("x86_64", "linux"; libc="glibc", cxxstring_abi="cxx11")
