@@ -6022,6 +6022,28 @@ os = "linux"
     sha256 = "4a4bf6c910c550cd27906404eff4747224caa53d5f26514de3909859ea8454b2"
     url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustBase-v1.87.0/RustBase.v1.87.0.x86_64-linux-musl.unpacked.tar.gz"
 
+[["RustBase.v1.91.0.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "3dbe84a25f80e2ddb93e617f6c2751618f2cbbd9"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["RustBase.v1.91.0.x86_64-linux-musl.squashfs".download]]
+    sha256 = "dc48b64746d88854d182b867ecf5d43f1ef2cd7c74e38584cb519aded01b432e"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustBase-v1.91.0/RustBase.v1.91.0.x86_64-linux-musl.squashfs.tar.gz"
+
+[["RustBase.v1.91.0.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "48c62c84f3fd6e8f422e5ed57e952d138f5d120e"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["RustBase.v1.91.0.x86_64-linux-musl.unpacked".download]]
+    sha256 = "39483efa7a61f07ccb790a0d1db0fe0f6de651a7626c4d7e60adfc0178931c7b"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustBase-v1.91.0/RustBase.v1.91.0.x86_64-linux-musl.unpacked.tar.gz"
+
 [["RustToolchain-aarch64-apple-darwin.v1.57.0.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
 git-tree-sha1 = "f12052bec0cfb5df95d3c7dd7ae0be0594eed0fb"
@@ -6241,6 +6263,28 @@ os = "linux"
     [["RustToolchain-aarch64-apple-darwin.v1.87.0.x86_64-linux-musl.unpacked".download]]
     sha256 = "c5b124faa027e89445d1d572f8ef97b626d59d370da4f760a426bc435d480461"
     url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustToolchain-v1.87.0/RustToolchain-aarch64-apple-darwin.v1.87.0.x86_64-linux-musl.unpacked.tar.gz"
+
+[["RustToolchain-aarch64-apple-darwin.v1.91.0.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "36a571e38a334616e6038d02f4ce13e17ea6f405"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["RustToolchain-aarch64-apple-darwin.v1.91.0.x86_64-linux-musl.squashfs".download]]
+    sha256 = "0e7bff3a45bfba2955b8a39ff8aff2bc3ea44bae457dce8ef9249993f7e204a9"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustToolchain-v1.91.0/RustToolchain-aarch64-apple-darwin.v1.91.0.x86_64-linux-musl.squashfs.tar.gz"
+
+[["RustToolchain-aarch64-apple-darwin.v1.91.0.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "3eb66be3a6a9ec7085f32f312f30e64e13e4790f"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["RustToolchain-aarch64-apple-darwin.v1.91.0.x86_64-linux-musl.unpacked".download]]
+    sha256 = "48d9d63a35479113f76bd780dfcf2fea96560a7f9875709af361dac5e94d70b5"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustToolchain-v1.91.0/RustToolchain-aarch64-apple-darwin.v1.91.0.x86_64-linux-musl.unpacked.tar.gz"
 
 [["RustToolchain-aarch64-linux-gnu.v1.57.0.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
@@ -6462,6 +6506,28 @@ os = "linux"
     sha256 = "737eb66d746d8d1b48cc6d4d7189c9519feb2037b76e95823e0821e7b7acae90"
     url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustToolchain-v1.87.0/RustToolchain-aarch64-linux-gnu.v1.87.0.x86_64-linux-musl.unpacked.tar.gz"
 
+[["RustToolchain-aarch64-linux-gnu.v1.91.0.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "901f6866a2e01e575c5208533ef418929060b0e9"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["RustToolchain-aarch64-linux-gnu.v1.91.0.x86_64-linux-musl.squashfs".download]]
+    sha256 = "de76a6ade6adf56bf78d6498c33d67415ed28b1ac1bfc3f38ea6f97ad3e5155a"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustToolchain-v1.91.0/RustToolchain-aarch64-linux-gnu.v1.91.0.x86_64-linux-musl.squashfs.tar.gz"
+
+[["RustToolchain-aarch64-linux-gnu.v1.91.0.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "15656066d0f2c8c1e2b6b063769f3eb4d9a7c54f"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["RustToolchain-aarch64-linux-gnu.v1.91.0.x86_64-linux-musl.unpacked".download]]
+    sha256 = "0617119bfdfa02fbf61029e9f452434b9d82d1d3171bc26fdfcf1506d91f3e8e"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustToolchain-v1.91.0/RustToolchain-aarch64-linux-gnu.v1.91.0.x86_64-linux-musl.unpacked.tar.gz"
+
 [["RustToolchain-aarch64-linux-musl.v1.57.0.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
 git-tree-sha1 = "810db8e4711de59c9bf7468377bc08dcb8a56a2b"
@@ -6681,6 +6747,28 @@ os = "linux"
     [["RustToolchain-aarch64-linux-musl.v1.87.0.x86_64-linux-musl.unpacked".download]]
     sha256 = "7f32cb9c8dcbbd1d3ff775d1a60cc95ecd5d6f7155bff6738ae2385b4c366ba0"
     url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustToolchain-v1.87.0/RustToolchain-aarch64-linux-musl.v1.87.0.x86_64-linux-musl.unpacked.tar.gz"
+
+[["RustToolchain-aarch64-linux-musl.v1.91.0.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "ddec6edb7725f3f4aa1dd9e7e8d4106c6a18fabc"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["RustToolchain-aarch64-linux-musl.v1.91.0.x86_64-linux-musl.squashfs".download]]
+    sha256 = "dcdb103fbd46f2b1cb81f37d965b5b82f4df06390ce4370e9c06359efd081a96"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustToolchain-v1.91.0/RustToolchain-aarch64-linux-musl.v1.91.0.x86_64-linux-musl.squashfs.tar.gz"
+
+[["RustToolchain-aarch64-linux-musl.v1.91.0.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "9b7ef653922c27a98ee43584cff77a51ce9c0688"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["RustToolchain-aarch64-linux-musl.v1.91.0.x86_64-linux-musl.unpacked".download]]
+    sha256 = "c4c94b36fdef5307e9ff2652860748a4729cc4cc27e6fbf14f46769f84f9c2d7"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustToolchain-v1.91.0/RustToolchain-aarch64-linux-musl.v1.91.0.x86_64-linux-musl.unpacked.tar.gz"
 
 [["RustToolchain-armv6l-linux-gnueabihf.v1.57.0.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
@@ -6902,6 +6990,28 @@ os = "linux"
     sha256 = "ae86428a0eb96bc2c2669afb0c5ee7210262d7eb2babd0b3f375bd41b34421f8"
     url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustToolchain-v1.87.0/RustToolchain-armv6l-linux-gnueabihf.v1.87.0.x86_64-linux-musl.unpacked.tar.gz"
 
+[["RustToolchain-armv6l-linux-gnueabihf.v1.91.0.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "358a4f1711ed42cf137ece0461a777db2bf3c2ea"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["RustToolchain-armv6l-linux-gnueabihf.v1.91.0.x86_64-linux-musl.squashfs".download]]
+    sha256 = "e92d6125854f2b5042aed775922af43fec310f5bcd6d91e3f83ce82bbe64bedf"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustToolchain-v1.91.0/RustToolchain-armv6l-linux-gnueabihf.v1.91.0.x86_64-linux-musl.squashfs.tar.gz"
+
+[["RustToolchain-armv6l-linux-gnueabihf.v1.91.0.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "a4f12489a6bb26a7d11b1b9af9d8264f94310846"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["RustToolchain-armv6l-linux-gnueabihf.v1.91.0.x86_64-linux-musl.unpacked".download]]
+    sha256 = "f71c84b4ec6976705414e233efdb2052834a7d79612fdfb3ba77a05bc95b3b6b"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustToolchain-v1.91.0/RustToolchain-armv6l-linux-gnueabihf.v1.91.0.x86_64-linux-musl.unpacked.tar.gz"
+
 [["RustToolchain-armv6l-linux-musleabihf.v1.57.0.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
 git-tree-sha1 = "5fe0c670498b95d38bd4c04e571e5d333c5600e0"
@@ -7121,6 +7231,28 @@ os = "linux"
     [["RustToolchain-armv6l-linux-musleabihf.v1.87.0.x86_64-linux-musl.unpacked".download]]
     sha256 = "297a10639900b065d44827fc0c34acc52b58272835f99ddbc7e418a2348d618a"
     url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustToolchain-v1.87.0/RustToolchain-armv6l-linux-musleabihf.v1.87.0.x86_64-linux-musl.unpacked.tar.gz"
+
+[["RustToolchain-armv6l-linux-musleabihf.v1.91.0.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "ba5a94c5a793aeb82762ecba63e67759e7b81523"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["RustToolchain-armv6l-linux-musleabihf.v1.91.0.x86_64-linux-musl.squashfs".download]]
+    sha256 = "04f0b3bf5cd797df5dc9f21bf7cf721708e951b82caf64d978a1b71a3a4b88f3"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustToolchain-v1.91.0/RustToolchain-armv6l-linux-musleabihf.v1.91.0.x86_64-linux-musl.squashfs.tar.gz"
+
+[["RustToolchain-armv6l-linux-musleabihf.v1.91.0.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "e65f184f1bb6c7645b096705f12ce827d4d3f6bb"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["RustToolchain-armv6l-linux-musleabihf.v1.91.0.x86_64-linux-musl.unpacked".download]]
+    sha256 = "c1c331ee895a80c98b3203045bb2d9c253ec51c2833239fdf97c1383d3ab7b37"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustToolchain-v1.91.0/RustToolchain-armv6l-linux-musleabihf.v1.91.0.x86_64-linux-musl.unpacked.tar.gz"
 
 [["RustToolchain-armv7l-linux-gnueabihf.v1.57.0.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
@@ -7342,6 +7474,28 @@ os = "linux"
     sha256 = "b296f522585d02dbc43b0342f4acaf177659ba630fa99393722b25fe109e1e9f"
     url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustToolchain-v1.87.0/RustToolchain-armv7l-linux-gnueabihf.v1.87.0.x86_64-linux-musl.unpacked.tar.gz"
 
+[["RustToolchain-armv7l-linux-gnueabihf.v1.91.0.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "2bbd31c3b419073ecb3b315feddfdcfb9b4e6c29"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["RustToolchain-armv7l-linux-gnueabihf.v1.91.0.x86_64-linux-musl.squashfs".download]]
+    sha256 = "2792853655809eab5973414d51ced0dc48aba2b2e664bf4d894069b45dc95844"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustToolchain-v1.91.0/RustToolchain-armv7l-linux-gnueabihf.v1.91.0.x86_64-linux-musl.squashfs.tar.gz"
+
+[["RustToolchain-armv7l-linux-gnueabihf.v1.91.0.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "e6514b54267d789eee87fbed9b260ffcc33292c0"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["RustToolchain-armv7l-linux-gnueabihf.v1.91.0.x86_64-linux-musl.unpacked".download]]
+    sha256 = "0168de50acd368b4e1d507f2c4893bd6f4ee3c0e055effc17169f5e99f2550a4"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustToolchain-v1.91.0/RustToolchain-armv7l-linux-gnueabihf.v1.91.0.x86_64-linux-musl.unpacked.tar.gz"
+
 [["RustToolchain-armv7l-linux-musleabihf.v1.57.0.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
 git-tree-sha1 = "4cbc067a6fc0365568a5665d97f50759b5e5ce30"
@@ -7561,6 +7715,28 @@ os = "linux"
     [["RustToolchain-armv7l-linux-musleabihf.v1.87.0.x86_64-linux-musl.unpacked".download]]
     sha256 = "1d053d808fbae9f6bd5b92dee18ee7e2635b35f68bd67971fcab807632a152b3"
     url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustToolchain-v1.87.0/RustToolchain-armv7l-linux-musleabihf.v1.87.0.x86_64-linux-musl.unpacked.tar.gz"
+
+[["RustToolchain-armv7l-linux-musleabihf.v1.91.0.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "c98793f1d7370440058eba324e50961b1740c094"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["RustToolchain-armv7l-linux-musleabihf.v1.91.0.x86_64-linux-musl.squashfs".download]]
+    sha256 = "03095ff3616a2dd66224de858a8dc8f6d4f20e438fd95556fc1a6b68ee455d32"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustToolchain-v1.91.0/RustToolchain-armv7l-linux-musleabihf.v1.91.0.x86_64-linux-musl.squashfs.tar.gz"
+
+[["RustToolchain-armv7l-linux-musleabihf.v1.91.0.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "a39d6e8a2658e42888e434768032501de8167b97"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["RustToolchain-armv7l-linux-musleabihf.v1.91.0.x86_64-linux-musl.unpacked".download]]
+    sha256 = "e2d2a77a3c02cd1b33ca9b0c19b0e4818c5f021edd68cff4e47debc9a5e18d3f"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustToolchain-v1.91.0/RustToolchain-armv7l-linux-musleabihf.v1.91.0.x86_64-linux-musl.unpacked.tar.gz"
 
 [["RustToolchain-i686-linux-gnu.v1.57.0.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
@@ -7782,6 +7958,28 @@ os = "linux"
     sha256 = "de96b1dac27763808fb4bdb98e1565c291c0c44a65aaa7d6984886368bc5b044"
     url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustToolchain-v1.87.0/RustToolchain-i686-linux-gnu.v1.87.0.x86_64-linux-musl.unpacked.tar.gz"
 
+[["RustToolchain-i686-linux-gnu.v1.91.0.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "6f5eada77db90d96435048967025b95269c10063"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["RustToolchain-i686-linux-gnu.v1.91.0.x86_64-linux-musl.squashfs".download]]
+    sha256 = "16de578859c293c1f5a6b7042b8542d2bcd64ee4372d83eb7690e0ded9246324"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustToolchain-v1.91.0/RustToolchain-i686-linux-gnu.v1.91.0.x86_64-linux-musl.squashfs.tar.gz"
+
+[["RustToolchain-i686-linux-gnu.v1.91.0.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "20502c457e1399dbf7a5016bcdf9a8142b123053"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["RustToolchain-i686-linux-gnu.v1.91.0.x86_64-linux-musl.unpacked".download]]
+    sha256 = "4ccb9ce6387afb2490914f18ca9a6bbcbc5bc7034db07da307352f97936601fc"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustToolchain-v1.91.0/RustToolchain-i686-linux-gnu.v1.91.0.x86_64-linux-musl.unpacked.tar.gz"
+
 [["RustToolchain-i686-linux-musl.v1.57.0.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
 git-tree-sha1 = "a744cffb841c02b6a8fc46d9a1e7990f27db62da"
@@ -8001,6 +8199,28 @@ os = "linux"
     [["RustToolchain-i686-linux-musl.v1.87.0.x86_64-linux-musl.unpacked".download]]
     sha256 = "08aaff88aadb81ff7c32d6fcfd02ebe01c73071058ab871396d1238d249542ca"
     url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustToolchain-v1.87.0/RustToolchain-i686-linux-musl.v1.87.0.x86_64-linux-musl.unpacked.tar.gz"
+
+[["RustToolchain-i686-linux-musl.v1.91.0.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "1b17b80b683854bef60c4c8037c5ef2d2ac208ba"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["RustToolchain-i686-linux-musl.v1.91.0.x86_64-linux-musl.squashfs".download]]
+    sha256 = "d11ccef3d54cc819d5f9ee710a08148dc33277c44509d36b3cb74209c0d7bd51"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustToolchain-v1.91.0/RustToolchain-i686-linux-musl.v1.91.0.x86_64-linux-musl.squashfs.tar.gz"
+
+[["RustToolchain-i686-linux-musl.v1.91.0.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "1663b55b95a9302bb0a484ffaec5efadf2ef1d89"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["RustToolchain-i686-linux-musl.v1.91.0.x86_64-linux-musl.unpacked".download]]
+    sha256 = "18afecb029cf18b11598d0d810a6b57c20c6778d1e2d27ea2ef93cd130772c20"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustToolchain-v1.91.0/RustToolchain-i686-linux-musl.v1.91.0.x86_64-linux-musl.unpacked.tar.gz"
 
 [["RustToolchain-i686-w64-mingw32.v1.57.0.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
@@ -8222,6 +8442,28 @@ os = "linux"
     sha256 = "887337be794978ae0aff7d7e2b274985a0130ce437baccf45abb04bcc780a0b3"
     url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustToolchain-v1.87.0/RustToolchain-i686-w64-mingw32.v1.87.0.x86_64-linux-musl.unpacked.tar.gz"
 
+[["RustToolchain-i686-w64-mingw32.v1.91.0.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "748becb2397b4b226797dd63a271820a63de4f91"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["RustToolchain-i686-w64-mingw32.v1.91.0.x86_64-linux-musl.squashfs".download]]
+    sha256 = "45ceda7f170e6c50e6945053fb3ef45917988c05d8dd3e5b19d0cebfbf320c5d"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustToolchain-v1.91.0/RustToolchain-i686-w64-mingw32.v1.91.0.x86_64-linux-musl.squashfs.tar.gz"
+
+[["RustToolchain-i686-w64-mingw32.v1.91.0.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "43d628577739cbb0391c4aa10d50a1916bb145d2"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["RustToolchain-i686-w64-mingw32.v1.91.0.x86_64-linux-musl.unpacked".download]]
+    sha256 = "3ff194997b6871e76f43f44ee869829e7c3e44e302e6187aacf663b0ff73eed1"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustToolchain-v1.91.0/RustToolchain-i686-w64-mingw32.v1.91.0.x86_64-linux-musl.unpacked.tar.gz"
+
 [["RustToolchain-powerpc64le-linux-gnu.v1.57.0.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
 git-tree-sha1 = "e4b8afc31d9d30ad7bce739724965a96a580c023"
@@ -8441,6 +8683,28 @@ os = "linux"
     [["RustToolchain-powerpc64le-linux-gnu.v1.87.0.x86_64-linux-musl.unpacked".download]]
     sha256 = "025a4b44a90a51fd1f74d6023560b6018219d2508168d8294957fb41ec7fda35"
     url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustToolchain-v1.87.0/RustToolchain-powerpc64le-linux-gnu.v1.87.0.x86_64-linux-musl.unpacked.tar.gz"
+
+[["RustToolchain-powerpc64le-linux-gnu.v1.91.0.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "e693e991473740f32277ba1ff1de6272220e1c43"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["RustToolchain-powerpc64le-linux-gnu.v1.91.0.x86_64-linux-musl.squashfs".download]]
+    sha256 = "461819909206c8739a2468f68a3ee36d0c1eb764fb451ba3a744b4e805eb07c6"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustToolchain-v1.91.0/RustToolchain-powerpc64le-linux-gnu.v1.91.0.x86_64-linux-musl.squashfs.tar.gz"
+
+[["RustToolchain-powerpc64le-linux-gnu.v1.91.0.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "ddeb878e09d97ce5ce1470c6fbd5cca617270ded"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["RustToolchain-powerpc64le-linux-gnu.v1.91.0.x86_64-linux-musl.unpacked".download]]
+    sha256 = "b56dab354232203593be88d44a85cc81b2c3870e867643fc1173ba173dd6dee6"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustToolchain-v1.91.0/RustToolchain-powerpc64le-linux-gnu.v1.91.0.x86_64-linux-musl.unpacked.tar.gz"
 
 [["RustToolchain-x86_64-apple-darwin.v1.57.0.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
@@ -8662,6 +8926,28 @@ os = "linux"
     sha256 = "4b44e659ffe0cc7ef731aef18c8726c5384e78c1f3f68bc08b809b25f81c2582"
     url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustToolchain-v1.87.0/RustToolchain-x86_64-apple-darwin.v1.87.0.x86_64-linux-musl.unpacked.tar.gz"
 
+[["RustToolchain-x86_64-apple-darwin.v1.91.0.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "5a9bee6f9b5071edbf6b375e76b9b858247688ce"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["RustToolchain-x86_64-apple-darwin.v1.91.0.x86_64-linux-musl.squashfs".download]]
+    sha256 = "7fe92ae2c8f57fdd9fb36b2b8b12945c21ec6bce014c77f5a919f8b61245cb05"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustToolchain-v1.91.0/RustToolchain-x86_64-apple-darwin.v1.91.0.x86_64-linux-musl.squashfs.tar.gz"
+
+[["RustToolchain-x86_64-apple-darwin.v1.91.0.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "22d078dc2e36a4c928187ccfce5f76aa79ac92fd"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["RustToolchain-x86_64-apple-darwin.v1.91.0.x86_64-linux-musl.unpacked".download]]
+    sha256 = "1ed09dfaaef278c76c4e3b390f5b3c2483a5cc279a15d80fe394cc1fb371a5e0"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustToolchain-v1.91.0/RustToolchain-x86_64-apple-darwin.v1.91.0.x86_64-linux-musl.unpacked.tar.gz"
+
 [["RustToolchain-x86_64-linux-gnu.v1.57.0.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
 git-tree-sha1 = "7c8a89e82ffdec87a9deb47375eea4b25953bc5b"
@@ -8881,6 +9167,28 @@ os = "linux"
     [["RustToolchain-x86_64-linux-gnu.v1.87.0.x86_64-linux-musl.unpacked".download]]
     sha256 = "f1c841ccc03ef973016a2b09cd52942fe63f39b1f78a857bdef7471efc60da86"
     url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustToolchain-v1.87.0/RustToolchain-x86_64-linux-gnu.v1.87.0.x86_64-linux-musl.unpacked.tar.gz"
+
+[["RustToolchain-x86_64-linux-gnu.v1.91.0.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "7155a30f4a12fa863a1f1800fc8eb001eb1b7867"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["RustToolchain-x86_64-linux-gnu.v1.91.0.x86_64-linux-musl.squashfs".download]]
+    sha256 = "098bd3b8ec1a71db70ea5a0abd36fd6d86c3e7a0bb4b75765e8dd9a611d297c9"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustToolchain-v1.91.0/RustToolchain-x86_64-linux-gnu.v1.91.0.x86_64-linux-musl.squashfs.tar.gz"
+
+[["RustToolchain-x86_64-linux-gnu.v1.91.0.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "49b38d54f1cdb190d5cba4c9680441ef09d8c102"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["RustToolchain-x86_64-linux-gnu.v1.91.0.x86_64-linux-musl.unpacked".download]]
+    sha256 = "849b572d8cb410900d684dce5cc4cdb317fa0ed05cf5a11b76178ca280a5e892"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustToolchain-v1.91.0/RustToolchain-x86_64-linux-gnu.v1.91.0.x86_64-linux-musl.unpacked.tar.gz"
 
 [["RustToolchain-x86_64-linux-musl.v1.57.0.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
@@ -9102,6 +9410,28 @@ os = "linux"
     sha256 = "ad38c122fa1caf9606f99cc4d306cd57dbe8391c6efa6454cb7bc198aba29e7c"
     url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustToolchain-v1.87.0/RustToolchain-x86_64-linux-musl.v1.87.0.x86_64-linux-musl.unpacked.tar.gz"
 
+[["RustToolchain-x86_64-linux-musl.v1.91.0.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "02b98e64a1ff7cd1a4bff840150bf613f37f7ede"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["RustToolchain-x86_64-linux-musl.v1.91.0.x86_64-linux-musl.squashfs".download]]
+    sha256 = "b9718f1f178a68285afc9e640457c13bd59997f6baa76be53fa65ecf7e641a14"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustToolchain-v1.91.0/RustToolchain-x86_64-linux-musl.v1.91.0.x86_64-linux-musl.squashfs.tar.gz"
+
+[["RustToolchain-x86_64-linux-musl.v1.91.0.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "9304cec09cffa2b5916c5d2215ea858dd82020ec"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["RustToolchain-x86_64-linux-musl.v1.91.0.x86_64-linux-musl.unpacked".download]]
+    sha256 = "e4615b63413b40de6d18dc1d5407415f8c666f459680d8c2ec0fc7f983550fcf"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustToolchain-v1.91.0/RustToolchain-x86_64-linux-musl.v1.91.0.x86_64-linux-musl.unpacked.tar.gz"
+
 [["RustToolchain-x86_64-unknown-freebsd.v1.57.0.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
 git-tree-sha1 = "335de81ab0928b89bd4ef3d1db7a40925e5d9fe9"
@@ -9322,6 +9652,28 @@ os = "linux"
     sha256 = "3349579e4508e95901cbafe8da5699af50a27d5996457eca3d47d4cb5a351264"
     url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustToolchain-v1.87.0/RustToolchain-x86_64-unknown-freebsd.v1.87.0.x86_64-linux-musl.unpacked.tar.gz"
 
+[["RustToolchain-x86_64-unknown-freebsd.v1.91.0.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "a754404d51b3d6ff195c327704cfd7f6378fe2d1"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["RustToolchain-x86_64-unknown-freebsd.v1.91.0.x86_64-linux-musl.squashfs".download]]
+    sha256 = "9aa89a514e6a947a7a90d87930b53e6d54550b31d8573b85c3884124209dd9a6"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustToolchain-v1.91.0/RustToolchain-x86_64-unknown-freebsd.v1.91.0.x86_64-linux-musl.squashfs.tar.gz"
+
+[["RustToolchain-x86_64-unknown-freebsd.v1.91.0.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "34f9af063527232dedcbba90a3ae0f5aa593767b"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["RustToolchain-x86_64-unknown-freebsd.v1.91.0.x86_64-linux-musl.unpacked".download]]
+    sha256 = "b8b81642c2f40e008896ac8d05f8ddec47f96930449540241eed898119f95e52"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustToolchain-v1.91.0/RustToolchain-x86_64-unknown-freebsd.v1.91.0.x86_64-linux-musl.unpacked.tar.gz"
+
 [["RustToolchain-x86_64-w64-mingw32.v1.57.0.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
 git-tree-sha1 = "2b17ca3fd848ee5460e5a18a589416edcf002cd2"
@@ -9541,3 +9893,25 @@ os = "linux"
     [["RustToolchain-x86_64-w64-mingw32.v1.87.0.x86_64-linux-musl.unpacked".download]]
     sha256 = "83154def2aa378a263576b4e194f32c482ada10c123c4d1d1ba948c26850b113"
     url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustToolchain-v1.87.0/RustToolchain-x86_64-w64-mingw32.v1.87.0.x86_64-linux-musl.unpacked.tar.gz"
+
+[["RustToolchain-x86_64-w64-mingw32.v1.91.0.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "6097f6132e462958eaabf07e1d4f42fc0348d064"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["RustToolchain-x86_64-w64-mingw32.v1.91.0.x86_64-linux-musl.squashfs".download]]
+    sha256 = "2d28f0dfa2a578759a4fe2e223baf632cacfb159185bdd0eec081d6cb4671b73"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustToolchain-v1.91.0/RustToolchain-x86_64-w64-mingw32.v1.91.0.x86_64-linux-musl.squashfs.tar.gz"
+
+[["RustToolchain-x86_64-w64-mingw32.v1.91.0.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "17b7543dbc5c3f841962ba9b9b216a4a69b32788"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["RustToolchain-x86_64-w64-mingw32.v1.91.0.x86_64-linux-musl.unpacked".download]]
+    sha256 = "42338256b36db828613d5fc4c8b082f3453bad076b53aa06a2d6f09797b4b647"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/RustToolchain-v1.91.0/RustToolchain-x86_64-w64-mingw32.v1.91.0.x86_64-linux-musl.unpacked.tar.gz"

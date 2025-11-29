@@ -52,14 +52,6 @@ jobs:
 
           - runner: privileged
             squashfs: true
-            julia-version: "1.8"
-
-          - runner: privileged
-            squashfs: true
-            julia-version: "1.9"
-
-          - runner: privileged
-            squashfs: true
             julia-version: "1.10"
 
           - runner: privileged
@@ -68,7 +60,11 @@ jobs:
 
           - runner: privileged
             squashfs: true
-            julia-version: "1.12-nightly"
+            julia-version: "1.12"
+
+          - runner: privileged
+            squashfs: true
+            julia-version: "1.13-nightly"
 
           - runner: privileged
             squashfs: true
@@ -77,16 +73,37 @@ jobs:
           # Add a job that uses the unprivileged builder with unpacked shards
           - runner: unprivileged
             squashfs: false
-            julia-version: "1.7"
+            julia-version: "1.12"
 
           # Add a job that uses the docker builder with unpacked shards
           - runner: docker
             squashfs: false
-            julia-version: "1.7"
+            julia-version: "1.12"
 
     steps:
-      - run: sudo rm -rf /opt/*
-      - uses: actions/checkout@v5
+      - name: Show available storage before cleanup
+        run: |
+          echo " --> df -h /"
+          df -h /
+          echo " --> df -a /"
+          df -a /
+      - name: Free Disk Space
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
+        with:
+          tool-cache: true
+          # Removing "large packages" alone takes a couple of minutes, it could
+          # be switched to true if more space is needed (it'd save ~5 GB or so)
+          large-packages: false
+      - name: Cleanup /opt
+        run: |
+          sudo rm -rf /opt/*
+      - name: Show available storage after cleanup
+        run: |
+          echo " --> df -h /"
+          df -h /
+          echo " --> df -a /"
+          df -a /
+      - uses: actions/checkout@v6
       - uses: julia-actions/setup-julia@v2
         with:
           version: ${{ matrix.julia-version }}
@@ -134,3 +151,10 @@ jobs:
           path-to-lcov: lcov.info
           flag-name: run-${{ join(matrix.*, '-') }}
           parallel: true
+      - name: Show available storage at the end
+        if: always()
+        run: |
+          echo " --> df -h /"
+          df -h /
+          echo " --> df -a /"
+          df -a /
