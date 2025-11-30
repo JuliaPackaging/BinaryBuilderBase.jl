@@ -29,6 +29,9 @@ export AbstractSource, AbstractDependency, SetupSource, PatchSource,
 
 export BBB_TIMER, reset_bbb_timer!, get_bbb_timer, merge_bbb_timer!
 
+# Global timer for tracking build performance - defined early so included files can use it
+const BBB_TIMER = TimerOutput("BinaryBuilder")
+
 include("compat.jl")
 
 include("riscv64.jl")
@@ -48,9 +51,6 @@ include("UserNSRunner.jl")
 include("DockerRunner.jl")
 
 include("utils.jl")
-
-# Global timer for tracking build performance
-const BBB_TIMER = TimerOutput("BinaryBuilder")
 
 """
     reset_bbb_timer!()
