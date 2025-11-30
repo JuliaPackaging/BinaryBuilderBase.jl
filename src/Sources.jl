@@ -158,7 +158,7 @@ struct PatchSource
     patch::String
 end
 
-function download_source(source::T; verbose::Bool = false, downloads_dir = storage_dir("downloads")) where {T<:Union{ArchiveSource,FileSource}}
+@timeit BBB_TIMER function download_source(source::T; verbose::Bool = false, downloads_dir = storage_dir("downloads")) where {T<:Union{ArchiveSource,FileSource}}
     gettarget(s::ArchiveSource) = s.unpack_target
     gettarget(s::FileSource) = s.filename
     if isfile(source.url)
@@ -243,12 +243,12 @@ function cached_git_clone(url::String;
     return repo_path
 end
 
-function download_source(source::GitSource; kwargs...)
+@timeit BBB_TIMER function download_source(source::GitSource; kwargs...)
     src_path = cached_git_clone(source.url; hash_to_check=source.hash, kwargs...)
     return SetupSource{GitSource}(src_path, source.hash, source.unpack_target)
 end
 
-function download_source(source::DirectorySource; verbose::Bool = false)
+@timeit BBB_TIMER function download_source(source::DirectorySource; verbose::Bool = false)
     if !isdir(source.path)
         error("Could not find directory \"$(source.path)\".")
     end

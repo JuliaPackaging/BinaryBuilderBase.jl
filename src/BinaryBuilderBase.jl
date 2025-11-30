@@ -6,6 +6,7 @@ using Downloads
 using JSON, OutputCollectors, Scratch
 import HistoricalStdlibVersions
 using RegistryInstances: reachable_registries, registry_info, uuids_from_name
+using TimerOutputs
 
 # Re-export useful stuff from Base.BinaryPlatforms:
 export HostPlatform, platform_dlext, valid_dl_path, arch, libc,
@@ -26,6 +27,8 @@ export AbstractSource, AbstractDependency, SetupSource, PatchSource,
     run_interactive, sourcify, dependencify, with_logfile, get_concrete_platform,
     manage_shards
 
+export BBB_TIMER, reset_bbb_timer!, get_bbb_timer, merge_bbb_timer!
+
 include("compat.jl")
 
 include("riscv64.jl")
@@ -45,6 +48,33 @@ include("UserNSRunner.jl")
 include("DockerRunner.jl")
 
 include("utils.jl")
+
+# Global timer for tracking build performance
+const BBB_TIMER = TimerOutput("BinaryBuilder")
+
+"""
+    reset_bbb_timer!()
+
+Reset the global BinaryBuilder timer.
+"""
+reset_bbb_timer!() = TimerOutputs.reset_timer!(BBB_TIMER)
+
+"""
+    get_bbb_timer()
+
+Get the global BinaryBuilder timer.
+"""
+get_bbb_timer() = BBB_TIMER
+
+"""
+    merge_bbb_timer!(other::TimerOutput; tree_point::Vector{String}=String[])
+
+Merge another timer into the global BinaryBuilder timer at the specified tree point.
+This is useful for merging timers from threaded operations.
+"""
+function merge_bbb_timer!(other::TimerOutput; tree_point::Vector{String}=String[])
+    merge!(BBB_TIMER, other; tree_point)
+end
 
 # This is the location that all binary builder-related files are stored under.
 # downloads, unpacked .tar.gz shards, mounted shards, ccache cache, etc....

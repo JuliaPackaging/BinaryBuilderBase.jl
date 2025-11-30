@@ -148,7 +148,7 @@ The are additional keyword arguments:
   certain files or directories
 * `compression_format` specifies the compression format used for the tarball.
 """
-function package(prefix::Prefix,
+@timeit BBB_TIMER function package(prefix::Prefix,
                  output_base::AbstractString,
                  version::VersionNumber;
                  platform::AbstractPlatform = HostPlatform(),
@@ -459,7 +459,7 @@ the environment variables that will be defined within the sandbox environment.
 This method returns the `Prefix` to install things into, and the runner
 that can be used to launch commands within this workspace.
 """
-function setup_workspace(build_path::AbstractString, sources::Vector,
+@timeit BBB_TIMER function setup_workspace(build_path::AbstractString, sources::Vector,
                          target_platform::AbstractPlatform,
                          host_platform::AbstractPlatform=default_host_platform;
                          verbose::Bool = false)
@@ -487,17 +487,22 @@ function setup_workspace(build_path::AbstractString, sources::Vector,
 
     # Setup all sources
     @debug "Setting up sources" length(sources)
-    for source in sources
-        if isa(source, SetupSource)
-            target = joinpath(srcdir, source.target)
-            # Trailing directory separator matters for `basename`, so let's strip it
-            # to avoid confusion
-            target = strip_path_separator(target)
-            @debug "Setting up SetupSource" source target
-            setup(source, target, verbose)
-        else
-            @debug "Setting up source" source
-            setup(source, srcdir, verbose)
+    @timeit BBB_TIMER "Setting up sources" begin
+        for source in sources
+            source_name = isa(source, SetupSource) ? basename(source.target) : string(typeof(source).name.name)
+            @timeit BBB_TIMER "Setting up $(source_name)" begin
+                if isa(source, SetupSource)
+                    target = joinpath(srcdir, source.target)
+                    # Trailing directory separator matters for `basename`, so let's strip it
+                    # to avoid confusion
+                    target = strip_path_separator(target)
+                    @debug "Setting up SetupSource" source target
+                    setup(source, target, verbose)
+                else
+                    @debug "Setting up source" source
+                    setup(source, srcdir, verbose)
+                end
+            end
         end
     end
 
@@ -737,7 +742,7 @@ end
 # Fallback for other types, like `AnyPlatform`.
 normalize_platform(p::AbstractPlatform) = p
 
-function setup_dependencies(prefix::Prefix,
+@timeit BBB_TIMER function setup_dependencies(prefix::Prefix,
                             dependencies::Vector{PkgSpec},
                             platform::AbstractPlatform;
                             verbose::Bool = false)
@@ -836,59 +841,63 @@ function setup_dependencies(prefix::Prefix,
         @debug "Loading Artifacts.toml files for dependencies"
         for dep in installed_jlls
             name = getname(dep)
-            @debug "Processing dependency" name dep.uuid dep.tree_hash
-            # If the package has a path, use it, otherwise ask Pkg where it
-            # should have been installed.
-            dep_path = dep.path !== nothing ? dep.path : Pkg.Operations.find_installed(name, dep.uuid, dep.tree_hash)
-            @debug "Found dependency path" name dep_path
+            @timeit BBB_TIMER "Installing $(name)" begin
+                @debug "Processing dependency" name dep.uuid dep.tree_hash
+                # If the package has a path, use it, otherwise ask Pkg where it
+                # should have been installed.
+                dep_path = dep.path !== nothing ? dep.path : Pkg.Operations.find_installed(name, dep.uuid, dep.tree_hash)
+                @debug "Found dependency path" name dep_path
 
-            # Skip dependencies that didn't get installed?
-            if dep_path === nothing
-                @warn("Dependency $(name) not installed, despite our best efforts!")
-                continue
-            end
-
-            # Load the Artifacts.toml file
-            artifacts_toml = joinpath(dep_path, "Artifacts.toml")
-            if !isfile(artifacts_toml)
-                # Try `StdlibArtifacts.toml` instead
-                artifacts_toml = joinpath(dep_path, "StdlibArtifacts.toml")
-                if !isfile(artifacts_toml)
-                    @warn("Dependency $(name) does not have an (Stdlib)Artifacts.toml in $(dep_path)!")
+                # Skip dependencies that didn't get installed?
+                if dep_path === nothing
+                    @warn("Dependency $(name) not installed, despite our best efforts!")
                     continue
                 end
+
+                # Load the Artifacts.toml file
+                artifacts_toml = joinpath(dep_path, "Artifacts.toml")
+                if !isfile(artifacts_toml)
+                    # Try `StdlibArtifacts.toml` instead
+                    artifacts_toml = joinpath(dep_path, "StdlibArtifacts.toml")
+                    if !isfile(artifacts_toml)
+                        @warn("Dependency $(name) does not have an (Stdlib)Artifacts.toml in $(dep_path)!")
+                        continue
+                    end
+                end
+                @debug "Found artifacts TOML file" name artifacts_toml
+
+                # If the artifact is available for the given platform, make sure it
+                # is also installed.  It may not be the case for lazy artifacts or stdlibs.
+                normalized_platform = normalize_platform(platform)
+                @debug "Using normalized platform" normalized_platform
+                meta = artifact_meta(name[1:end-4], artifacts_toml; platform=normalized_platform)
+                if meta === nothing
+                    @warn("Dependency $(name) does not have a mapping for artifact $(name[1:end-4]) for platform $(triplet(platform))")
+                    continue
+                end
+                @debug "Found artifact metadata" name meta["git-tree-sha1"]
+                ensure_artifact_installed(name[1:end-4], meta, artifacts_toml; platform=normalized_platform)
+
+                # Copy the artifact from the global installation location into this build-specific artifacts collection
+                src_path = Pkg.Artifacts.artifact_path(Base.SHA1(meta["git-tree-sha1"]))
+                dest_path = joinpath(prefix, triplet(platform), "artifacts", basename(src_path))
+                @debug "Copying artifact" name src_path dest_path
+                rm(dest_path; force=true, recursive=true)
+                cp(src_path, dest_path)
+
+                # Keep track of our dep paths for later symlinking
+                push!(artifact_paths, dest_path)
             end
-            @debug "Found artifacts TOML file" name artifacts_toml
-
-            # If the artifact is available for the given platform, make sure it
-            # is also installed.  It may not be the case for lazy artifacts or stdlibs.
-            normalized_platform = normalize_platform(platform)
-            @debug "Using normalized platform" normalized_platform
-            meta = artifact_meta(name[1:end-4], artifacts_toml; platform=normalized_platform)
-            if meta === nothing
-                @warn("Dependency $(name) does not have a mapping for artifact $(name[1:end-4]) for platform $(triplet(platform))")
-                continue
-            end
-            @debug "Found artifact metadata" name meta["git-tree-sha1"]
-            ensure_artifact_installed(name[1:end-4], meta, artifacts_toml; platform=normalized_platform)
-
-            # Copy the artifact from the global installation location into this build-specific artifacts collection
-            src_path = Pkg.Artifacts.artifact_path(Base.SHA1(meta["git-tree-sha1"]))
-            dest_path = joinpath(prefix, triplet(platform), "artifacts", basename(src_path))
-            @debug "Copying artifact" name src_path dest_path
-            rm(dest_path; force=true, recursive=true)
-            cp(src_path, dest_path)
-
-            # Keep track of our dep paths for later symlinking
-            push!(artifact_paths, dest_path)
         end
     end
 
     # Symlink all the deps into the prefix
     @debug "Symlinking dependencies into prefix" length(artifact_paths)
-    for art_path in artifact_paths
-        @debug "Symlinking artifact" art_path
-        symlink_tree(art_path, destdir(prefix, platform))
+    @timeit BBB_TIMER "Symlinking dependencies" begin
+        for art_path in artifact_paths
+            @debug "Symlinking artifact" art_path
+            symlink_tree(art_path, destdir(prefix, platform))
+        end
     end
 
     # Return the artifact_paths so that we can clean them up later
