@@ -583,7 +583,7 @@ This method chooses, given a `Platform`, which shards to download, extract and
 mount, returning a list of `CompilerShard` objects.  At the moment, this always
 consists of four shards, but that may not always be the case.
 """
-@timeit BBB_TIMER function choose_shards(p::AbstractPlatform;
+function choose_shards(p::AbstractPlatform;
             compilers::Vector{Symbol} = [:c],
             # We always just use the latest Rootfs embedded within our Artifacts.toml
             rootfs_build::VersionNumber=last(BinaryBuilderBase.get_available_builds("Rootfs")),
