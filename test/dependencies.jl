@@ -123,10 +123,10 @@ end
     plat_nosan = Platform("x86_64", "linux")
     plat_msan = Platform("x86_64", "linux"; sanitizer="memory")
     plat_asan = Platform("x86_64", "linux"; sanitizer="address")
-    dep_nosan = Dependency(name; platforms[plat_nosan])
-    dep_msan = Dependency(name; platforms[plat_msan])
-    dep_asan = Dependency(name; platforms[plat_asan])
-    dep_allsans = Dependency(name; platforms[plat_nosan, plat_msan, plat_asan])
+    dep_nosan = Dependency(name; platforms=[plat_nosan])
+    dep_msan = Dependency(name; platforms=[plat_msan])
+    dep_asan = Dependency(name; platforms=[plat_asan])
+    dep_allsans = Dependency(name; platforms=[plat_nosan, plat_msan, plat_asan])
     @testset "Filter dependencies by platform" begin
         @test filter_platforms([dep, dep_buildver, dep_compat], Platform("x86_64", "linux"; cxxstring_abi="cxx03")) == [dep_compat]
         @test filter_platforms([dep, dep_buildver, dep_compat], Platform("x86_64", "macos")) == [dep, dep_compat]
