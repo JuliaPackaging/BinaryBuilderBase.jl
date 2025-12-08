@@ -120,9 +120,13 @@ end
     top_level_dep = RuntimeDependency(PackageSpec(; name = top_level_name); top_level=true)
     @test is_top_level_dependency(top_level_dep)
 
+    dep_no_sanitizer = Platform("x86_64", "linux")
+    dep_with_sanitizer = Platform("x86_64", "linux"; sanitizer="memory")
     @testset "Filter dependencies by platform" begin
         @test filter_platforms([dep, dep_buildver, dep_compat], Platform("x86_64", "linux"; cxxstring_abi="cxx03")) == [dep_compat]
         @test filter_platforms([dep, dep_buildver, dep_compat], Platform("x86_64", "macos")) == [dep, dep_compat]
+        @test filter_platforms([dep_no_sanitizer, dep_with_sanitizer], dep_no_sanitizer) == [dep_no_sanitizer]
+        @test filter_platforms([dep_no_sanitizer, dep_with_sanitizer], dep_with_sanitizer) == [dep_with_sanitizer]
     end
 
     @testset "JSON (de)serialization" begin
