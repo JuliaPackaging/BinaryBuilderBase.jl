@@ -121,8 +121,8 @@ end
     @test is_top_level_dependency(top_level_dep)
 
     plat_nosan = Platform("x86_64", "linux")
-    plat_msan = Platform("x86_64", "linux"; sanitizer="memory")
-    plat_asan = Platform("x86_64", "linux"; sanitizer="address")
+    plat_msan = Platform("x86_64", "linux"; sanitize="memory")
+    plat_asan = Platform("x86_64", "linux"; sanitize="address")
     dep_nosan = Dependency(name; platforms=[plat_nosan])
     dep_msan = Dependency(name; platforms=[plat_msan])
     dep_asan = Dependency(name; platforms=[plat_asan])
