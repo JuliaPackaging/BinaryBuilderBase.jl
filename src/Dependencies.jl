@@ -267,9 +267,10 @@ getname(x::AbstractDependency) = getname(getpkg(x))
     filter_platforms(deps::AbstractVector{<:AbstractDependency}, p::AbstractPlatform)
 
 Filter the dependencies `deps` which are compatible with platform `p`.
+Here "compatible" includes whether and which sanitizer is enabled.
 """
 filter_platforms(deps::AbstractVector{<:AbstractDependency}, p::AbstractPlatform) =
-    [dep for dep in deps if any(x -> platforms_match(x, p), dep.platforms)]
+    [dep for dep in deps if any(x -> platforms_match_with_sanitize(x, p), dep.platforms)]
 
 # Wrapper around `Pkg.Types.registry_resolve!` which keeps the type of the
 # dependencies.  TODO: improve this
