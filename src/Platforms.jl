@@ -42,6 +42,9 @@ function libabi_agnostic(p::Platform)
     return Platform(arch(p)::String, os(p)::String; filtered_tags...)
 end
 
+platforms_match_with_sanitize(a::AnyPlatform, b::AnyPlatform) = true
+platforms_match_with_sanitize(a::AnyPlatform, b::AbstractPlatform) = true
+platforms_match_with_sanitize(a::AbstractPlatform, b::AnyPlatform) = true
 platforms_match_with_sanitize(a::AbstractPlatform, b::AbstractPlatform) =
     platforms_match(a, b) && sanitize(a) == sanitize(b)
 function platforms_match_with_sanitize(a::AbstractString, b::AbstractPlatform)
