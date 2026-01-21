@@ -46,6 +46,11 @@ struct CompilerShard
             target = abi_agnostic(target)
         end
 
+        # If this compiler shard has an os_version, that should be interpreted as the bound it is.
+        if target !== nothing && os_version(target::Platform) !== nothing
+            set_compare_strategy!(target::Platform, "os_version", compare_version_cap)
+        end
+
         # Construct our shiny new CompilerShard object
         return new(name, version, target, host, archive_type)
     end
@@ -57,6 +62,37 @@ function Base.:(==)(a::CompilerShard, b::CompilerShard)
            a.target == b.target &&
            a.host == b.host &&
            a.archive_type == b.archive_type
+end
+
+# For a `CompilerShard` to match a `Platform`, the shard's target with OS version stripped
+# must match, and the OS version if present must be less than or equal to the platform's.
+# This is effectively `platforms_match` with a `compare_version_cap` comparison strategy for
+# OS version, except it works "correctly" (IMO) when both arguments have that strategy set.
+# It also ignores any strategy that's set.
+function Base.BinaryPlatforms.platforms_match(cs::CompilerShard, p::AbstractPlatform)
+    if cs.target === nothing
+        return platforms_match(cs.host, p)
+    elseif !platforms_match(os_version_agnostic(cs.target), os_version_agnostic(p))
+        return false
+    else
+        sv = os_version(cs.target)
+        pv = os_version(p)
+        return sv === nothing || pv === nothing || pv >= sv
+    end
+end
+
+Base.BinaryPlatforms.platforms_match(p::AbstractPlatform, cs::CompilerShard) = platforms_match(cs, p)
+
+function Base.BinaryPlatforms.platforms_match(a::CompilerShard, b::CompilerShard)
+    if !platforms_match(a.host, b.host)
+        return false
+    elseif a.target === b.target === nothing
+        return true
+    elseif a.target !== nothing && b.target !== nothing
+        return platforms_match(a.target, b.target)
+    else
+        return false
+    end
 end
 
 """
@@ -78,11 +114,10 @@ function artifact_name(cs::CompilerShard)
     return "$(cs.name)$(target_str).v$(cs.version).$(triplet(cs.host)).$(ext)"
 end
 
-# The inverse of `artifact_name(cs)`
-function CompilerShard(art_name::String)
+function Base.tryparse(::Type{CompilerShard}, art_name::AbstractString)
     m = match(r"^([^-]+)(?:-(.+))?\.(v[\d\.]+(?:-[^\.]+)?)\.([^0-9].+-.+)\.(\w+)", art_name)
     if m === nothing
-        error("Unable to parse '$(art_name)'")
+        return nothing
     end
     return CompilerShard(
         m.captures[1],
@@ -91,6 +126,15 @@ function CompilerShard(art_name::String)
         Symbol(m.captures[5]);
         target=m.captures[2]
     )
+end
+
+# The inverse of `artifact_name(cs)`
+function CompilerShard(art_name::String)
+    cs = tryparse(CompilerShard, art_name)
+    if cs === nothing
+        error("Unable to parse '$(art_name)'")
+    end
+    return cs
 end
 
 const ALL_SHARDS = Ref{Union{Vector{CompilerShard},Nothing}}(nothing)
@@ -109,17 +153,10 @@ function all_compiler_shards()::Vector{CompilerShard}
             end
         end
         for name in names
-            cs = try
-                CompilerShard(name)
-            catch
-                continue
+            cs = tryparse(CompilerShard, name)
+            if cs !== nothing
+                push!(ALL_SHARDS[]::Vector{CompilerShard}, cs)
             end
-
-            # If this compiler shard has an os_version, that should be interpreted as the bound it is.
-            if cs.target !== nothing && os_version(cs.target::Platform) !== nothing
-                set_compare_strategy!(cs.target::Platform, "os_version", compare_version_cap)
-            end
-            push!(ALL_SHARDS[]::Vector{CompilerShard}, cs)
         end
     end
     return ALL_SHARDS[]::Vector{CompilerShard}
@@ -631,7 +668,7 @@ function choose_shards(p::AbstractPlatform;
 
         for cs in all_compiler_shards()
             if cs.name == name && cs.version == version &&
-               (target === nothing || platforms_match(cs.target, target)) &&
+               (target === nothing || platforms_match(cs, target)) &&
                cs.archive_type == archive_type
                 return cs
             end
@@ -755,7 +792,7 @@ function choose_shards(p::AbstractPlatform;
     else
         function find_latest_version(name)
             versions = [cs.version for cs in all_compiler_shards()
-                if cs.name == name && cs.archive_type == archive_type && platforms_match(something(cs.target, p), p)
+                if cs.name == name && cs.archive_type == archive_type && platforms_match(cs, p)
             ]
             isempty(versions) && error("No latest shard found for $name")
             return maximum(versions)
@@ -814,8 +851,8 @@ function supported_platforms(;exclude::Union{Vector{<:Platform},Function}=Return
         # BSDs
         Platform("x86_64", "macos"),
         Platform("aarch64", "macos"),
-        Platform("x86_64", "freebsd"),
-        Platform("aarch64", "freebsd"),
+        Platform("x86_64", "freebsd"; os_version="13.2"),
+        Platform("aarch64", "freebsd"; os_version="13.2"),
 
         # Windows
         Platform("i686", "windows"),
