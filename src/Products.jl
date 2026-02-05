@@ -130,7 +130,7 @@ struct LibraryProduct <: Product
                             dont_dlopen::Bool=false,
                             dlopen_flags::Vector{Symbol}=Symbol[])
         if isdefined(Base, varname)
-            error("`$(varname)` is already defined in Base")
+            error("Cannot define a LibraryProduct with name `$(varname)`. This symbol is already defined in Base.")
         end
         # catch invalid flags as early as possible
         for flag in dlopen_flags
@@ -451,7 +451,7 @@ struct FileProduct <: Product
     variable_name::Symbol
     function FileProduct(paths::Vector{String}, varname::Symbol)
         if isdefined(Base, varname)
-            error("`$(varname)` is already defined in Base")
+            error("Cannot define a FileProduct with name `$(varname)`. This symbol is already defined in Base.")
         end
         return new(paths, varname)
     end
