@@ -353,7 +353,7 @@ struct ExecutableProduct <: Product
 
     function ExecutableProduct(binnames::Vector{String}, varname::Symbol, dir_path::Union{AbstractString, Nothing}=nothing)
         if isdefined(Base, varname)
-            error("`$(varname)` is already defined in Base")
+            error("Cannot define an ExecutableProduct with name `$(varname)`. This symbol is already defined in Base.")
         end
         # If some other kind of AbstractString is passed in, convert it
         if dir_path !== nothing
