@@ -1,6 +1,6 @@
 name = "BinaryBuilderBase"
 uuid = "7f725544-6523-48cd-82d1-3fa08ff4056e"
-version = "1.42.0"
+version = "1.43.0"
 authors = ["Elliot Saba <staticfloat@gmail.com>"]
 
 [deps]
