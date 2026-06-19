@@ -19,6 +19,14 @@ nbits(::AnyPlatform) = nbits(default_host_platform)
 proc_family(::AnyPlatform) = "any"
 Base.show(io::IO, ::AnyPlatform) = print(io, "AnyPlatform")
 
+function filtered_platform(p::Platform, keeps)
+    filtered_tags = Dict{Symbol,String}(
+        Symbol(k) => v for (k, v) in tags(p)
+        if k ∈ keeps
+    )
+    return Platform(arch(p)::String, os(p)::String; filtered_tags...)
+end
+
 """
     abi_agnostic(p::AbstractPlatform)
 
@@ -26,10 +34,65 @@ Strip out any tags that are not the basic annotations like `libc` and `call_abi`
 """
 function abi_agnostic(p::Platform)
     keeps = ("libc", "call_abi", "os_version")
-    filtered_tags = Dict{Symbol,String}(Symbol(k) => v for (k, v) in tags(p) if k ∈ keeps)
-    return Platform(arch(p)::String, os(p)::String; filtered_tags...)
+    return filtered_platform(p, keeps)
 end
 abi_agnostic(p::AnyPlatform) = p
+
+"""
+    compiler_triplet(p::AbstractPlatform)
+
+Return the GNU-style target triplet used by compiler binaries and configure
+scripts.
+"""
+function compiler_triplet(p::Platform)
+    keeps = Sys.iswindows(p) ? () : ("libc", "call_abi", "os_version")
+    t = triplet(filtered_platform(p, keeps))
+    t = replace(t, "armv7l" => "arm")
+    t = replace(t, "armv6l" => "arm")
+    return t
+end
+compiler_triplet(p::AnyPlatform) = compiler_triplet(default_host_platform)
+
+"""
+    rootfs_triplet(p::AbstractPlatform)
+
+Return the target identifier used for rootfs/compiler shard artifact names and
+mount paths, while [`compiler_triplet`](@ref) remains suitable for upstream
+configure scripts.
+"""
+function rootfs_triplet(p::Platform)
+    if Sys.iswindows(p)
+        lc = libc(p)
+        t = if lc == "ucrt"
+            "$(arch(p))-w64-ucrt-mingw32"
+        else
+            "$(arch(p))-w64-mingw32"
+        end
+        return t
+    end
+
+    return triplet(abi_agnostic(p))
+end
+rootfs_triplet(p::AnyPlatform) = rootfs_triplet(default_host_platform)
+
+function strip_windows_libc(p::Platform)
+    filtered_tags = Dict{Symbol,String}(
+        Symbol(k) => v for (k, v) in tags(p)
+        if k ∉ ("arch", "os", "libc")
+    )
+    return Platform(arch(p)::String, os(p)::String; filtered_tags...)
+end
+
+function rootfs_platforms_match(a::AbstractPlatform, b::AbstractPlatform)
+    if Sys.iswindows(a) || Sys.iswindows(b)
+        a isa Platform && b isa Platform || return platforms_match(a, b)
+        libc_a = get(tags(a), "libc", "msvcrt")
+        libc_b = get(tags(b), "libc", "msvcrt")
+        libc_a == libc_b || return false
+        return platforms_match(strip_windows_libc(a), strip_windows_libc(b))
+    end
+    return platforms_match(a, b)
+end
 
 """
     abi_agnostic(p::AbstractPlatform)
@@ -38,8 +101,7 @@ Like `abi_agnostic`, but keep the sanitizer ABI tags.
 """
 function libabi_agnostic(p::Platform)
     keeps = ("libc", "call_abi", "os_version", "sanitize")
-    filtered_tags = Dict{Symbol,String}(Symbol(k) => v for (k, v) in tags(p) if k ∈ keeps)
-    return Platform(arch(p)::String, os(p)::String; filtered_tags...)
+    return filtered_platform(p, keeps)
 end
 
 platforms_match_with_sanitize(a::AnyPlatform, b::AnyPlatform) = true
@@ -70,6 +132,12 @@ function parse_platform(p::AbstractString)
     elseif p == "host"
         HostPlatform()
     else
+        m = match(r"^([^-]+)-w64-ucrt-mingw32(.*)$", p)
+        if m !== nothing
+            platform = parse(Platform, "$(m.captures[1])-w64-mingw32$(m.captures[2])"; validate_strict=true)
+            platform["libc"] = "ucrt"
+            return platform
+        end
         parse(Platform, p; validate_strict=true)
     end
 end

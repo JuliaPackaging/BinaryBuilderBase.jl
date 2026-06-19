@@ -31,10 +31,10 @@ struct CompilerShard
 
         # If host or target are unparsed, parse them:
         if isa(host, AbstractString)
-            host = parse(Platform, host)
+            host = parse_platform(host)
         end
         if isa(target, AbstractString)
-            target = parse(Platform, target)
+            target = parse_platform(target)
         end
 
         # Ensure the platforms have no ABI portion (that is only used
@@ -67,7 +67,7 @@ Return the bound artifact name for a particular shard.
 function artifact_name(cs::CompilerShard)
     target_str = ""
     if cs.target !== nothing
-        target_str = "-$(triplet(cs.target::Platform))"
+        target_str = "-$(rootfs_triplet(cs.target::Platform))"
 
         if cs.name in ("GCCBootstrap", "PlatformSupport")
             # armv6l uses the same GCC shards as armv7l, so we just rename here.
@@ -170,9 +170,9 @@ function map_target(cs::CompilerShard)
         return "/"
     elseif lowercase(cs.name) == "rusttoolchain"
         # We override RustToolchain because they all have to sit in the same location
-        return "/opt/$(aatriplet(cs.host))/$(cs.name)-$(cs.version)-$(aatriplet(cs.target::Platform)))"
+        return "/opt/$(rootfs_triplet(cs.host))/$(cs.name)-$(cs.version)-$(aatriplet(cs.target::Platform)))"
     else
-        return joinpath("/opt", aatriplet(something(cs.target, cs.host)), "$(cs.name)-$(cs.version)")
+        return joinpath("/opt", rootfs_triplet(something(cs.target, cs.host)), "$(cs.name)-$(cs.version)")
     end
 end
 
@@ -632,7 +632,7 @@ function choose_shards(p::AbstractPlatform;
 
         for cs in all_compiler_shards()
             if cs.name == name && cs.version == version &&
-               (target === nothing || platforms_match(cs.target, target)) &&
+               (target === nothing || rootfs_platforms_match(cs.target, target)) &&
                cs.archive_type == archive_type
                 return cs
             end
@@ -756,7 +756,7 @@ function choose_shards(p::AbstractPlatform;
     else
         function find_latest_version(name)
             versions = [cs.version for cs in all_compiler_shards()
-                if cs.name == name && cs.archive_type == archive_type && platforms_match(something(cs.target, p), p)
+                if cs.name == name && cs.archive_type == archive_type && rootfs_platforms_match(something(cs.target, p), p)
             ]
             isempty(versions) && error("No latest shard found for $name")
             return maximum(versions)
@@ -1075,7 +1075,9 @@ function preferred_libgfortran_version(platform::AbstractPlatform, shard::Compil
     if shard.name != "GCCBootstrap"
         error("Shard must be `GCCBootstrap`")
     end
-    if arch(shard.target::Platform) != arch(platform) || libc(shard.target::Platform) != libc(platform)
+    if arch(shard.target::Platform) != arch(platform) ||
+       libc(shard.target::Platform) != libc(platform) ||
+       !rootfs_platforms_match(shard.target::Platform, platform)
         error("Incompatible platform and shard target")
     end
 
@@ -1105,7 +1107,9 @@ function preferred_cxxstring_abi(platform::AbstractPlatform, shard::CompilerShar
     if shard.name != "GCCBootstrap"
         error("Shard must be `GCCBootstrap`")
     end
-    if arch(shard.target::Platform) != arch(platform) || libc(shard.target::Platform) != libc(platform)
+    if arch(shard.target::Platform) != arch(platform) ||
+       libc(shard.target::Platform) != libc(platform) ||
+       !rootfs_platforms_match(shard.target::Platform, platform)
         error("Incompatible platform and shard target")
     end
 

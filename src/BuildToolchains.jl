@@ -47,6 +47,7 @@ end
 function toolchain_file(bt::CMake, p::AbstractPlatform, host_platform::AbstractPlatform; is_host::Bool=false, clang_use_lld::Bool=false)
     target = triplet(p)
     aatarget = aatriplet(p)
+    rootfs_target = rootfs_triplet(p)
 
     # In order to get the version of the host system we need to call `/bin/uname -r`.
     file = """
@@ -77,7 +78,7 @@ function toolchain_file(bt::CMake, p::AbstractPlatform, host_platform::AbstractP
         set(DARWIN_MAJOR_VERSION $(maj_ver))
         set(DARWIN_MINOR_VERSION $(min_ver))
 
-        set(CMAKE_SYSROOT /opt/$(aatarget)/$(aatarget)/sys-root)
+        set(CMAKE_SYSROOT /opt/$(rootfs_target)/$(aatarget)/sys-root)
         set(CMAKE_SYSTEM_FRAMEWORK_PATH
             \${CMAKE_SYSROOT}/System/Library/Frameworks
             \${CMAKE_SYSROOT}/System/Library/PrivateFrameworks
@@ -91,7 +92,7 @@ function toolchain_file(bt::CMake, p::AbstractPlatform, host_platform::AbstractP
         """
         end
         file *= """
-        set(CMAKE_SYSROOT /opt/$(aatarget)/$(aatarget)/sys-root/)
+        set(CMAKE_SYSROOT /opt/$(rootfs_target)/$(aatarget)/sys-root/)
         """
     end
 

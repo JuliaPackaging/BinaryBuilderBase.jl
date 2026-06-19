@@ -1,7 +1,7 @@
 using Test
 using Base.BinaryPlatforms
 using BinaryBuilderBase
-using BinaryBuilderBase: RustBuild, CompilerShard
+using BinaryBuilderBase: RustBuild, CompilerShard, parse_platform
 
 @testset "Expand platforms" begin
     # expand_gfortran_versions
@@ -137,6 +137,27 @@ end
 
 @testset "Compiler Shards" begin
     @test_throws ErrorException CompilerShard("GCCBootstrap", v"4", Platform("x86_64", "linux"), :invalid_archive_type)
+
+    @testset "Rootfs target names" begin
+        host = Platform("x86_64", "linux"; libc="musl")
+        msvcrt = Platform("x86_64", "windows")
+        ucrt = Platform("x86_64", "windows"; libc="ucrt")
+
+        msvcrt_shard = CompilerShard("GCCBootstrap", v"15.2.0", host, :unpacked; target=msvcrt)
+        ucrt_shard = CompilerShard("GCCBootstrap", v"15.2.0", host, :unpacked; target=ucrt)
+
+        @test BinaryBuilderBase.artifact_name(msvcrt_shard) == "GCCBootstrap-x86_64-w64-mingw32.v15.2.0.x86_64-linux-musl.unpacked"
+        @test BinaryBuilderBase.artifact_name(ucrt_shard) == "GCCBootstrap-x86_64-w64-ucrt-mingw32.v15.2.0.x86_64-linux-musl.unpacked"
+        @test CompilerShard(BinaryBuilderBase.artifact_name(msvcrt_shard)) == msvcrt_shard
+        @test CompilerShard(BinaryBuilderBase.artifact_name(ucrt_shard)) == ucrt_shard
+        @test BinaryBuilderBase.map_target(ucrt_shard) == "/opt/x86_64-w64-ucrt-mingw32/GCCBootstrap-15.2.0"
+
+        concrete_ucrt = get_concrete_platform(Platform("x86_64", "windows"; libc="ucrt"), [ucrt_shard])
+        @test concrete_ucrt == Platform("x86_64", "windows"; libc="ucrt", libgfortran_version=v"5", cxxstring_abi="cxx11")
+        @test rootfs_triplet(concrete_ucrt) == "x86_64-w64-ucrt-mingw32"
+
+        @test_throws ErrorException choose_shards(ucrt; preferred_gcc_version=v"15", archive_type=:unpacked)
+    end
 
     @testset "Rust toolchain selection" begin
         platform = Platform("x86_64", "linux")
@@ -281,6 +302,27 @@ end
                 @test occursin("-D_GLIBCXX_USE_CXX11_ABI=1", gcc)
                 # Make sure the unsafe flags check is not there in this case
                 @test !occursin("You used one or more of the unsafe flags", gcc)
+            end
+        end
+        @testset "windows CRT wrapper flags" begin
+            mktempdir() do bin_path
+                msvcrt = Platform("x86_64", "windows")
+                ucrt = parse_platform("x86_64-w64-ucrt-mingw32")
+
+                generate_compiler_wrappers!(msvcrt; bin_path = bin_path, gcc_version=v"15")
+                msvcrt_gcc = read(joinpath(bin_path, triplet(msvcrt), "gcc"), String)
+                @test !occursin("-mcrtdll=ucrt", msvcrt_gcc)
+                @test !occursin("-D_UCRT", msvcrt_gcc)
+
+                generate_compiler_wrappers!(ucrt; bin_path = bin_path, gcc_version=v"15")
+                ucrt_bin_dir = joinpath(bin_path, triplet(ucrt))
+                ucrt_gcc = read(joinpath(ucrt_bin_dir, "gcc"), String)
+                ucrt_clang = read(joinpath(ucrt_bin_dir, "clang"), String)
+                @test occursin("-D_UCRT", ucrt_gcc)
+                @test occursin("-mcrtdll=ucrt", ucrt_gcc)
+                @test occursin("-D_UCRT", ucrt_clang)
+                @test occursin("-lucrt", ucrt_clang)
+                @test !occursin("-mcrtdll=ucrt", ucrt_clang)
             end
         end
         platform = Platform("aarch64", "macos")
