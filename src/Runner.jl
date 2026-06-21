@@ -1137,7 +1137,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
 
               while [ "\${#}" -gt 0 ]; do
                   case "\${1}" in
-                      --sdk)
+                      --sdk | -sdk)
                           sdk_path="\${2}"
                           shift 2
                           ;;

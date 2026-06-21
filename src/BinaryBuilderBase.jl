@@ -5,6 +5,7 @@ using Base.BinaryPlatforms
 using Downloads
 using JSON, OutputCollectors, Scratch
 import HistoricalStdlibVersions
+using RegistryInstances: reachable_registries, registry_info, uuids_from_name
 
 # Re-export useful stuff from Base.BinaryPlatforms:
 export HostPlatform, platform_dlext, valid_dl_path, arch, libc,

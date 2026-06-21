@@ -130,7 +130,7 @@ struct LibraryProduct <: Product
                             dont_dlopen::Bool=false,
                             dlopen_flags::Vector{Symbol}=Symbol[])
         if isdefined(Base, varname)
-            error("`$(varname)` is already defined in Base")
+            error("Cannot define a LibraryProduct with name `$(varname)`. This symbol is already defined in Base.")
         end
         # catch invalid flags as early as possible
         for flag in dlopen_flags
@@ -353,7 +353,7 @@ struct ExecutableProduct <: Product
 
     function ExecutableProduct(binnames::Vector{String}, varname::Symbol, dir_path::Union{AbstractString, Nothing}=nothing)
         if isdefined(Base, varname)
-            error("`$(varname)` is already defined in Base")
+            error("Cannot define an ExecutableProduct with name `$(varname)`. This symbol is already defined in Base.")
         end
         # If some other kind of AbstractString is passed in, convert it
         if dir_path !== nothing
@@ -451,7 +451,7 @@ struct FileProduct <: Product
     variable_name::Symbol
     function FileProduct(paths::Vector{String}, varname::Symbol)
         if isdefined(Base, varname)
-            error("`$(varname)` is already defined in Base")
+            error("Cannot define a FileProduct with name `$(varname)`. This symbol is already defined in Base.")
         end
         return new(paths, varname)
     end
