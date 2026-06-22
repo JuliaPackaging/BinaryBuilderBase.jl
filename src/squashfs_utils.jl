@@ -96,4 +96,3 @@ function generate_per_uid_squashfs(cs, new_uid = getuid(); verbose::Bool = false
     # Finally, return the path to that cached squashfs file
     return cache_path
 end
-

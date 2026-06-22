@@ -29,8 +29,7 @@ function get_concrete_platform(platform::Platform, shards::Vector{CompilerShard}
     # `package()` to be more specific than it is.
     concrete_platform = deepcopy(platform)
     gccboostrap_shard_idx = findfirst(x -> x.name == "GCCBootstrap" &&
-                                      arch(x.target::Platform) == arch(platform) &&
-                                      libc(x.target::Platform) == libc(platform),
+                                      rootfs_platforms_match(x.target::Platform, platform),
                                       shards)
     if !isnothing(gccboostrap_shard_idx)
         cs = shards[gccboostrap_shard_idx]

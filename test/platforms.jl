@@ -32,6 +32,22 @@ end
     @test abi_agnostic(p) == Platform("x86_64", "linux"; libc="musl")
 end
 
+@testset "Rootfs triplets" begin
+    msvcrt = Platform("x86_64", "windows")
+    default_ucrt = parse_platform("x86_64-w64-ucrt-mingw32")
+
+    @test default_ucrt == Platform("x86_64", "windows"; libc="ucrt")
+    @test compiler_triplet(msvcrt) == "x86_64-w64-mingw32"
+    @test compiler_triplet(default_ucrt) == "x86_64-w64-mingw32"
+    @test rootfs_triplet(msvcrt) == "x86_64-w64-mingw32"
+    @test rootfs_triplet(default_ucrt) == "x86_64-w64-ucrt-mingw32"
+    @test rootfs_triplet(Platform("i686", "windows"; libc="ucrt")) == "i686-w64-ucrt-mingw32"
+
+    @test BinaryBuilderBase.rootfs_platforms_match(Platform("x86_64", "windows"; libc="msvcrt"), Platform("x86_64", "windows"))
+    @test BinaryBuilderBase.rootfs_platforms_match(default_ucrt, Platform("x86_64", "windows"; libc="ucrt"))
+    @test !BinaryBuilderBase.rootfs_platforms_match(msvcrt, default_ucrt)
+end
+
 @testset "AnyPlatform" begin
     # Test some AnyPlatform properties
     @test triplet(AnyPlatform()) == "any"

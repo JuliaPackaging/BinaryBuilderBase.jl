@@ -39,15 +39,8 @@ function proc_family(p::AbstractPlatform)
     end
 end
 
-# Convert platform to a triplet, but strip out the ABI parts.
-# Also translate `armvXl` -> `arm` for now, since that's what most
-# compiler toolchains call it.  :(
-function aatriplet(p::AbstractPlatform)
-    t = triplet(abi_agnostic(p))
-    t = replace(t, "armv7l" => "arm")
-    t = replace(t, "armv6l" => "arm")
-    return t
-end
+# Convert platform to a compiler target triplet, but strip out the ABI parts.
+aatriplet(p::AbstractPlatform) = compiler_triplet(p)
 # We want AnyPlatform to look like `default_host_platform` in the build environment.
 aatriplet(p::AnyPlatform) = aatriplet(default_host_platform)
 
@@ -60,11 +53,12 @@ function ld_library_path(target::AbstractPlatform,
     # Helper for generating the library include path for a target.  MacOS, as usual,
     # puts things in slightly different place.
     function target_lib_dir(p::AbstractPlatform)
-        t = aatriplet(p)
+        t = compiler_triplet(p)
+        rt = rootfs_triplet(p)
         if Sys.isapple(p)
-            return "/opt/$(t)/$(t)/lib:/opt/$(t)/lib"
+            return "/opt/$(rt)/$(t)/lib:/opt/$(rt)/lib"
         else
-            return "/opt/$(t)/$(t)/lib64:/opt/$(t)/$(t)/lib"
+            return "/opt/$(rt)/$(t)/lib64:/opt/$(rt)/$(t)/lib"
         end
     end
 
@@ -296,7 +290,7 @@ end
 # Write out a bunch of common tools
 for tool in (:cpp, :ld, :nm, :libtool, :objcopy, :objdump, :otool,
              :strip, :install_name_tool, :dlltool, :windres, :winmc, :lipo)
-    @eval $(tool)(io::IO, p::AbstractPlatform) = $(wrapper)(io, string("/opt/", aatriplet(p), "/bin/", aatriplet(p), "-", $(string(tool))); allow_ccache=false)
+    @eval $(tool)(io::IO, p::AbstractPlatform) = $(wrapper)(io, string("/opt/", rootfs_triplet(p), "/bin/", aatriplet(p), "-", $(string(tool))); allow_ccache=false)
 end
 
 """
@@ -338,11 +332,13 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     end
 
     target = aatriplet(platform)
+    target_root = rootfs_triplet(platform)
     host_target = aatriplet(host_platform)
+    host_root = rootfs_triplet(host_platform)
 
     # Helper invocations
-    target_tool(io::IO, tool::String, args...; kwargs...) = wrapper(io, "/opt/$(target)/bin/$(target)-$(tool)", args...; kwargs...)
-    llvm_tool(io::IO, tool::String, args...; kwargs...) = wrapper(io, "/opt/$(host_target)/bin/llvm-$(tool)", args...; kwargs...)
+    target_tool(io::IO, tool::String, args...; kwargs...) = wrapper(io, "/opt/$(target_root)/bin/$(target)-$(tool)", args...; kwargs...)
+    llvm_tool(io::IO, tool::String, args...; kwargs...) = wrapper(io, "/opt/$(host_root)/bin/llvm-$(tool)", args...; kwargs...)
 
     # For now this is required for Clang, since apple spells aarch64 as "arm64".
     # Should probably be fixed upstream, but will do for now
@@ -354,7 +350,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             # Set the `target` for `clang` so it generates the right kind of code
             "-target $(clang_target_triplet(p))",
             # Set our sysroot to the platform-specific location, dropping compiler ABI annotations
-            "--sysroot=/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root",
+            "--sysroot=/opt/$(rootfs_triplet(p))/$(aatriplet(p))/sys-root",
         ])
         if !Sys.isbsd(p)
             add_cxx_abi(p, flags)
@@ -368,11 +364,11 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         if Sys.islinux(p)
             # Find GCC toolchain
             gcc_toolchain_flag = if !isnothing(gcc_version) && !isnothing(clang_version) && (clang_version >= v"16")
-                "--gcc-install-dir=/opt/$(aatriplet(p))/lib/gcc/$(aatriplet(p))/$(gcc_version)"
+                "--gcc-install-dir=/opt/$(rootfs_triplet(p))/lib/gcc/$(aatriplet(p))/$(gcc_version)"
             else
                 # This helps MSAN C++ compiler finding the target toolchain, rather than the host one:
                 # <https://github.com/JuliaPackaging/Yggdrasil/pull/7872#issuecomment-1913141689>.
-                "--gcc-toolchain=/opt/$(aatriplet(p))"
+                "--gcc-toolchain=/opt/$(rootfs_triplet(p))"
             end
             append!(flags, [gcc_toolchain_flag])
         end
@@ -469,7 +465,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             # For systems other than macOS this directory doesn't exist out-of-the-box in our
             # toolchain, but you can put in there the headers of the C++ standard library for libc++
             # from LLLVMLibcxx_jll.  This must come before GCC header files (added below).
-            "-isystem /opt/$(aatriplet(p))/$(aatriplet(p))/sys-root/usr/include/c++/v1",
+            "-isystem /opt/$(rootfs_triplet(p))/$(aatriplet(p))/sys-root/usr/include/c++/v1",
         ])
 
         if Sys.isapple(p)
@@ -485,7 +481,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
                 append!(flags, [
                     # At the moment we know this is needed only on aarch64-freebsd:
                     # <https://github.com/JuliaPackaging/Yggdrasil/pull/10360#discussion_r1935608177>.
-                    "-isystem /opt/$(aatriplet(p))/$(aatriplet(p))/sys-root/usr/include"
+                    "-isystem /opt/$(rootfs_triplet(p))/$(aatriplet(p))/sys-root/usr/include"
                 ])
             end
         end
@@ -494,15 +490,15 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             # GCC header files
             if !isnothing(gcc_version)
                 append!(flags, [
-                    "-isystem /opt/$(aatriplet(p))/$(aatriplet(p))/include/c++/$(gcc_version)",
-                    "-isystem /opt/$(aatriplet(p))/$(aatriplet(p))/include/c++/$(gcc_version)/$(aatriplet(p))",
-                    "-isystem /opt/$(aatriplet(p))/$(aatriplet(p))/include/c++/$(gcc_version)/backward",
+                    "-isystem /opt/$(rootfs_triplet(p))/$(aatriplet(p))/include/c++/$(gcc_version)",
+                    "-isystem /opt/$(rootfs_triplet(p))/$(aatriplet(p))/include/c++/$(gcc_version)/$(aatriplet(p))",
+                    "-isystem /opt/$(rootfs_triplet(p))/$(aatriplet(p))/include/c++/$(gcc_version)/backward",
                 ])
             end
             # MinGW header files
             if Sys.iswindows(p)
                 append!(flags, [
-                    "-isystem /opt/$(aatriplet(p))/$(aatriplet(p))/include",
+                    "-isystem /opt/$(rootfs_triplet(p))/$(aatriplet(p))/include",
                 ])
             end
         end
@@ -516,7 +512,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     function clang_link_flags!(p::AbstractPlatform, flags::Vector{String} = String[])
         # On macos and freebsd, we must pass in the `/lib` directory for some reason
         if Sys.isbsd(p)
-            push!(flags, "-L/opt/$(aatriplet(p))/$(aatriplet(p))/lib")
+            push!(flags, "-L/opt/$(rootfs_triplet(p))/$(aatriplet(p))/lib")
         end
         # For MacOS and FreeBSD, we don't set `-rtlib`, and FreeBSD is special-cased within the LLVM source tree
         # to not allow for -gcc-toolchain, which means that we have to manually add the location of libgcc_s.  LE SIGH.
@@ -530,10 +526,10 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
                 "-rtlib=libgcc"
             ])
             if !isnothing(gcc_version)
-                append!(flags, String["-L/opt/$(aatriplet(p))/lib/gcc/opt/$(aatriplet(p))/lib/gcc",
-                                    "-L/opt/$(aatriplet(p))/$(aatriplet(p))/lib",
-                                    "-L/opt/$(aatriplet(p))/lib/gcc/$(aatriplet(p))/$(gcc_version)",
-                                    "-L/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root/lib",])
+                append!(flags, String["-L/opt/$(rootfs_triplet(p))/lib/gcc/opt/$(rootfs_triplet(p))/lib/gcc",
+                                    "-L/opt/$(rootfs_triplet(p))/$(aatriplet(p))/lib",
+                                    "-L/opt/$(rootfs_triplet(p))/lib/gcc/$(aatriplet(p))/$(gcc_version)",
+                                    "-L/opt/$(rootfs_triplet(p))/$(aatriplet(p))/sys-root/lib",])
             end
         end
         # we want to use a particular linker with clang.  But we want to avoid warnings about unused
@@ -542,7 +538,10 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             push!(flags, "-fuse-ld=$(aatriplet(p))")
         end
         if Sys.isfreebsd(p) && clang_use_lld
-            push!(flags, "-L/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root/usr/local/lib")
+            push!(flags, "-L/opt/$(rootfs_triplet(p))/$(aatriplet(p))/sys-root/usr/local/lib")
+        end
+        if Sys.iswindows(p) && libc(p) == "ucrt"
+            push!(flags, "-lucrt")
         end
         sanitize_link_flags!(p, flags)
 
@@ -570,7 +569,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         # On macOS, if we're on an old GCC, the default -syslibroot that gets
         # passed to the linker isn't calculated correctly, so we have to manually set it.
         if gcc_version.major in (4, 5)
-            push!(flags, "-Wl,-syslibroot,/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root")
+            push!(flags, "-Wl,-syslibroot,/opt/$(rootfs_triplet(p))/$(aatriplet(p))/sys-root")
         end
         append!(flags, min_macos_version_compiler_flags())
         return flags
@@ -583,6 +582,9 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             "-DWINVER=0x0A00",
             "-D_WIN32_WINNT=0x0A00",
         ])
+        if libc(p) == "ucrt"
+            push!(flags, "-D_UCRT")
+        end
         return flags
     end
 
@@ -605,6 +607,9 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
 
         if Sys.iswindows(p)
             windows_cflags!(p, flags)
+            if libc(p) == "ucrt"
+                push!(flags, "-mcrtdll=ucrt")
+            end
         end
 
         return flags
@@ -623,7 +628,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             # written out in our wrappers as "post flags" after those passed on the command
             # line, but we really need to have these flags before those to solve
             # <https://github.com/JuliaPackaging/BinaryBuilderBase.jl/issues/163>.
-            dir = "/opt/$(aatriplet(p))/$(aatriplet(p))/lib" * (nbits(p) == 32 || arch(p) == "riscv64" || Sys.isfreebsd(p) ? "" : "64")
+            dir = "/opt/$(rootfs_triplet(p))/$(aatriplet(p))/lib" * (nbits(p) == 32 || arch(p) == "riscv64" || Sys.isfreebsd(p) ? "" : "64")
             append!(flags, ("-L$(dir)", "-Wl,-rpath-link,$(dir)"))
         end
         if lock_microarchitecture
@@ -640,8 +645,8 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         # Inclusion of `/lib64` on `powerpc64le` was fixed in GCC 8+.
         if arch(p) == "powerpc64le" && Sys.islinux(p) && 4 <= gcc_version.major <= 7
             append!(flags, String[
-                "-L/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root/lib64",
-                "-Wl,-rpath-link,/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root/lib64",
+                "-L/opt/$(rootfs_triplet(p))/$(aatriplet(p))/sys-root/lib64",
+                "-Wl,-rpath-link,/opt/$(rootfs_triplet(p))/$(aatriplet(p))/sys-root/lib64",
             ])
         elseif Sys.isapple(p)
             push!(flags, "-headerpad_max_install_names")
@@ -665,7 +670,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
 
     function gcc_wrapper(io::IO, tool::String, p::AbstractPlatform, allow_ccache::Bool = true)
         return wrapper(io,
-            "/opt/$(aatriplet(p))/bin/$(aatriplet(p))-$(tool)";
+            "/opt/$(rootfs_triplet(p))/bin/$(aatriplet(p))-$(tool)";
             flags=gcc_flags!(p),
             compile_only_flags=gcc_compile_flags!(p),
             link_only_flags=gcc_link_flags!(p),
@@ -683,7 +688,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     function clang_wrapper(io::IO, tool::String, p::AbstractPlatform, iscxx::Bool)
         flags = clang_flags!(p, iscxx=iscxx)
         return wrapper(io,
-            "/opt/$(host_target)/bin/$(tool)";
+            "/opt/$(host_root)/bin/$(tool)";
             flags=flags,
             compile_only_flags=clang_compile_flags!(p),
             link_only_flags=clang_link_flags!(p),
@@ -745,16 +750,16 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     function go(io::IO, p::AbstractPlatform)
         env = Dict(
             "GOOS" => GOOS(p),
-            "GOROOT" => "/opt/$(host_target)/go",
+            "GOROOT" => "/opt/$(host_root)/go",
             "GOARCH" => GOARCH(p),
         )
-        return wrapper(io, "/opt/$(host_target)/go/bin/go"; env=env, allow_ccache=false)
+        return wrapper(io, "/opt/$(host_root)/go/bin/go"; env=env, allow_ccache=false)
     end
-    gofmt(io::IO, p::AbstractPlatform) = wrapper(io, "/opt/$(host_target)/go/bin/gofmt"; allow_ccache=false)
+    gofmt(io::IO, p::AbstractPlatform) = wrapper(io, "/opt/$(host_root)/go/bin/gofmt"; allow_ccache=false)
 
     # OCaml stuff
     function ocaml_wrapper(io::IO, tool::String, p::AbstractPlatform)
-        return wrapper(io, "/opt/$(aatriplet(p))/bin/$(tool)")
+        return wrapper(io, "/opt/$(rootfs_triplet(p))/bin/$(tool)")
     end
     ## cross-tools for the target
     ocamlc(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "ocamlc", p)
@@ -802,10 +807,10 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             PRE_FLAGS+=( '--target=$(map_rust_target(p))' )
         fi
         """
-        wrapper(io, "/opt/$(host_target)/bin/rustc"; flags=rust_flags!(p), allow_ccache=false, extra_cmds=extra_cmds)
+        wrapper(io, "/opt/$(host_root)/bin/rustc"; flags=rust_flags!(p), allow_ccache=false, extra_cmds=extra_cmds)
     end
-    rustup(io::IO, p::AbstractPlatform) = wrapper(io, "/opt/$(host_target)/bin/rustup"; allow_ccache=false)
-    cargo(io::IO, p::AbstractPlatform) = wrapper(io, "/opt/$(host_target)/bin/cargo"; allow_ccache=false)
+    rustup(io::IO, p::AbstractPlatform) = wrapper(io, "/opt/$(host_root)/bin/rustup"; allow_ccache=false)
+    cargo(io::IO, p::AbstractPlatform) = wrapper(io, "/opt/$(host_root)/bin/cargo"; allow_ccache=false)
 
     # Meson REQUIRES that `CC`, `CXX`, etc.. are set to the host utils.  womp womp.
     function meson(io::IO, p::AbstractPlatform)
@@ -868,7 +873,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             echo "Continuing build, but please repent." >&2
         fi
         """
-        wrapper(io, string("/opt/", aatriplet(p), "/bin/", ar_name); allow_ccache=false, extra_cmds=extra_cmds)
+        wrapper(io, string("/opt/", rootfs_triplet(p), "/bin/", ar_name); allow_ccache=false, extra_cmds=extra_cmds)
     end
 
     function ranlib(io::IO, p::AbstractPlatform)
@@ -888,26 +893,26 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             ranlib_name = "llvm-ranlib"
             extra_cmds = ""
         end
-        wrapper(io, string("/opt/", aatriplet(p), "/bin/", ranlib_name); allow_ccache=false, extra_cmds=extra_cmds)
+        wrapper(io, string("/opt/", rootfs_triplet(p), "/bin/", ranlib_name); allow_ccache=false, extra_cmds=extra_cmds)
     end
 
     function dlltool(io::IO, p::AbstractPlatform)
         extra_cmds = raw"""
         PRE_FLAGS+=( --temp-prefix /tmp/dlltool-${ARGS_HASH} )
         """
-        wrapper(io, string("/opt/", aatriplet(p), "/bin/", string(aatriplet(p), "-dlltool")); allow_ccache=false, extra_cmds=extra_cmds, hash_args=true)
+        wrapper(io, string("/opt/", rootfs_triplet(p), "/bin/", string(aatriplet(p), "-dlltool")); allow_ccache=false, extra_cmds=extra_cmds, hash_args=true)
     end
 
     lld_generic(io::IO, p::AbstractPlatform) =
-        return wrapper(io, "/opt/$(host_target)/bin/lld"; env=Dict("LD_LIBRARY_PATH"=>ld_library_path(platform, host_platform; csl_paths=false)), allow_ccache=false,)
+        return wrapper(io, "/opt/$(host_root)/bin/lld"; env=Dict("LD_LIBRARY_PATH"=>ld_library_path(platform, host_platform; csl_paths=false)), allow_ccache=false,)
     function lld(io::IO, p::AbstractPlatform)
         return wrapper(io,
-            "/opt/$(host_target)/bin/$(lld_string(p))";
+            "/opt/$(host_root)/bin/$(lld_string(p))";
             env=Dict("LD_LIBRARY_PATH"=>ld_library_path(platform, host_platform; csl_paths=false)), allow_ccache=false,
         )
     end
     as(io::IO, p::AbstractPlatform) =
-        wrapper(io, string("/opt/", aatriplet(p), "/bin/", aatriplet(p), "-as");
+        wrapper(io, string("/opt/", rootfs_triplet(p), "/bin/", aatriplet(p), "-as");
                 allow_ccache=false,
                 lock_microarchitecture,
                 # At the moment `as` for `aarch64-apple-darwin` is `clang-8`, which can't deal with
@@ -921,9 +926,9 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     function cxxfilt(io::IO, p::AbstractPlatform)
         if Sys.isapple(p)
             # We must use `llvm-cxxfilt` on MacOS
-            path = "/opt/$(aatriplet(p))/bin/llvm-cxxfilt"
+            path = "/opt/$(rootfs_triplet(p))/bin/llvm-cxxfilt"
         else
-            path = "/opt/$(aatriplet(p))/bin/$(aatriplet(p))-c++filt"
+            path = "/opt/$(rootfs_triplet(p))/bin/$(aatriplet(p))-c++filt"
         end
         return wrapper(io, path; allow_ccache=false)
     end
@@ -934,7 +939,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             return (io, p) -> nothing
         end
 
-        return wrapper(io, "/opt/$(aatriplet(p))/bin/dsymutil"; allow_ccache=false)
+        return wrapper(io, "/opt/$(rootfs_triplet(p))/bin/dsymutil"; allow_ccache=false)
     end
 
     function readelf(io::IO, p::AbstractPlatform)
@@ -942,7 +947,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             # macOS doesn't have a readelf
             return (io, p) -> nothing
         end
-        return wrapper(io, "/opt/$(aatriplet(p))/bin/$(aatriplet(p))-readelf"; allow_ccache=false)
+        return wrapper(io, "/opt/$(rootfs_triplet(p))/bin/$(aatriplet(p))-readelf"; allow_ccache=false)
     end
 
     function write_wrapper(wrappergen, p, fname)
@@ -1228,7 +1233,9 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
 
     # Convert platform to a triplet, but strip out the ABI parts
     target = aatriplet(platform)
+    target_root = rootfs_triplet(platform)
     host_target = aatriplet(host_platform)
+    host_root = rootfs_triplet(host_platform)
 
     # Prefix, libdir, etc...
     prefix = "/workspace/destdir"
@@ -1344,7 +1351,7 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
     # OCaml stuff
     if :ocaml in compilers
         merge!(mapping, Dict(
-            "OCAMLLIB" => "/opt/$(target)/lib/ocaml",
+            "OCAMLLIB" => "/opt/$(target_root)/lib/ocaml",
 
             # Default mappings for some tools
             "OCAMLC" => "ocamlc",
@@ -1360,8 +1367,8 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
             "CARGO" => "cargo",
             "CARGO_BUILD_JOBS" => nproc,
             "CARGO_BUILD_TARGET" => map_rust_target(platform),
-            "CARGO_HOME" => "/opt/$(host_target)",
-            "RUSTUP_HOME" => "/opt/$(host_target)",
+            "CARGO_HOME" => "/opt/$(host_root)",
+            "RUSTUP_HOME" => "/opt/$(host_root)",
         ))
         if rust_version !== nothing
             merge!(mapping, Dict(
@@ -1375,10 +1382,10 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
             # First things first, our compiler wrappers trump all
             "/opt/bin/$(triplet(platform))",
             # Allow users to use things like x86_64-linux-gnu here
-            "/opt/$(target)/bin",
+            "/opt/$(target_root)/bin",
             # Also wrappers for the host
             "/opt/bin/$(triplet(host_platform))",
-            "/opt/$(host_target)/bin",
+            "/opt/$(host_root)/bin",
             # Default alpine PATH
             mapping["PATH"],
             # Host tools, installed as `HostBuildDependency`
@@ -1423,7 +1430,7 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
     if Sys.isapple(platform)
         mapping["LD"] = "/opt/bin/$(triplet(platform))/ld"
         mapping["MACOSX_DEPLOYMENT_TARGET"] = macos_version(platform)
-        mapping["SDKROOT"] = "/opt/$(aatriplet(platform))/$(aatriplet(platform))/sys-root"
+        mapping["SDKROOT"] = "/opt/$(rootfs_triplet(platform))/$(aatriplet(platform))/sys-root"
     end
 
     # There is no broad agreement on what host compilers should be called,
@@ -1525,7 +1532,7 @@ function runner_setup!(workspaces, mappings, workspace_root, verbose, kwargs, pl
     rust_version = length(rb) == 1 ? only(rb).version : nothing
 
     # Determine version of GCC toolchain.
-    gcc = filter(s -> s.name == "GCCBootstrap" && platforms_match(s.target, platform), shards)
+    gcc = filter(s -> s.name == "GCCBootstrap" && rootfs_platforms_match(s.target, platform), shards)
     gcc_version = length(gcc) == 1 ? only(gcc).version : nothing
 
     clang = filter(s -> s.name == "LLVMBootstrap", shards)
@@ -1570,7 +1577,7 @@ function runner_setup!(workspaces, mappings, workspace_root, verbose, kwargs, pl
         sysroot_libdir = joinpath(dir, "$(aatriplet(platform))/sys-root/usr/lib")
         mkpath(sysroot_libdir)
         symlink("libc.so", joinpath(sysroot_libdir, "libc.musl-$(map_musl_arch(platform)).so.1"))
-        push!(mappings, dir => "/opt/$(aatriplet(platform))/nonce")
+        push!(mappings, dir => "/opt/$(rootfs_triplet(platform))/nonce")
     end
 
     # the workspace_root is always a workspace, and we always mount it first
