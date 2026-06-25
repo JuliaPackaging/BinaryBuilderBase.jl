@@ -3619,7 +3619,7 @@ os = "linux"
 
 [["GCCBootstrap-x86_64-w64-mingw32.v15.2.0.x86_64-linux-musl.unpacked"]]
 arch = "x86_64"
-git-tree-sha1 = "3af9c36f1573079446c32e4825010dc92b3ec50d"
+git-tree-sha1 = "01df0b1d99b32b4d63a7d7498e3ac6f21bd0429d"
 lazy = true
 libc = "musl"
 os = "linux"
