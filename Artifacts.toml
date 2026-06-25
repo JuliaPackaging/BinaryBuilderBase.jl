@@ -3575,7 +3575,7 @@ os = "linux"
 
 [["GCCBootstrap-x86_64-w64-mingw32.v13.2.0.x86_64-linux-musl.unpacked"]]
 arch = "x86_64"
-git-tree-sha1 = "1a5ce2b97144e03a30457f9400b70f8d19bee799"
+git-tree-sha1 = "43607b377c0c6100c11de6d0126a3c815c6402db"
 lazy = true
 libc = "musl"
 os = "linux"
