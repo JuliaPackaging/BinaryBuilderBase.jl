@@ -103,7 +103,7 @@ jobs:
           df -h /
           echo " --> df -a /"
           df -a /
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: julia-actions/setup-julia@v2
         with:
           version: ${{ matrix.julia-version }}
