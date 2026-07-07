@@ -2,7 +2,7 @@ using Test
 using Base.BinaryPlatforms
 using BinaryBuilderBase
 using BinaryBuilderBase: abi_agnostic, get_concrete_platform, march, platform_dlext, platform_exeext,
-                         nbits, proc_family, default_host_platform, parse_platform
+                         nbits, proc_family, default_host_platform, parse_platform, map_rust_target
 
 @testset "Supported Platforms" begin
     all = supported_platforms()
@@ -124,4 +124,15 @@ end
     @test parse_platform("x86_64-linux") == Platform("x86_64", "linux")
     @test parse_platform("i686-w64-mingw32-cxx03") == Platform("i686", "windows"; cxxstring_abi="cxx03")
     @test parse_platform("aarch64-apple-darwin21-libgfortran4-cxx11") == Platform("aarch64", "macos"; os_version=v"21", cxxstring_abi="cxx11", libgfortran_version=v"4")
+end
+
+@testset "Rust target mapping" begin
+    @test map_rust_target(Platform("x86_64", "linux")) == "x86_64-unknown-linux-gnu"
+    @test map_rust_target(Platform("x86_64", "linux"; libc="musl")) == "x86_64-unknown-linux-musl"
+    @test map_rust_target(Platform("riscv64", "linux")) == "riscv64gc-unknown-linux-gnu"
+    @test map_rust_target(Platform("riscv64", "linux"; march="rv64a23")) == "riscv64gc-unknown-linux-gnu"
+    @test map_rust_target(Platform("aarch64", "macos")) == "aarch64-apple-darwin"
+    @test map_rust_target(Platform("i686", "windows")) == "i686-pc-windows-gnu"
+    @test map_rust_target(Platform("armv6l", "linux")) == "arm-unknown-linux-gnueabihf"
+    @test map_rust_target(Platform("armv7l", "linux")) == "armv7-unknown-linux-gnueabihf"
 end
