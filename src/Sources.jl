@@ -218,7 +218,13 @@ function cached_git_clone(url::String;
             # this is not only faster, it avoids race conditions when we have
             # multiple builders on the same machine all fetching at once.
             if hash_to_check === nothing || !LibGit2.iscommit(hash_to_check, repo)
-                LibGit2.fetch(repo)
+                LibGit2.fetch(
+                    repo;
+                    refspecs = [
+                        "+refs/heads/*:refs/remotes/origin/*",
+                        "+refs/tags/*:refs/tags/*",
+                    ],
+                )
             end
         end
     else
