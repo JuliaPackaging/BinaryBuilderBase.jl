@@ -1,7 +1,10 @@
-using BinaryBuilderBase: Prefix, archive_artifact, package, list_tarball_files, detect_compressor
+using BinaryBuilderBase: Prefix, archive_artifact, package, unpack, list_tarball_files, detect_compressor
 using Pkg.Artifacts: create_artifact, remove_artifact, with_artifacts_directory
+using Pkg.GitTools: tree_hash
 using SHA
+using Tar
 using Test
+using Zstd_jll
 
 @testset "Archive Utils" begin
     @testset "package" begin
@@ -87,6 +90,45 @@ using Test
             end
         end
 
+    end
+
+    @testset "unpack" begin
+        # Round-trip a tree through every compressor `detect_compressor` knows about, and
+        # check `unpack` reproduces it exactly.  `package` can only write gzip/xz/bzip2
+        # (p7zip has no zstd encoder), so the zstd tarball is built by hand.
+        mktempdir() do src_dir
+            mkpath(joinpath(src_dir, "bin"))
+            mkpath(joinpath(src_dir, "lib"))
+            write(joinpath(src_dir, "bin", "bar.sh"), "#!/bin/sh\necho yolo\n")
+            chmod(joinpath(src_dir, "bin", "bar.sh"), 0o755)
+            write(joinpath(src_dir, "lib", "libbaz.so.1.2.3"), "this is not an actual .so\n")
+            symlink("libbaz.so.1.2.3", joinpath(src_dir, "lib", "libbaz.so"))
+            reference = bytes2hex(tree_hash(src_dir))
+
+            for format in ("gzip", "xz", "zstd", "bzip2")
+                mktempdir() do output_dir
+                    tarball_path = joinpath(output_dir, "foo.tar")
+                    if format == "zstd"
+                        # Julia 1.7 does not reliably wait for this pipeline when Tar.create
+                        # writes to its stdin, which can leave a valid but empty zstd stream.
+                        uncompressed_path = joinpath(output_dir, "foo.uncompressed.tar")
+                        Tar.create(src_dir, uncompressed_path)
+                        run(`$(Zstd_jll.zstd()) -q -f -o $(tarball_path) $(uncompressed_path)`)
+                    else
+                        package(src_dir, tarball_path; format=format)
+                    end
+                    @test open(io -> detect_compressor(read(io, 6)), tarball_path) == format
+
+                    mktempdir() do dest_dir
+                        unpack(tarball_path, dest_dir)
+                        # Contents, permissions and symlinks must all survive
+                        @test bytes2hex(tree_hash(dest_dir)) == reference
+                        @test islink(joinpath(dest_dir, "lib", "libbaz.so"))
+                        @test filemode(joinpath(dest_dir, "bin", "bar.sh")) & 0o111 != 0
+                    end
+                end
+            end
+        end
     end
 
     @testset "Artifact archival" begin

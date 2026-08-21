@@ -1,5 +1,5 @@
 using Base: SHA1
-using Downloads, Tar, p7zip_jll, pigz_jll, SimpleBufferStream, SHA
+using Downloads, Tar, p7zip_jll, pigz_jll, SimpleBufferStream, SHA, Zstd_jll
 using Pkg.Artifacts: artifact_exists, artifact_path, query_override
 using XZ_jll: xz
 
@@ -21,6 +21,25 @@ function detect_compressor(header::Vector)
     return nothing
 end
 
+"""
+    decompress_cmd(path, compressor) -> Cmd
+
+Build the command that decompresses `path` (already classified as `compressor`) to stdout.
+
+The command-returning JLL wrappers carry their environment in the `Cmd`, unlike the
+`do`-block wrappers that mutate process-global environment state.
+"""
+function decompress_cmd(path::AbstractString, compressor::AbstractString)
+    if compressor == "gzip"
+        return `$(pigz()) -dc $(path)`
+    elseif compressor == "zstd"
+        # The p7zip bundled with older Julia releases cannot decode zstd streams.
+        return `$(Zstd_jll.zstd()) -dc $(path)`
+    end
+    # p7zip handles everything else we know how to detect
+    return `$(p7zip()) e $(path) -so -t$(compressor)`
+end
+
 function decompress(path::AbstractString)
     # Read the first few bytes of data to classify it:
     compressor = open(path) do io
@@ -30,11 +49,8 @@ function decompress(path::AbstractString)
         error("Called decompress() on uncompressed file")
     end
 
-    p7zip() do p7z
-        # Launch p7zip as our decompressor engine, clueing it in to the compressor
-        p = open(`$p7z e $(path) -so -t$(compressor)`; read=true)
-        return p.out
-    end
+    p = open(decompress_cmd(path, compressor); read=true)
+    return p.out
 end
 
 # Many functions don't like `PipeEndpoint`, so we interface with a BufferStream
