@@ -195,6 +195,20 @@ function linker_string(bt::Meson{:clang}, p::AbstractPlatform, clang_use_lld)
     return clang_use_lld ? "/opt/bin/$(target)/$(lld_string(p))" : "/opt/bin/$(target)/$(aatarget)-ld"
 end
 
+# The `c_ld` / `cpp_ld` entries of the cross file.  On Apple targets there are
+# none: Meson cannot identify the cctools `ld64` wrapper (it rejects
+# `--version` and prints its banner to stdout, so `meson setup` fails with
+# "Unable to detect linker"), and pointing it at `ld64.lld` by path makes clang
+# invoke lld without the Darwin platform/arch arguments.  Left alone, Meson uses
+# the linker the compiler wrapper drives, which it identifies correctly.
+function meson_compiler_linkers(bt::Meson, p::AbstractPlatform, clang_use_lld)
+    Sys.isapple(p) && return ""
+    return """
+        cpp_ld = '$(linker_string(bt, p, clang_use_lld))'
+        c_ld = '$(linker_string(bt, p, clang_use_lld))'
+    """
+end
+
 function toolchain_file(bt::Meson, p::AbstractPlatform, envs::Dict{String,String};
                         is_host::Bool=false, clang_use_lld::Bool=false)
     target = triplet(p)
@@ -208,9 +222,7 @@ function toolchain_file(bt::Meson, p::AbstractPlatform, envs::Dict{String,String
     objc = '/opt/bin/$(target)/$(aatarget)-cc'
     ar = '/opt/bin/$(target)/$(aatarget)-ar'
     ld = '$(linker_string(bt, p, clang_use_lld))'
-    cpp_ld = '$(linker_string(bt, p, clang_use_lld))'
-    c_ld = '$(linker_string(bt, p, clang_use_lld))'
-    nm = '/opt/bin/$(target)/$(aatarget)-nm'
+$(meson_compiler_linkers(bt, p, clang_use_lld))    nm = '/opt/bin/$(target)/$(aatarget)-nm'
     strip = '/opt/bin/$(target)/$(aatarget)-strip'
     pkgconfig = '/usr/bin/pkg-config'
 
