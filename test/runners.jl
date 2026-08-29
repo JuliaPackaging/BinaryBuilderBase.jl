@@ -38,6 +38,27 @@ using ObjectFile
     @test !prefer_clang(Platform("x86_64", "linux"; sanitize="thread"))
 end
 
+@testset "Meson toolchain files" begin
+    # The linker in the Meson cross file must be the one the compiler wrappers
+    # actually use: with `clang_use_lld` Meson cannot identify the cctools `ld`
+    # on macOS and refuses to configure.
+    for platform in (Platform("aarch64", "macos"), Platform("x86_64", "macos"),
+                     Platform("x86_64", "linux"), Platform("x86_64", "freebsd"),
+                     Platform("x86_64", "windows"))
+        envs = BinaryBuilderBase.platform_envs(platform, "")
+        bin_dir = "/opt/bin/$(triplet(platform))"
+        for clang_use_lld in (true, false)
+            linker = clang_use_lld ? "lld" : "$(bin_dir)/$(aatriplet(platform))-ld"
+            clang = BinaryBuilderBase.toolchain_file(BinaryBuilderBase.Meson{:clang}(), platform, envs; clang_use_lld)
+            @test occursin("\nc_ld = '$(linker)'\n", clang)
+            @test occursin("\ncpp_ld = '$(linker)'\n", clang)
+            gcc = BinaryBuilderBase.toolchain_file(BinaryBuilderBase.Meson{:gcc}(), platform, envs; clang_use_lld)
+            @test occursin("\nc_ld = 'bfd'\n", gcc)
+            @test occursin("\ncpp_ld = 'bfd'\n", gcc)
+        end
+    end
+end
+
 @testset "with_logfile" begin
     mktempdir() do dir
         logfile = joinpath(dir, "dir", "logfile.txt")
@@ -466,6 +487,31 @@ end
                     @test endswith(readchomp(iobuff), "Hello World!")
                 end
                 cleanup_dependencies(prefix, artifact_paths, concrete_platform)
+            end
+        end
+
+
+        # Meson has to be able to identify the linker named in the cross file,
+        # which is the compiler's default linker (`lld` on macOS with recent Clang).
+        @testset "Meson - $(platform) - $(compiler) - clang_use_lld=$(clang_use_lld)" for platform in platforms, compiler in ("clang", "gcc"), clang_use_lld in (true, false)
+            mktempdir() do dir
+                ur = preferred_runner()(dir; platform=platform, clang_use_lld=clang_use_lld)
+                iobuff = IOBuffer()
+                test_script = raw"""
+                set -e
+                cd /workspace
+                mkdir mesontest && cd mesontest
+                echo "int hello(void) { return 0; }" > hello.c
+                echo "project('hello', 'c')" > meson.build
+                echo "shared_library('hello', 'hello.c', install: true)" >> meson.build
+                meson setup build --cross-file="${MESON_TARGET_TOOLCHAIN%.meson}_""" * compiler * raw""".meson"
+                meson compile -C build
+                meson install -C build
+                """
+                cmd = `/bin/bash -c "$(test_script)"`
+                @test run(ur, cmd, iobuff; tee_stream=devnull)
+                libdir = Sys.iswindows(platform) ? "bin" : "lib"
+                @test isfile(joinpath(dir, "destdir", libdir, "libhello." * platform_dlext(platform)))
             end
         end
 
