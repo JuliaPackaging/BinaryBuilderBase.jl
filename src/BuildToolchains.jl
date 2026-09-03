@@ -189,17 +189,19 @@ function linker_string(bt::Meson{:gcc}, p::AbstractPlatform, clang_use_lld)
     return "bfd"
 end
 
+# Meson passes this to Clang as `-fuse-ld=`.  It has to be the flavour name and not
+# the path to the wrapper: with a path Clang doesn't know the linker is lld and on
+# macOS it emits legacy `-macosx_version_min` flags which `ld64.lld` rejects.
 function linker_string(bt::Meson{:clang}, p::AbstractPlatform, clang_use_lld)
     target = triplet(p)
     aatarget = aatriplet(p)
-    return clang_use_lld ? "/opt/bin/$(target)/$(lld_string(p))" : "/opt/bin/$(target)/$(aatarget)-ld"
+    return clang_use_lld ? "lld" : "/opt/bin/$(target)/$(aatarget)-ld"
 end
 
 function toolchain_file(bt::Meson, p::AbstractPlatform, envs::Dict{String,String};
                         is_host::Bool=false, clang_use_lld::Bool=false)
     target = triplet(p)
     aatarget = aatriplet(p)
-    clang_use_lld=false #Meson tries is best to misuse lld so don't use it for now
     return """
     [binaries]
     c = '/opt/bin/$(target)/$(aatarget)-$(c_compiler(bt))'
