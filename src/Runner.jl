@@ -773,6 +773,8 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     ocamlfind(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "ocamlfind", host_platform)
 
     # Rust stuff
+    # Keep in sync with the `rustflags` in `cargo_config_file!` (BuildToolchains.jl):
+    # cargo builds do not go through this wrapper.
     function rust_flags!(p::AbstractPlatform, flags::Vector{String} = String[])
         if Sys.islinux(p)
             push!(flags, "-Clinker=$(aatriplet(p))-gcc")
