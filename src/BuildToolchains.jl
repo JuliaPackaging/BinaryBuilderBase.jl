@@ -303,18 +303,6 @@ function cargo_config_file!(dir::AbstractString, platform::AbstractPlatform;
             [target.$(map_rust_target(p))]
             linker = "$(aatriplet(p))-cc"
             """)
-            # Keep in sync with `rust_flags!` in Runner.jl: cargo bypasses the `rustc`
-            # wrapper (the rustup `cargo` proxy puts the toolchain's own `bin` first in
-            # PATH), so platform flags must be set here too.
-            flags = String[]
-            if Sys.islinux(p) && arch(p) == "aarch64" && libc(p) == "musl"
-                push!(flags, "-C", "link-arg=-lgcc")
-            elseif Sys.iswindows(p) && arch(p) == "i686"
-                push!(flags, "-C", "panic=abort")
-            end
-            if !isempty(flags)
-                print(io, "rustflags = [", join(("\"$(f)\"" for f in flags), ", "), "]\n")
-            end
         end
         print(io, """
                   # Use sparse registry for quick updates

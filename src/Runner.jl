@@ -773,8 +773,6 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     ocamlfind(io::IO, p::AbstractPlatform) = ocaml_wrapper(io, "ocamlfind", host_platform)
 
     # Rust stuff
-    # Keep in sync with the `rustflags` in `cargo_config_file!` (BuildToolchains.jl):
-    # cargo builds do not go through this wrapper.
     function rust_flags!(p::AbstractPlatform, flags::Vector{String} = String[])
         if Sys.islinux(p)
             push!(flags, "-Clinker=$(aatriplet(p))-gcc")
@@ -792,20 +790,27 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         end
         return flags
     end
-    function rustc(io::IO, p::AbstractPlatform)
+    function rustc(io::IO, p::AbstractPlatform; for_cargo::Bool=false)
+        rust_target = map_rust_target(p)
+        rust_host = map_rust_target(host_platform)
+        flags = join(rust_flags!(p), " ")
         extra_cmds = """
         if [[ " \${ARGS[@]} " == *'--target'* ]]; then
-            if ! [[ " \${ARGS[@]} " =~ --target(=| )$(map_rust_target(p)) ]]; then
-                echo "Attempting to invoke targeted 'rustc' wrapper with a different target! (Expected $(map_rust_target(p)))" >&2
+            if [[ " \${ARGS[@]} " =~ --target(=| )$(rust_target)( |\$) ]]; then
+                $(isempty(flags) ? ":" : "PRE_FLAGS+=( $(flags) )")
+            elif ! [[ " \${ARGS[@]} " =~ --target(=| )$(rust_host)( |\$) ]]; then
+                echo "Attempting to invoke targeted 'rustc' wrapper with a different target! (Expected $(rust_target) or $(rust_host))" >&2
                 echo "args: \${ARGS[@]}" >&2
                 exit 1
             fi
         else
-            PRE_FLAGS+=( '--target=$(map_rust_target(p))' )
+            # rustc wrapper for cargo implicitly targets the host
+            $(for_cargo ? ":" : "PRE_FLAGS+=( '--target=$(rust_target)' $(flags) )")
         fi
         """
-        wrapper(io, "/opt/$(host_target)/bin/rustc"; flags=rust_flags!(p), allow_ccache=false, extra_cmds=extra_cmds)
+        wrapper(io, "/opt/$(host_target)/bin/rustc"; allow_ccache=false, extra_cmds=extra_cmds)
     end
+    rustc_for_cargo(io::IO, p::AbstractPlatform) = rustc(io, p; for_cargo=true)
     rustup(io::IO, p::AbstractPlatform) = wrapper(io, "/opt/$(host_target)/bin/rustup"; allow_ccache=false)
     cargo(io::IO, p::AbstractPlatform) = wrapper(io, "/opt/$(host_target)/bin/cargo"; allow_ccache=false)
 
@@ -1048,6 +1053,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         for p in unique((platform, host_platform))
             t = aatriplet(p)
             write_wrapper(rustc, p, "$(t)-rustc")
+            write_wrapper(rustc_for_cargo, p, "$(t)-rustc-for-cargo")
             write_wrapper(rustup, p, "$(t)-rustup")
             write_wrapper(cargo, p, "$(t)-cargo")
         end
@@ -1358,7 +1364,7 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
     # Rust stuff
     if :rust in compilers
         merge!(mapping, Dict(
-            "RUSTC" => "rustc",
+            "RUSTC" => "/opt/bin/$(triplet(platform))/$(aatriplet(platform))-rustc-for-cargo",
             "CARGO" => "cargo",
             "CARGO_BUILD_JOBS" => nproc,
             "CARGO_BUILD_TARGET" => map_rust_target(platform),
