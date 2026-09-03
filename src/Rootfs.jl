@@ -94,35 +94,42 @@ function CompilerShard(art_name::String)
 end
 
 const ALL_SHARDS = Ref{Union{Vector{CompilerShard},Nothing}}(nothing)
+const ALL_SHARDS_LOCK = ReentrantLock()
 function all_compiler_shards()::Vector{CompilerShard}
-    if ALL_SHARDS[] === nothing
-        artifacts_toml = joinpath(dirname(@__DIR__), "Artifacts.toml")
-        artifact_dict = load_artifacts_toml(artifacts_toml)
+    # The list is built under a lock and only published once complete, so that concurrent
+    # callers (e.g. the multithreaded auditor creating runners) never observe a partially
+    # filled list, which would make them conclude that no compiler shards exist.
+    @lock ALL_SHARDS_LOCK begin
+        if ALL_SHARDS[] === nothing
+            artifacts_toml = joinpath(dirname(@__DIR__), "Artifacts.toml")
+            artifact_dict = load_artifacts_toml(artifacts_toml)
 
-        ALL_SHARDS[] = CompilerShard[]
-        # Copy all armv7l shards as armv6l shards as well
-        names = String[]
-        for name in keys(artifact_dict)
-            push!(names, name)
-            if occursin("armv7l", name)
-                push!(names, replace(name, "armv7l" => "armv6l"))
+            shards = CompilerShard[]
+            # Copy all armv7l shards as armv6l shards as well
+            names = String[]
+            for name in keys(artifact_dict)
+                push!(names, name)
+                if occursin("armv7l", name)
+                    push!(names, replace(name, "armv7l" => "armv6l"))
+                end
             end
-        end
-        for name in names
-            cs = try
-                CompilerShard(name)
-            catch
-                continue
-            end
+            for name in names
+                cs = try
+                    CompilerShard(name)
+                catch
+                    continue
+                end
 
-            # If this compiler shard has an os_version, that should be interpreted as the bound it is.
-            if cs.target !== nothing && os_version(cs.target::Platform) !== nothing
-                set_compare_strategy!(cs.target::Platform, "os_version", compare_version_cap)
+                # If this compiler shard has an os_version, that should be interpreted as the bound it is.
+                if cs.target !== nothing && os_version(cs.target::Platform) !== nothing
+                    set_compare_strategy!(cs.target::Platform, "os_version", compare_version_cap)
+                end
+                push!(shards, cs)
             end
-            push!(ALL_SHARDS[]::Vector{CompilerShard}, cs)
+            ALL_SHARDS[] = shards
         end
+        return ALL_SHARDS[]::Vector{CompilerShard}
     end
-    return ALL_SHARDS[]::Vector{CompilerShard}
 end
 
 function shard_source_artifact_hash(cs::CompilerShard)
