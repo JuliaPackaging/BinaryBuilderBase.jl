@@ -136,6 +136,15 @@ using BinaryBuilderBase: RustBuild, CompilerShard
 end
 
 @testset "Compiler Shards" begin
+    @testset "Concurrent initialization" begin
+        # the shard list must never be observed partially filled by concurrent callers
+        expected = length(BinaryBuilderBase.all_compiler_shards())
+        @test expected > 0
+        BinaryBuilderBase.ALL_SHARDS[] = nothing
+        lengths = fetch.([Threads.@spawn length(BinaryBuilderBase.all_compiler_shards()) for _ in 1:64])
+        @test all(==(expected), lengths)
+    end
+
     @test_throws ErrorException CompilerShard("GCCBootstrap", v"4", Platform("x86_64", "linux"), :invalid_archive_type)
 
     @testset "Rust toolchain selection" begin
