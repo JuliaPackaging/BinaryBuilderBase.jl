@@ -1,6 +1,7 @@
 using Test
 using BinaryBuilderBase
-using BinaryBuilderBase: coerce_source, sourcify, SetupSource, setup
+using BinaryBuilderBase: coerce_source, sourcify, SetupSource, setup, cached_git_clone
+using LibGit2
 using JSON
 
 @testset "Sources" begin
@@ -133,6 +134,52 @@ using JSON
     fs = FileSource("https://ftp.gnu.org/gnu/wget/wget-1.20.3.tar.gz.sig", "7b295c84ab6f90c328a203e234e4b2f5f45cb8d2e29eac43a977073933cd49a2")
     gs = GitSource("https://github.com/jedisct1/libsodium.git", "5b2ea7d73d3ffef2fb93b82b9f112f009d54c6e6")
     ds = DirectorySource("./bundled")
+
+    @testset "Concurrent cached git clones" begin
+        # Several builders sharing one downloads directory must be able to request the
+        # same repository at the same time: exactly one of them clones, the others wait
+        # for it and then find the cache.  We exercise this with separate processes,
+        # since the lock is a pidfile-based inter-process lock.
+        url = "https://github.com/ralna/ARCHDefs.git"
+        hash = "fc8c5960c3a6d26970ab245241cfc067fe4ecfdd"
+        mktempdir() do dir
+            if BinaryBuilderBase.HAS_PIDFILE
+                script = """
+                    using BinaryBuilderBase
+                    BinaryBuilderBase.cached_git_clone($(repr(url)); hash_to_check=$(repr(hash)), downloads_dir=ARGS[1])
+                """
+                cmd = `$(Base.julia_cmd()) --startup-file=no --project=$(Base.active_project()) -e $script $dir`
+                procs = [run(cmd; wait=false) for _ in 1:3]
+                wait.(procs)
+                @test all(success, procs)
+            else
+                cached_git_clone(url; hash_to_check=hash, downloads_dir=dir)
+            end
+            clones = joinpath(dir, "clones")
+            # Only the finished repository is left behind: no lock files, no partial clones.
+            @test length(readdir(clones)) == 1
+            repo_path = joinpath(clones, only(readdir(clones)))
+            @test !endswith(repo_path, ".tmp") && !endswith(repo_path, ".lock")
+            LibGit2.with(LibGit2.GitRepo(repo_path)) do repo
+                @test LibGit2.isbare(repo)
+                @test LibGit2.iscommit(hash, repo)
+            end
+
+            # A partial clone left behind by a builder that died is discarded and redone.
+            tmp_path = repo_path * ".tmp"
+            mkpath(joinpath(tmp_path, "objects"))
+            write(joinpath(tmp_path, "HEAD"), "garbage")
+            rm(repo_path; recursive=true)
+            @test_logs (:info, r"^Cloning") cached_git_clone(url; hash_to_check=hash, downloads_dir=dir, verbose=true)
+            @test !ispath(tmp_path)
+            @test isdir(repo_path)
+            @test readdir(clones) == [basename(repo_path)]
+
+            # With the commit present the repository is reused, with and without a known hash.
+            @test_logs (:info, r"^Using cached git repository") cached_git_clone(url; hash_to_check=hash, downloads_dir=dir, verbose=true)
+            @test_logs (:info, r"^Using cached git repository") cached_git_clone(url; downloads_dir=dir, verbose=true)
+        end
+    end
 
     @testset "JSON (de)serialization" begin
         jas = JSON.lower(as)
