@@ -1,4 +1,5 @@
 using LibGit2
+using FileWatching
 using ProgressMeter
 const update! = ProgressMeter.update!
 
@@ -200,45 +201,116 @@ function transfer_progress(progress::Ptr{GitTransferProgress}, payloads::Dict)
     return Cint(0)
 end
 
+# `FileWatching.Pidfile` only exists from Julia 1.9 onward.  On older versions we
+# fall back to the historical unlocked behaviour.
+const HAS_PIDFILE = isdefined(FileWatching, :Pidfile)
+
+"""
+    with_git_cache_lock(f, repo_path::String)
+
+Run `f()` while holding an inter-process lock on the cached git repository at
+`repo_path`.  This serialises clones and fetches of the same repository across
+concurrent builders sharing one downloads directory (e.g. several Buildkite
+agents on the same machine), so that they never clone into the same path at the
+same time and never observe a half-written clone.
+
+The lock holder refreshes the lock file periodically, so a legitimately long
+clone (tens of minutes for a repository the size of LLVM) is never mistaken for
+a stale lock, while a lock left behind by a builder that died is reclaimed.
+"""
+function with_git_cache_lock(f::Function, repo_path::String)
+    if !HAS_PIDFILE
+        return f()
+    end
+    lock_path = string(repo_path, ".lock")
+    mkpath(dirname(lock_path))
+    # The holder touches the lock file every `stale_age / 2` seconds.  A lock whose
+    # holder is dead is reclaimed after `stale_age`; if the holder cannot be
+    # verified (e.g. it lives in another PID namespace) after five times that.
+    return FileWatching.Pidfile.mkpidlock(f, lock_path; stale_age=600, poll_interval=5)
+end
+
+"""
+    cached_git_clone(url::String; hash_to_check, clones_dir, downloads_dir, verbose, progressbar)
+
+Return the path of a bare clone of `url`, cloning it if it is not cached yet and
+fetching if `hash_to_check` is given but not present.
+
+The cache lives in `clones_dir`, which defaults to the `clones` subdirectory of
+`downloads_dir` when that is given, and otherwise to `BINARYBUILDER_CLONES_DIR` or
+the `downloads/clones` subdirectory of the storage directory.  The directory may
+be shared between concurrent builders: all modifications happen under an
+inter-process lock (see [`with_git_cache_lock`](@ref)).
+"""
 function cached_git_clone(url::String;
                           hash_to_check::Union{Nothing, String} = nothing,
-                          downloads_dir::String = storage_dir("downloads"),
+                          downloads_dir::Union{Nothing, String} = nothing,
+                          clones_dir::String = downloads_dir === nothing ? default_clones_dir() : joinpath(downloads_dir, "clones"),
                           verbose::Bool = false,
                           progressbar::Bool = false,
                           )
-    repo_path = joinpath(downloads_dir, "clones", string(basename(url), "-", bytes2hex(sha256(url))))
-    if isdir(repo_path)
-        if verbose
-            @info("Using cached git repository", url, repo_path)
+    repo_path = joinpath(clones_dir, string(basename(url), "-", bytes2hex(sha256(url))))
+
+    # Fast path: if the repository is already there and contains the commit we are
+    # after, there is nothing to change on disk.  Readers never need the lock, since
+    # git objects are immutable and a concurrent fetch only ever adds new ones.
+    if hash_to_check !== nothing && isdir(repo_path)
+        has_commit = LibGit2.with(repo -> LibGit2.iscommit(hash_to_check, repo), LibGit2.GitRepo(repo_path))
+        if has_commit
+            if verbose
+                @info("Using cached git repository", url, repo_path)
+            end
+            return repo_path
         end
-        # If we didn't just mercilessly obliterate the cached git repo, use it!
-        LibGit2.with(LibGit2.GitRepo(repo_path)) do repo
-            # In some cases, we know the hash we're looking for, so only fetch() if
-            # this git repository doesn't contain the hash we're seeking
-            # this is not only faster, it avoids race conditions when we have
-            # multiple builders on the same machine all fetching at once.
-            if hash_to_check === nothing || !LibGit2.iscommit(hash_to_check, repo)
-                LibGit2.fetch(repo)
+    end
+
+    with_git_cache_lock(repo_path) do
+        # Re-check under the lock: another builder may have cloned or fetched
+        # while we were waiting for it.
+        if isdir(repo_path)
+            if verbose
+                @info("Using cached git repository", url, repo_path)
+            end
+            # If we didn't just mercilessly obliterate the cached git repo, use it!
+            LibGit2.with(LibGit2.GitRepo(repo_path)) do repo
+                # In some cases, we know the hash we're looking for, so only fetch() if
+                # this git repository doesn't contain the hash we're seeking
+                # this is not only faster, it avoids race conditions when we have
+                # multiple builders on the same machine all fetching at once.
+                if hash_to_check === nothing || !LibGit2.iscommit(hash_to_check, repo)
+                    LibGit2.fetch(repo)
+                end
+            end
+        else
+            # If there is no repo_path yet, clone it down into a bare repository
+            if verbose
+                @info("Cloning git repository", url, repo_path)
+            end
+            callbacks = LibGit2.Callbacks()
+            p = Progress(0, dt=1, desc="Cloning: ")
+            if progressbar
+                callbacks[:transfer_progress] = (
+                    @cfunction(
+                            transfer_progress,
+                            Cint,
+                            (Ptr{GitTransferProgress}, Any)
+                        ),
+                    p
+                )
+            end
+            # Clone into a sibling directory first and only move it into place once
+            # complete, so that `repo_path` is either a whole repository or absent,
+            # never a partial clone (e.g. if we get killed halfway through).
+            tmp_path = string(repo_path, ".tmp")
+            rm(tmp_path; recursive=true, force=true)
+            mkpath(dirname(tmp_path))
+            try
+                LibGit2.clone(url, tmp_path; isbare=true, callbacks)
+                mv(tmp_path, repo_path)
+            finally
+                rm(tmp_path; recursive=true, force=true)
             end
         end
-    else
-        # If there is no repo_path yet, clone it down into a bare repository
-        if verbose
-            @info("Cloning git repository", url, repo_path)
-        end
-        callbacks = LibGit2.Callbacks()
-        p = Progress(0, dt=1, desc="Cloning: ")
-        if progressbar
-            callbacks[:transfer_progress] = (
-                @cfunction(
-                        transfer_progress,
-                        Cint,
-                        (Ptr{GitTransferProgress}, Any)
-                    ),
-                p
-            )
-        end
-        LibGit2.clone(url, repo_path; isbare=true, callbacks)
     end
     return repo_path
 end
