@@ -55,6 +55,9 @@ function storage_dir(args::AbstractString...)
     return dir
 end
 ccache_dir() = get(ENV, "BINARYBUILDER_CCACHE_DIR", storage_dir("ccache"))
+# Where bare clones of git sources are cached.  Can be pointed at a directory shared
+# between several builders (see `cached_git_clone`, which locks it appropriately).
+default_clones_dir() = get(ENV, "BINARYBUILDER_CLONES_DIR", joinpath(storage_dir("downloads"), "clones"))
 
 """
     enable_apple_file()

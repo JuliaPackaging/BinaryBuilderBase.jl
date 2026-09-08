@@ -230,13 +230,26 @@ function with_git_cache_lock(f::Function, repo_path::String)
     return FileWatching.Pidfile.mkpidlock(f, lock_path; stale_age=600, poll_interval=5)
 end
 
+"""
+    cached_git_clone(url::String; hash_to_check, clones_dir, downloads_dir, verbose, progressbar)
+
+Return the path of a bare clone of `url`, cloning it if it is not cached yet and
+fetching if `hash_to_check` is given but not present.
+
+The cache lives in `clones_dir`, which defaults to the `clones` subdirectory of
+`downloads_dir` when that is given, and otherwise to `BINARYBUILDER_CLONES_DIR` or
+the `downloads/clones` subdirectory of the storage directory.  The directory may
+be shared between concurrent builders: all modifications happen under an
+inter-process lock (see [`with_git_cache_lock`](@ref)).
+"""
 function cached_git_clone(url::String;
                           hash_to_check::Union{Nothing, String} = nothing,
-                          downloads_dir::String = storage_dir("downloads"),
+                          downloads_dir::Union{Nothing, String} = nothing,
+                          clones_dir::String = downloads_dir === nothing ? default_clones_dir() : joinpath(downloads_dir, "clones"),
                           verbose::Bool = false,
                           progressbar::Bool = false,
                           )
-    repo_path = joinpath(downloads_dir, "clones", string(basename(url), "-", bytes2hex(sha256(url))))
+    repo_path = joinpath(clones_dir, string(basename(url), "-", bytes2hex(sha256(url))))
 
     # Fast path: if the repository is already there and contains the commit we are
     # after, there is nothing to change on disk.  Readers never need the lock, since

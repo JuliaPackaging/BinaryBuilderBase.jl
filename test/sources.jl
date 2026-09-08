@@ -178,6 +178,19 @@ using JSON
             # With the commit present the repository is reused, with and without a known hash.
             @test_logs (:info, r"^Using cached git repository") cached_git_clone(url; hash_to_check=hash, downloads_dir=dir, verbose=true)
             @test_logs (:info, r"^Using cached git repository") cached_git_clone(url; downloads_dir=dir, verbose=true)
+
+            # The cache location can be overridden, e.g. to share it between builders.
+            mktempdir() do shared
+                withenv("BINARYBUILDER_CLONES_DIR" => shared) do
+                    @test_logs (:info, r"^Cloning") cached_git_clone(url; hash_to_check=hash, verbose=true)
+                    @test readdir(shared) == [basename(repo_path)]
+                    # An explicit `downloads_dir` still wins over the environment.
+                    @test_logs (:info, r"^Using cached git repository") cached_git_clone(url; hash_to_check=hash, downloads_dir=dir, verbose=true)
+                    @test readdir(shared) == [basename(repo_path)]
+                end
+                # And so does an explicit `clones_dir`.
+                @test cached_git_clone(url; hash_to_check=hash, clones_dir=shared) == joinpath(shared, basename(repo_path))
+            end
         end
     end
 
