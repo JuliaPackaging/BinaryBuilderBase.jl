@@ -143,7 +143,7 @@ using JSON
         url = "https://github.com/ralna/ARCHDefs.git"
         hash = "fc8c5960c3a6d26970ab245241cfc067fe4ecfdd"
         mktempdir() do dir
-            if BinaryBuilderBase.HAS_PIDFILE
+            if !Sys.iswindows()
                 script = """
                     using BinaryBuilderBase
                     BinaryBuilderBase.cached_git_clone($(repr(url)); hash_to_check=$(repr(hash)), downloads_dir=ARGS[1])
@@ -157,23 +157,43 @@ using JSON
             end
             clones = joinpath(dir, "clones")
             # Only the finished repository is left behind: no lock files, no partial clones.
-            @test length(readdir(clones)) == 1
-            repo_path = joinpath(clones, only(readdir(clones)))
-            @test !endswith(repo_path, ".tmp") && !endswith(repo_path, ".lock")
+            entries = filter(!endswith(".lock"), readdir(clones))
+            @test length(entries) == 1
+            repo_path = joinpath(clones, only(entries))
+            @test !occursin(".tmp", repo_path)
             LibGit2.with(LibGit2.GitRepo(repo_path)) do repo
                 @test LibGit2.isbare(repo)
                 @test LibGit2.iscommit(hash, repo)
             end
 
-            # A partial clone left behind by a builder that died is discarded and redone.
-            tmp_path = repo_path * ".tmp"
+            # A partial clone left behind by a builder that died does not get in the
+            # way of a fresh clone, and is pruned once it is clearly abandoned.
+            tmp_path = repo_path * ".tmp-dead1234"
             mkpath(joinpath(tmp_path, "objects"))
             write(joinpath(tmp_path, "HEAD"), "garbage")
             rm(repo_path; recursive=true)
             @test_logs (:info, r"^Cloning") cached_git_clone(url; hash_to_check=hash, downloads_dir=dir, verbose=true)
-            @test !ispath(tmp_path)
             @test isdir(repo_path)
-            @test readdir(clones) == [basename(repo_path)]
+            @test isdir(tmp_path)  # too young to be considered abandoned
+            BinaryBuilderBase.prune_stale_git_tmpdirs(repo_path; max_age=0)
+            @test !ispath(tmp_path)
+            @test filter(!endswith(".lock"), readdir(clones)) == [basename(repo_path)]
+
+            # While one process holds the lock, another cannot take it; once it is
+            # released, it can.  The lock file itself stays behind by design.
+            if !Sys.iswindows()
+                lock_path = repo_path * ".lock"
+                @test isfile(lock_path)
+                probe = `$(Base.julia_cmd()) --startup-file=no -e "using BinaryBuilderBase; BinaryBuilderBase.with_git_cache_lock(() -> nothing, ARGS[1]); println(\"acquired\")" $repo_path`
+                probe = setenv(probe, "JULIA_PROJECT" => Base.active_project())
+                BinaryBuilderBase.with_git_cache_lock(repo_path) do
+                    p = run(pipeline(probe; stdout=devnull); wait=false)
+                    sleep(3)
+                    @test process_running(p)
+                    kill(p)
+                end
+                @test readchomp(probe) == "acquired"
+            end
 
             # With the commit present the repository is reused, with and without a known hash.
             @test_logs (:info, r"^Using cached git repository") cached_git_clone(url; hash_to_check=hash, downloads_dir=dir, verbose=true)
@@ -183,10 +203,10 @@ using JSON
             mktempdir() do shared
                 withenv("BINARYBUILDER_CLONES_DIR" => shared) do
                     @test_logs (:info, r"^Cloning") cached_git_clone(url; hash_to_check=hash, verbose=true)
-                    @test readdir(shared) == [basename(repo_path)]
+                    @test filter(!endswith(".lock"), readdir(shared)) == [basename(repo_path)]
                     # An explicit `downloads_dir` still wins over the environment.
                     @test_logs (:info, r"^Using cached git repository") cached_git_clone(url; hash_to_check=hash, downloads_dir=dir, verbose=true)
-                    @test readdir(shared) == [basename(repo_path)]
+                    @test filter(!endswith(".lock"), readdir(shared)) == [basename(repo_path)]
                 end
                 # And so does an explicit `clones_dir`.
                 @test cached_git_clone(url; hash_to_check=hash, clones_dir=shared) == joinpath(shared, basename(repo_path))

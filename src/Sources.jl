@@ -1,5 +1,4 @@
 using LibGit2
-using FileWatching
 using ProgressMeter
 const update! = ProgressMeter.update!
 
@@ -201,33 +200,61 @@ function transfer_progress(progress::Ptr{GitTransferProgress}, payloads::Dict)
     return Cint(0)
 end
 
-# `FileWatching.Pidfile` only exists from Julia 1.9 onward.  On older versions we
-# fall back to the historical unlocked behaviour.
-const HAS_PIDFILE = isdefined(FileWatching, :Pidfile)
-
 """
     with_git_cache_lock(f, repo_path::String)
 
-Run `f()` while holding an inter-process lock on the cached git repository at
-`repo_path`.  This serialises clones and fetches of the same repository across
-concurrent builders sharing one downloads directory (e.g. several Buildkite
-agents on the same machine), so that they never clone into the same path at the
-same time and never observe a half-written clone.
+Run `f()` while holding an exclusive `flock(2)` on `<repo_path>.lock`.  This
+serialises clones and fetches of the same repository across concurrent builders
+sharing one clone cache (e.g. several Buildkite agents on the same machine), so
+that only one of them does the work and the others wait for it.
 
-The lock holder refreshes the lock file periodically, so a legitimately long
-clone (tens of minutes for a repository the size of LLVM) is never mistaken for
-a stale lock, while a lock left behind by a builder that died is reclaimed.
+An OS file lock is used rather than a pidfile because it needs no liveness
+heuristics: the kernel drops it the moment the holder closes the file or dies,
+and it works across bind mounts and PID namespaces (sandboxes), where a pid
+recorded in a file cannot be checked.  The lock file itself is never deleted, as
+unlinking a file that a waiter has already opened would let two processes hold
+the "same" lock.  On Windows, which has no `flock`, `f` runs unlocked; the clone
+itself stays safe because it goes through a per-process temporary directory.
 """
 function with_git_cache_lock(f::Function, repo_path::String)
-    if !HAS_PIDFILE
-        return f()
-    end
+    Sys.iswindows() && return f()
     lock_path = string(repo_path, ".lock")
     mkpath(dirname(lock_path))
-    # The holder touches the lock file every `stale_age / 2` seconds.  A lock whose
-    # holder is dead is reclaimed after `stale_age`; if the holder cannot be
-    # verified (e.g. it lives in another PID namespace) after five times that.
-    return FileWatching.Pidfile.mkpidlock(f, lock_path; stale_age=600, poll_interval=5)
+    io = open(lock_path, "a")
+    try
+        flock(fd(io), LOCK_EX)
+        return f()
+    finally
+        # `close` releases the lock together with the descriptor.
+        close(io)
+    end
+end
+
+const LOCK_EX = Cint(2)
+# `fd(::IOStream)` returns a `RawFD` on recent Julia and a plain integer on older
+# ones; `ccall` converts either to a C int.
+function flock(fd::Union{RawFD,Integer}, operation::Cint)
+    while true
+        ret = ccall(:flock, Cint, (Cint, Cint), fd, operation)
+        ret == 0 && return
+        # Interrupted by a signal: retry, like `TEMP_FAILURE_RETRY` would.
+        Libc.errno() == Libc.EINTR || Base.systemerror("flock", true)
+    end
+end
+
+# Remove clones-in-progress that were abandoned (e.g. by a builder that was
+# killed).  Only called while holding the lock for `repo_path`, and only for
+# directories old enough that no live builder can still be writing to them.
+function prune_stale_git_tmpdirs(repo_path::String; max_age::Real = 24*60*60)
+    dir, name = dirname(repo_path), basename(repo_path)
+    isdir(dir) || return
+    for entry in readdir(dir)
+        startswith(entry, string(name, ".tmp-")) || continue
+        path = joinpath(dir, entry)
+        if time() - mtime(path) > max_age
+            rm(path; recursive=true, force=true)
+        end
+    end
 end
 
 """
@@ -239,8 +266,8 @@ fetching if `hash_to_check` is given but not present.
 The cache lives in `clones_dir`, which defaults to the `clones` subdirectory of
 `downloads_dir` when that is given, and otherwise to `BINARYBUILDER_CLONES_DIR` or
 the `downloads/clones` subdirectory of the storage directory.  The directory may
-be shared between concurrent builders: all modifications happen under an
-inter-process lock (see [`with_git_cache_lock`](@ref)).
+be shared between concurrent builders: all modifications happen under a file lock
+(see [`with_git_cache_lock`](@ref)).
 """
 function cached_git_clone(url::String;
                           hash_to_check::Union{Nothing, String} = nothing,
@@ -287,26 +314,30 @@ function cached_git_clone(url::String;
                 @info("Cloning git repository", url, repo_path)
             end
             callbacks = LibGit2.Callbacks()
-            p = Progress(0, dt=1, desc="Cloning: ")
             if progressbar
+                p = Progress(0, dt=1, desc="Cloning: ")
                 callbacks[:transfer_progress] = (
-                    @cfunction(
-                            transfer_progress,
-                            Cint,
-                            (Ptr{GitTransferProgress}, Any)
-                        ),
-                    p
+                    @cfunction(transfer_progress, Cint, (Ptr{GitTransferProgress}, Any)),
+                    p,
                 )
             end
             # Clone into a sibling directory first and only move it into place once
             # complete, so that `repo_path` is either a whole repository or absent,
-            # never a partial clone (e.g. if we get killed halfway through).
-            tmp_path = string(repo_path, ".tmp")
-            rm(tmp_path; recursive=true, force=true)
+            # never a partial clone (e.g. if we get killed halfway through).  The
+            # directory is unique to this process, so two clones can never share one
+            # even where the lock is unavailable (Windows).
+            prune_stale_git_tmpdirs(repo_path)
+            tmp_path = string(repo_path, ".tmp-", randstring(8))
             mkpath(dirname(tmp_path))
             try
                 LibGit2.clone(url, tmp_path; isbare=true, callbacks)
-                mv(tmp_path, repo_path)
+                try
+                    mv(tmp_path, repo_path)
+                catch
+                    # Somebody else completed the same clone in the meantime; theirs
+                    # is as good as ours.
+                    isdir(repo_path) || rethrow()
+                end
             finally
                 rm(tmp_path; recursive=true, force=true)
             end
