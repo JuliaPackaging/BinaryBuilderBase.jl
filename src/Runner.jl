@@ -790,6 +790,10 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         end
         return flags
     end
+    # Run the toolchain's own binaries, not the rustup proxies: the proxies put
+    # the toolchain's `bin` first in PATH, which hides our `clang` and friends
+    # from everything cargo spawns.
+    rust_toolchain_bin = "/opt/$(host_target)/toolchains/\${RUSTUP_TOOLCHAIN:?}/bin"
     function rustc(io::IO, p::AbstractPlatform; for_cargo::Bool=false)
         rust_target = map_rust_target(p)
         rust_host = map_rust_target(host_platform)
@@ -808,11 +812,11 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             $(for_cargo ? ":" : "PRE_FLAGS+=( '--target=$(rust_target)' $(flags) )")
         fi
         """
-        wrapper(io, "/opt/$(host_target)/bin/rustc"; allow_ccache=false, extra_cmds=extra_cmds)
+        wrapper(io, "$(rust_toolchain_bin)/rustc"; allow_ccache=false, extra_cmds=extra_cmds)
     end
     rustc_for_cargo(io::IO, p::AbstractPlatform) = rustc(io, p; for_cargo=true)
     rustup(io::IO, p::AbstractPlatform) = wrapper(io, "/opt/$(host_target)/bin/rustup"; allow_ccache=false)
-    cargo(io::IO, p::AbstractPlatform) = wrapper(io, "/opt/$(host_target)/bin/cargo"; allow_ccache=false)
+    cargo(io::IO, p::AbstractPlatform) = wrapper(io, "$(rust_toolchain_bin)/cargo"; allow_ccache=false)
 
     # Meson REQUIRES that `CC`, `CXX`, etc.. are set to the host utils.  womp womp.
     function meson(io::IO, p::AbstractPlatform)
@@ -1437,7 +1441,7 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
     # There is no broad agreement on what host compilers should be called,
     # so we set all the environment variables that we've seen them called
     # and hope for the best.
-    for host_map in (tool -> "HOST$(tool)", tool -> "$(tool)_FOR_BUILD", tool -> "BUILD_$(tool)", tool -> "$(tool)_BUILD")
+    for host_map in (tool -> "HOST$(tool)", tool -> "HOST_$(tool)", tool -> "$(tool)_FOR_BUILD", tool -> "BUILD_$(tool)", tool -> "$(tool)_BUILD")
         # Use full path to avoid collisions when the target is similar to the
         # host (e.g., `x86_64-linux-musl-cxx03` and `x86_64-linux-musl-cxx11`)
         host_bin_dir = "/opt/bin/$(triplet(host_platform))"
