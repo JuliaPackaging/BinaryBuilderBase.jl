@@ -212,23 +212,25 @@ end
 """
     uname()
 
-On Linux systems, return the strings returned by the `uname()` function in libc
+On Unix systems, return the strings returned by the `uname()` function in libc,
+in struct order (sysname, nodename, release, version, machine, ...).
 """
 function uname()
-    # Get libc and handle to uname
-    libcs = filter(x -> occursin("libc.so", x), dllist())
-    if isempty(libcs)
-        error("Could not find libc, unable to call uname()")
-    end
-    libc = dlopen(first(libcs))
-    uname_hdl = dlsym(libc::Ptr{Cvoid}, :uname)
+    # `uname` lives in libc, which is always loaded, so let the runtime resolve
+    # the symbol.  Locating libc through `Libdl.dllist()` is not an option: on
+    # Julia < 1.12.7 its callback allocates under the dynamic linker lock, and
+    # concurrent calls (the auditor builds a runner per thread) deadlock against
+    # the GC (JuliaLang/julia#62121).
 
     # The uname struct can have wildly differing layouts; we take advantage
     # of the fact that it is just a bunch of NULL-terminated strings laid out
     # one after the other, and that it is (as best as I can tell) at maximum
     # around 1.5KB long.  We bump up to 2KB to be safe.
     uname_struct = zeros(UInt8, 2048)
-    ccall(uname_hdl, Cint, (Ptr{UInt8},), uname_struct)
+    ret = ccall(:uname, Cint, (Ptr{UInt8},), uname_struct)
+    if ret != 0
+        error("uname() failed with return code $(ret)")
+    end
 
     # Parse out all the strings embedded within this struct
     strings = String[]
