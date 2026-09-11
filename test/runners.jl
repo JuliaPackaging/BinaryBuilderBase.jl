@@ -4,6 +4,21 @@ using BinaryBuilderBase: platform_dlext, platform_exeext, prefer_clang
 using Pkg
 using ObjectFile
 
+@testset "uname / kernel_version_check" begin
+    if Sys.isunix()
+        strings = BinaryBuilderBase.uname()
+        # sysname, nodename, release, version, machine
+        @test length(strings) >= 5
+        @test strings[1] == readchomp(`uname -s`)
+        @test strings[3] == readchomp(`uname -r`)
+        # Must be safe to call concurrently (this used to deadlock via `dllist()`)
+        @test all(fetch.([Threads.@spawn BinaryBuilderBase.uname() for _ in 1:64]) .== Ref(strings))
+    end
+    if Sys.islinux()
+        @test BinaryBuilderBase.kernel_version_check() === nothing
+    end
+end
+
 @testset "Wrappers utilities" begin
     @test nbits(Platform("i686", "linux")) == 32
     @test nbits(Platform("x86_64", "linux"; march="avx")) == 64
