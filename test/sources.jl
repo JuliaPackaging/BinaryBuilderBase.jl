@@ -12,6 +12,8 @@ using JSON
                         unpack_target="x86_64-linux-gnu").unpack_target == "x86_64-linux-gnu"
     @test GitSource("https://github.com/jedisct1/libsodium.git", "5b2ea7d73d3ffef2fb93b82b9f112f009d54c6e6").unpack_target == ""
     @test GitSource("https://github.com/jedisct1/libsodium.git", "5b2ea7d73d3ffef2fb93b82b9f112f009d54c6e6"; unpack_target = "libs").unpack_target == "libs"
+    @test GitReleaseSource("https://github.com/jedisct1/libsodium.git", "1.0.18-RELEASE", "940ef42797baa0278df6b7fd9e67c7590f87744b").unpack_target == ""
+    @test GitReleaseSource("https://github.com/jedisct1/libsodium.git", "1.0.18-RELEASE", "940ef42797baa0278df6b7fd9e67c7590f87744b"; unpack_target = "libs").unpack_target == "libs"
     @test FileSource("https://curl.haxx.se/ca/cacert-2020-01-01.pem", "adf770dfd574a0d6026bfaa270cb6879b063957177a991d453ff1d302c02081f").filename == "cacert-2020-01-01.pem"
     @test FileSource("https://curl.haxx.se/ca/cacert-2020-01-01.pem", "adf770dfd574a0d6026bfaa270cb6879b063957177a991d453ff1d302c02081f"; filename="cacert.pem").filename == "cacert.pem"
     # GitHub-generated archives are banned
@@ -53,6 +55,10 @@ using JSON
                 sgs = @test_logs (:info, r"^Cloning") download_source(gs; verbose = true, downloads_dir = dir)
                 # Fetch again the repo to make sure cache works
                 @test @test_logs (:info, r"^Using cached git repository") download_source(gs; verbose = true, downloads_dir = dir) == sgs
+                # A tagged release of the same repository reuses the cache
+                grs = GitReleaseSource("https://github.com/ralna/ARCHDefs.git", "v2.2.9", "dbda54d8c097f159a5230a9760933715a760e417")
+                @test download_source(grs; downloads_dir = dir) == SetupSource{GitSource}(sgs.path, grs.hash, "")
+                @test_throws ErrorException download_source(GitReleaseSource(grs.url, "v2.2.8", grs.hash); downloads_dir = dir)
                 # Fetch the temp directory as a `DirectorySource`
                 ds_follow = DirectorySource("./bundled_follow"; follow_symlinks=true)
                 patchdir = abspath(joinpath(dir, ds_follow.path, "patches_follow"))
@@ -130,9 +136,55 @@ using JSON
         end
     end
 
+    @testset "GitReleaseSource" begin
+        mktempdir() do dir
+            # Create a local upstream repository with a few commits and tags
+            upstream = joinpath(dir, "upstream")
+            repo = LibGit2.init(upstream)
+            signature = LibGit2.Signature("BinaryBuilderBase tests", "test@example.com")
+            new_commit(msg) = string(LibGit2.commit(repo, msg; author=signature, committer=signature))
+            c1 = new_commit("First commit")
+            c2 = new_commit("Second commit")
+            # A lightweight tag and an annotated tag
+            LibGit2.with(LibGit2.GitReference(repo, LibGit2.GitHash(c1), "refs/tags/v1.0.0")) do _ end
+            LibGit2.tag_create(repo, "v2.0.0", c2; msg="Release v2.0.0", sig=signature)
+
+            downloads_dir = joinpath(dir, "downloads")
+            gr1 = GitReleaseSource(upstream, "v1.0.0", c1)
+            sgr1 = @test_logs (:info, r"^Cloning") (:info, r"^Verified git tag") download_source(gr1; verbose = true, downloads_dir)
+            @test sgr1 isa SetupSource{GitSource}
+            @test sgr1.hash == c1
+            # Annotated tags are peeled to their commit, and uppercase hashes are fine
+            @test download_source(GitReleaseSource(upstream, "v2.0.0", uppercase(c2)); downloads_dir).hash == uppercase(c2)
+            # Wrong hash, or non-existing tag
+            @test_throws ErrorException download_source(GitReleaseSource(upstream, "v1.0.0", c2); downloads_dir)
+            @test_throws ErrorException download_source(GitReleaseSource(upstream, "v2.0.0", c1); downloads_dir)
+            @test_throws ErrorException download_source(GitReleaseSource(upstream, "v3.0.0", c2); downloads_dir)
+
+            # A tag created upstream after the repository was cached is fetched
+            LibGit2.tag_create(repo, "v2.0.1", c2; msg="Release v2.0.1", sig=signature)
+            @test_logs((:info, r"^Using cached"), (:info, r"^Fetching git tag"), (:info, r"^Verified git tag"),
+                       download_source(GitReleaseSource(upstream, "v2.0.1", c2); verbose = true, downloads_dir))
+            # A tag moved upstream is fetched again
+            LibGit2.tag_delete(repo, "v1.0.0")
+            LibGit2.with(LibGit2.GitReference(repo, LibGit2.GitHash(c2), "refs/tags/v1.0.0")) do _ end
+            @test download_source(GitReleaseSource(upstream, "v1.0.0", c2); downloads_dir).hash == c2
+            @test_throws ErrorException download_source(gr1; downloads_dir)
+
+            # Setting up the source checks out the right commit
+            srcdir = joinpath(dir, "srcdir")
+            setup(sgr1, srcdir, false)
+            LibGit2.with(LibGit2.GitRepo(joinpath(srcdir, "upstream"))) do checkout
+                @test string(LibGit2.head_oid(checkout)) == c1
+            end
+            close(repo)
+        end
+    end
+
     as = ArchiveSource("https://ftp.gnu.org/gnu/wget/wget-1.20.3.tar.gz", "31cccfc6630528db1c8e3a06f6decf2a370060b982841cfab2b8677400a5092e")
     fs = FileSource("https://ftp.gnu.org/gnu/wget/wget-1.20.3.tar.gz.sig", "7b295c84ab6f90c328a203e234e4b2f5f45cb8d2e29eac43a977073933cd49a2")
     gs = GitSource("https://github.com/jedisct1/libsodium.git", "5b2ea7d73d3ffef2fb93b82b9f112f009d54c6e6")
+    grs = GitReleaseSource("https://github.com/jedisct1/libsodium.git", "1.0.18-RELEASE", "940ef42797baa0278df6b7fd9e67c7590f87744b")
     ds = DirectorySource("./bundled")
 
     @testset "Concurrent cached git clones" begin
@@ -224,6 +276,9 @@ using JSON
         jgs = JSON.lower(gs)
         @test jgs == Dict("type" => "git", "url" => gs.url, "hash" => gs.hash, "unpack_target" => gs.unpack_target)
         @test sourcify(jgs) == gs
+        jgrs = JSON.lower(grs)
+        @test jgrs == Dict("type" => "gitrelease", "url" => grs.url, "tag" => grs.tag, "hash" => grs.hash, "unpack_target" => grs.unpack_target)
+        @test sourcify(jgrs) == grs
         jds = JSON.lower(ds)
         @test jds == Dict("type" => "directory", "path" => ds.path, "target" => "", "follow_symlinks" => false)
         @test sourcify(jds) == ds
