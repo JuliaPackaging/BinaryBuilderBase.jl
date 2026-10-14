@@ -2,7 +2,7 @@ using LibGit2
 using ProgressMeter
 const update! = ProgressMeter.update!
 
-export ArchiveSource, FileSource, GitSource, GitReleaseSource, DirectorySource
+export ArchiveSource, FileSource, GitSource, DirectorySource
 
 """
 An `AbstractSource` is something used as source to build the package.  Sources
@@ -13,7 +13,6 @@ Concrete subtypes of `AbstractSource` are:
 * [`ArchiveSource`](@ref): a remote archive to download from the Internet;
 * [`FileSource`](@ref): a remote file to download from the Internet;
 * [`GitSource`](@ref): a remote Git repository to clone;
-* [`GitReleaseSource`](@ref): a tagged release of a remote Git repository to clone;
 * [`DirectorySource`](@ref): a local directory to mount.
 """
 abstract type AbstractSource end
@@ -33,7 +32,7 @@ function check_github_archive(url::String)
                               $(url)
                             may not have a stable checksum in the future, thus cannot be used as a reliable source, see
                             <https://github.blog/2023-02-21-update-on-the-future-stability-of-source-code-archives-and-hashes/>.
-                            Use a different source, for example a `GitReleaseSource` or `GitSource`, or an official release artifact uploaded
+                            Use a different source, for example a `GitSource` (with the `tag` keyword for a release), or an official release artifact uploaded
                             by the maintainers of the package (*not* the automatic archive produced by GitHub).
                             """))
     end
@@ -91,45 +90,29 @@ FileSource(url::String, hash::String; filename::String = basename(url)) =
     FileSource(url, hash, filename)
 
 """
-    GitSource(url::String, hash::String; unpack_target::String = "")
+    GitSource(url::String, hash::String; unpack_target::String = "", tag::String = "")
 
 Specify a remote Git repository to clone form `url`.  `hash` is the 40-character
 SHA1 revision to checkout after cloning.
 
 The repository will be cloned in `\${WORKSPACE}/srcdir`, or in its subdirectory
 pointed to by the optional keyword `unpack_target`, if provided.
+
+If `hash` is a tagged release, the name of the Git tag can be given with the
+optional keyword `tag` (e.g. `tag = "v1.2.3"`).  The build then fails unless
+this tag points to the revision `hash`, which documents which release is being
+built and protects against typos in either the tag or the hash.
 """
 struct GitSource <: AbstractSource
     url::String
     hash::String
     unpack_target::String
-end
-GitSource(url::String, hash::String; unpack_target::String = "") =
-    GitSource(url, hash, unpack_target)
-
-"""
-    GitReleaseSource(url::String, tag::String, hash::String; unpack_target::String = "")
-
-Specify a tagged release of a remote Git repository to clone from `url`.  `tag`
-is the name of the Git tag of the release (e.g. `"v1.2.3"`), and `hash` is the
-40-character SHA1 revision this tag points to.
-
-This behaves like a [`GitSource`](@ref) for the revision `hash`, but additionally
-verifies that the tag `tag` points to this revision; the build fails otherwise.
-This documents which release is being built and protects against typos in either
-the tag or the hash.
-
-The repository will be cloned in `\${WORKSPACE}/srcdir`, or in its subdirectory
-pointed to by the optional keyword `unpack_target`, if provided.
-"""
-struct GitReleaseSource <: AbstractSource
-    url::String
     tag::String
-    hash::String
-    unpack_target::String
 end
-GitReleaseSource(url::String, tag::String, hash::String; unpack_target::String = "") =
-    GitReleaseSource(url, tag, hash, unpack_target)
+GitSource(url::String, hash::String, unpack_target::String) =
+    GitSource(url, hash, unpack_target, "")
+GitSource(url::String, hash::String; unpack_target::String = "", tag::String = "") =
+    GitSource(url, hash, unpack_target, tag)
 
 """
     DirectorySource(path::String; target::String = basename(path), follow_symlinks=false)
@@ -371,19 +354,22 @@ function cached_git_clone(url::String;
     return repo_path
 end
 
-function download_source(source::GitSource; kwargs...)
-    src_path = cached_git_clone(source.url; hash_to_check=source.hash, kwargs...)
-    return SetupSource{GitSource}(src_path, source.hash, source.unpack_target)
-end
-
 # Return the commit the tag `tag` points to in `repo` (peeling annotated tags), or
-# `nothing` if there is no such tag.
+# `nothing` if there is no such tag.  The tag is looked up as a reference rather than
+# through `revparse`, so that revision operators (e.g. `v1.0~1`) are not interpreted.
 function git_tag_commit(repo::LibGit2.GitRepo, tag::String)
     try
-        return string(LibGit2.revparseid(repo, "refs/tags/$(tag)^{commit}"))
+        return LibGit2.with(LibGit2.GitReference(repo, "refs/tags/$(tag)")) do ref
+            LibGit2.with(commit -> string(LibGit2.GitHash(commit)), LibGit2.peel(LibGit2.GitCommit, ref))
+        end
     catch err
         err isa LibGit2.GitError || rethrow()
-        return nothing
+        if err.code == LibGit2.Error.EINVALIDSPEC
+            throw(ArgumentError("\"$(tag)\" is not a valid git tag name"))
+        elseif err.code == LibGit2.Error.ENOTFOUND
+            return nothing
+        end
+        rethrow()
     end
 end
 
@@ -424,9 +410,11 @@ function verify_git_tag(repo_path::String, url::String, tag::String, hash::Strin
     return nothing
 end
 
-function download_source(source::GitReleaseSource; verbose::Bool = false, kwargs...)
+function download_source(source::GitSource; verbose::Bool = false, kwargs...)
     src_path = cached_git_clone(source.url; hash_to_check=source.hash, verbose, kwargs...)
-    verify_git_tag(src_path, source.url, source.tag, source.hash; verbose)
+    if !isempty(source.tag)
+        verify_git_tag(src_path, source.url, source.tag, source.hash; verbose)
+    end
     return SetupSource{GitSource}(src_path, source.hash, source.unpack_target)
 end
 
@@ -452,7 +440,6 @@ download_source
 JSON.lower(fs::ArchiveSource) = Dict("type" => "archive", extract_fields(fs)...)
 JSON.lower(fs::FileSource) = Dict("type" => "file", extract_fields(fs)...)
 JSON.lower(gs::GitSource) = Dict("type" => "git", extract_fields(gs)...)
-JSON.lower(gr::GitReleaseSource) = Dict("type" => "gitrelease", extract_fields(gr)...)
 JSON.lower(ds::DirectorySource) = Dict("type" => "directory", extract_fields(ds)...)
 
 # When deserialiasing the JSON file, the sources are in the form of
@@ -462,9 +449,7 @@ function sourcify(d::Dict)
     if d["type"] == "directory"
         return DirectorySource(d["path"])
     elseif d["type"] == "git"
-        return GitSource(d["url"], d["hash"])
-    elseif d["type"] == "gitrelease"
-        return GitReleaseSource(d["url"], d["tag"], d["hash"])
+        return GitSource(d["url"], d["hash"]; tag=get(d, "tag", ""))
     elseif d["type"] == "file"
         return FileSource(d["url"], d["hash"])
     elseif d["type"] == "archive"
