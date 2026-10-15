@@ -122,8 +122,13 @@ const platform = HostPlatform()
         Platform("aarch64", "linux")
     end
 
+    valid_exts = ["so", "so.1", "so.1.2", "so.1.2.3"]
+    invalid_exts = ["1.so", "so.1.a"]
+    # Since Julia v1.14 a suffix after the version number is allowed (e.g. `libLLVM.so.21.1jl`)
+    push!(valid_dl_path("libfoo.so.1.2.3a", foreign_platform) ? valid_exts : invalid_exts, "so.1.2.3a")
+
     # Test for valid library name permutations
-    for ext in ["so", "so.1", "so.1.2", "so.1.2.3"]
+    for ext in valid_exts
         temp_prefix() do prefix
             l_path = joinpath(last(libdirs(prefix, foreign_platform)), "libfoo.$ext")
             l = LibraryProduct("libfoo", :libfoo)
@@ -134,7 +139,7 @@ const platform = HostPlatform()
     end
 
     # Test for invalid library name permutations
-    for ext in ["1.so", "so.1.2.3a", "so.1.a"]
+    for ext in invalid_exts
         temp_prefix() do prefix
             l_path = joinpath(last(libdirs(prefix, foreign_platform)), "libfoo.$ext")
             l = LibraryProduct("libfoo", :libfoo)
