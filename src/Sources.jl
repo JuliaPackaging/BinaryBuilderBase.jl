@@ -32,7 +32,7 @@ function check_github_archive(url::String)
                               $(url)
                             may not have a stable checksum in the future, thus cannot be used as a reliable source, see
                             <https://github.blog/2023-02-21-update-on-the-future-stability-of-source-code-archives-and-hashes/>.
-                            Use a different source, for example a `GitSource`, or an official release artifact uploaded
+                            Use a different source, for example a `GitSource` (with the `tag` keyword for a release), or an official release artifact uploaded
                             by the maintainers of the package (*not* the automatic archive produced by GitHub).
                             """))
     end
@@ -90,21 +90,29 @@ FileSource(url::String, hash::String; filename::String = basename(url)) =
     FileSource(url, hash, filename)
 
 """
-    GitSource(url::String, hash::String; unpack_target::String = "")
+    GitSource(url::String, hash::String; unpack_target::String = "", tag::String = "")
 
 Specify a remote Git repository to clone form `url`.  `hash` is the 40-character
 SHA1 revision to checkout after cloning.
 
 The repository will be cloned in `\${WORKSPACE}/srcdir`, or in its subdirectory
 pointed to by the optional keyword `unpack_target`, if provided.
+
+If `hash` is a tagged release, the name of the Git tag can be given with the
+optional keyword `tag` (e.g. `tag = "v1.2.3"`).  The build then fails unless
+this tag points to the revision `hash`, which documents which release is being
+built and protects against typos in either the tag or the hash.
 """
 struct GitSource <: AbstractSource
     url::String
     hash::String
     unpack_target::String
+    tag::String
 end
-GitSource(url::String, hash::String; unpack_target::String = "") =
-    GitSource(url, hash, unpack_target)
+GitSource(url::String, hash::String, unpack_target::String) =
+    GitSource(url, hash, unpack_target, "")
+GitSource(url::String, hash::String; unpack_target::String = "", tag::String = "") =
+    GitSource(url, hash, unpack_target, tag)
 
 """
     DirectorySource(path::String; target::String = basename(path), follow_symlinks=false)
@@ -346,8 +354,67 @@ function cached_git_clone(url::String;
     return repo_path
 end
 
-function download_source(source::GitSource; kwargs...)
-    src_path = cached_git_clone(source.url; hash_to_check=source.hash, kwargs...)
+# Return the commit the tag `tag` points to in `repo` (peeling annotated tags), or
+# `nothing` if there is no such tag.  The tag is looked up as a reference rather than
+# through `revparse`, so that revision operators (e.g. `v1.0~1`) are not interpreted.
+function git_tag_commit(repo::LibGit2.GitRepo, tag::String)
+    try
+        return LibGit2.with(LibGit2.GitReference(repo, "refs/tags/$(tag)")) do ref
+            LibGit2.with(commit -> string(LibGit2.GitHash(commit)), LibGit2.peel(LibGit2.GitCommit, ref))
+        end
+    catch err
+        err isa LibGit2.GitError || rethrow()
+        if err.code == LibGit2.Error.EINVALIDSPEC
+            throw(ArgumentError("\"$(tag)\" is not a valid git tag name"))
+        elseif err.code == LibGit2.Error.ENOTFOUND
+            return nothing
+        end
+        rethrow()
+    end
+end
+
+"""
+    verify_git_tag(repo_path::String, url::String, tag::String, hash::String; verbose::Bool = false)
+
+Check that in the cached clone `repo_path` of `url` the tag `tag` points to the
+commit `hash`, and throw an error otherwise.  The tag is fetched from `url` if it
+is not in the cache yet, or if the cached tag points to a different commit.
+"""
+function verify_git_tag(repo_path::String, url::String, tag::String, hash::String; verbose::Bool = false)
+    commit = LibGit2.with(repo -> git_tag_commit(repo, tag), LibGit2.GitRepo(repo_path))
+    if commit != lowercase(hash)
+        if verbose
+            @info("Fetching git tag", url, tag)
+        end
+        ref = "refs/tags/$(tag)"
+        commit = with_git_cache_lock(repo_path) do
+            LibGit2.with(LibGit2.GitRepo(repo_path)) do repo
+                # libgit2 does not overwrite an existing tag when fetching, not even
+                # with a forced refspec, so remove a stale one first.
+                if git_tag_commit(repo, tag) !== nothing
+                    LibGit2.tag_delete(repo, tag)
+                end
+                LibGit2.fetch(repo; remoteurl=url, refspecs=["+$(ref):$(ref)"])
+                git_tag_commit(repo, tag)
+            end
+        end
+    end
+    if commit === nothing
+        error("Git tag \"$(tag)\" not found in repository $(url)")
+    elseif commit != lowercase(hash)
+        error("Git tag \"$(tag)\" in repository $(url) points to commit $(commit), but $(hash) was expected")
+    end
+    if verbose
+        @info("Verified git tag", url, tag, hash)
+    end
+    return nothing
+end
+
+function download_source(source::GitSource; verbose::Bool = false, kwargs...)
+    src_path = cached_git_clone(source.url; hash_to_check=source.hash, verbose, kwargs...)
+    if !isempty(source.tag)
+        verify_git_tag(src_path, source.url, source.tag, source.hash; verbose)
+    end
     return SetupSource{GitSource}(src_path, source.hash, source.unpack_target)
 end
 
@@ -382,7 +449,7 @@ function sourcify(d::Dict)
     if d["type"] == "directory"
         return DirectorySource(d["path"])
     elseif d["type"] == "git"
-        return GitSource(d["url"], d["hash"])
+        return GitSource(d["url"], d["hash"]; tag=get(d, "tag", ""))
     elseif d["type"] == "file"
         return FileSource(d["url"], d["hash"])
     elseif d["type"] == "archive"
