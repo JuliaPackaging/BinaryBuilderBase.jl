@@ -727,9 +727,19 @@ to modify the dependent artifact files, and (c) keeping a record of what files a
 dependencies as opposed to the package being built, in the form of symlinks to a specific artifacts
 directory.
 """
+# Whether `platforms_match` treats a missing "sanitize" tag as "not sanitized".  Older
+# versions of Julia treat it as a wildcard instead, so that an unsanitized platform would
+# also match sanitized artifacts; since Julia v1.14 a platform without the tag only
+# matches platforms which also lack it.
+const SANITIZE_TAG_IS_STRICT = !platforms_match(Platform("x86_64", "linux"),
+                                                Platform("x86_64", "linux"; sanitize="memory"))
+
 # During installation of the artifacts we may want to enforce the platform has specific
 # properties, for example a non-empty "sanitize" tag.
 function normalize_platform(p::Platform)
+    # Where a missing "sanitize" tag already excludes sanitized artifacts, adding
+    # "sanitize=none" would prevent matching any artifact without the tag.
+    SANITIZE_TAG_IS_STRICT && return p
     new_p = deepcopy(p)
     new_p["sanitize"] = get(new_p.tags, "sanitize", "none")
     return new_p
