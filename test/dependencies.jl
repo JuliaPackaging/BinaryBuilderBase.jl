@@ -145,9 +145,21 @@ end
         @test dependencify(jrun_dep) == run_dep
 
         jdep_buildver = JSON.lower(dep_buildver)
-        @test jdep_buildver == Dict("type" => "dependency", "name" => name, "uuid" => nothing, "compat" => "~1.2", "version-major" => 0x0, "version-minor" => 0x0, "version-patch" => 0x0, "platforms" => ["x86_64-linux-gnu-cxx11"], "top_level" => false)
-        # the build_version is currently not serialized, so the following test fails
-        @test dependencify(jdep_buildver) == dep_buildver broken=true
+        @test jdep_buildver == Dict("type" => "dependency", "name" => name, "uuid" => nothing, "compat" => "~1.2", "version-major" => 0x0, "version-minor" => 0x0, "version-patch" => 0x0, "platforms" => ["x86_64-linux-gnu-cxx11"], "top_level" => false, "build_version" => string(build_version))
+        @test dependencify(jdep_buildver) == dep_buildver
+
+        # A package added from git, as `get_addable_spec` returns it
+        git_dep = BuildDependency(PackageSpec(; name = "Baz_jll", uuid = "00000000-1111-2222-3333-444444444444",
+                                              url = "https://github.com/JuliaBinaryWrappers/Baz_jll.jl.git",
+                                              rev = "0123456789abcdef0123456789abcdef01234567",
+                                              tree_hash = Base.SHA1("89abcdef0123456789abcdef0123456789abcdef")))
+        jgit_dep = JSON.lower(git_dep)
+        @test jgit_dep["url"] == "https://github.com/JuliaBinaryWrappers/Baz_jll.jl.git"
+        @test jgit_dep["rev"] == "0123456789abcdef0123456789abcdef01234567"
+        @test jgit_dep["tree_hash"] == "89abcdef0123456789abcdef0123456789abcdef"
+        @test dependencify(jgit_dep) == git_dep
+        # ...also after a round trip through a JSON string
+        @test dependencify(JSON.parse(JSON.json(git_dep); dicttype=Dict)) == git_dep
 
         jbuild_dep = JSON.lower(build_dep)
         @test jbuild_dep == Dict("type" => "builddependency", "name" => build_name, "uuid" => nothing, "compat" => "", "version-major" => 0x0, "version-minor" => 0x0, "version-patch" => 0x0, "platforms" => ["any"], "top_level" => false)
