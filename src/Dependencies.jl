@@ -346,16 +346,27 @@ getcompat(d::AbstractDependency) = ""
 getcompat(d::Union{Dependency,RuntimeDependency}) = d.compat
 
 for (type, type_descr) in ((Dependency, "dependency"), (RuntimeDependency, "runtimedependency"), (BuildDependency, "builddependency"), (HostBuildDependency, "hostdependency"))
-    JSON.lower(d::type) = Dict("type" => type_descr,
-                               "name" => d.pkg.name,
-                               "uuid" => string_or_nothing(d.pkg.uuid),
-                               "compat" => getcompat(d),
-                               "version-major" => major(version(d)),
-                               "version-minor" => minor(version(d)),
-                               "version-patch" => patch(version(d)),
-                               "platforms" => triplet.(d.platforms),
-                               "top_level" => is_top_level_dependency(d),
-                               )
+    function JSON.lower(d::type)
+        dict = Dict("type" => type_descr,
+                    "name" => d.pkg.name,
+                    "uuid" => string_or_nothing(d.pkg.uuid),
+                    "compat" => getcompat(d),
+                    "version-major" => major(version(d)),
+                    "version-minor" => minor(version(d)),
+                    "version-patch" => patch(version(d)),
+                    "platforms" => triplet.(d.platforms),
+                    "top_level" => is_top_level_dependency(d),
+                    )
+        # These determine what gets installed for the build.  They are only written when
+        # set, so that JSON written by older versions remains valid.
+        if d isa Dependency && d.build_version !== nothing
+            dict["build_version"] = string(d.build_version)
+        end
+        d.pkg.url === nothing || (dict["url"] = d.pkg.url)
+        d.pkg.rev === nothing || (dict["rev"] = d.pkg.rev)
+        d.pkg.tree_hash === nothing || (dict["tree_hash"] = string(d.pkg.tree_hash))
+        return dict
+    end
 end
 
 # When deserialiasing the JSON file, the dependencies are in the form of
@@ -367,11 +378,14 @@ function dependencify(d::Dict)
         compat = d["compat"]
         version = PKG_VERSIONS.VersionSpec(VersionNumber(d["version-major"], d["version-minor"], d["version-patch"]))
         version = version == PKG_VERSIONS.VersionSpec(v"0") ? PKG_VERSIONS.VersionSpec() : version
-        spec = PackageSpec(; name = d["name"], uuid = uuid, version = version)
+        tree_hash = haskey(d, "tree_hash") ? Base.SHA1(d["tree_hash"]) : nothing
+        spec = PackageSpec(; name = d["name"], uuid = uuid, version = version,
+                           url = get(d, "url", nothing), rev = get(d, "rev", nothing), tree_hash)
         platforms = parse_platform.(d["platforms"])
         top_level = d["top_level"]::Bool
         if d["type"] == "dependency"
-            return Dependency(spec; compat, platforms, top_level)
+            build_version = haskey(d, "build_version") ? VersionNumber(d["build_version"]) : nothing
+            return Dependency(spec, build_version; compat, platforms, top_level)
         elseif d["type"] == "runtimedependency"
             return RuntimeDependency(spec; compat, platforms, top_level)
         elseif d["type"] == "builddependency"
