@@ -239,7 +239,7 @@ end
 
             # Make sure the directories are emptied by `cleanup_dependencies`
             @test_nowarn cleanup_dependencies(prefix, ap, platform)
-            # This shuld be empty, but the `curl/` directory is left here, empty
+            # This should be empty, but the `curl/` directory is left here, empty
             @test readdir(joinpath(destdir(dir, platform), "include")) == [] broken=true
             # Since Julia v1.7.3 we use builds of LibCURL and its dependencies which have logs
             # in subdirectories of `${prefix}/logs`, so we have the same problem as above:
@@ -411,7 +411,7 @@ end
                         ]
                         platform = Platform("x86_64", "linux"; libc="musl", cxxstring_abi="cxx11", julia_version=nothing)
 
-                        # Pkg needs improve its error message here, but assume that it will still throw a pkgerror
+                        # Pkg needs to improve its error message here, but assume that it will still throw a pkgerror
                         # https://github.com/JuliaLang/Pkg.jl/issues/4159
                         # Before https://github.com/JuliaLang/Pkg.jl/pull/4151 this would throw a MethodError for `abspath(::Nothing)`
                         # So this test will need fixing if/when that gets backported

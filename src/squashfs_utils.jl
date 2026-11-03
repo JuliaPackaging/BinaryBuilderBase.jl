@@ -21,8 +21,8 @@ end
 
 # Note: produce these values by #including squashfs_fs.h from linux in Cxx.jl
 # and running the indicated command
-const offsetof_id_table_start = 0x30    # offsetof(struct suqashfs_super_block, id_table_start)
-const offsetof_no_ids = 0x1a            # offsetof(struct suqashfs_super_block, no_ids)
+const offsetof_id_table_start = 0x30    # offsetof(struct squashfs_super_block, id_table_start)
+const offsetof_no_ids = 0x1a            # offsetof(struct squashfs_super_block, no_ids)
 
 # From squashfs_fs.h
 const SQUASHFS_COMPRESSED_BIT = UInt16(1) << 15
@@ -70,7 +70,7 @@ function generate_per_uid_squashfs(cs, new_uid = getuid(); verbose::Bool = false
             seek(file, offsetof_id_table_start)
             offset = read(file, UInt64)
             seek(file, offset)
-            # Find the correct metdata block
+            # Find the correct metadata block
             index = read(file, UInt64)
             seek(file, index)
             # Read the metadata block

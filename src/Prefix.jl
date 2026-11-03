@@ -117,7 +117,7 @@ end
     logdir(prefix::Prefix; subdir::AbstractString="")
 
 Returns the logs directory for the given `prefix`.  If `subdir` is a non-empty string, that
-directory it is appended to the logdir of the given `prefix`.
+directory is appended to the logdir of the given `prefix`.
 """
 function logdir(prefix::Prefix; subdir::AbstractString="")
     return strip_path_separator(joinpath(prefix, "logs", subdir))
@@ -137,7 +137,7 @@ number `version`, a platform-dependent suffix and a file extension.  If `platfor
 given, defaults to current platform. Returns the full path to, the SHA256 hash and the git
 tree SHA1 of the generated tarball.
 
-The are additional keyword arguments:
+There are additional keyword arguments:
 
 * `verbose` controls whether to print information to screen,
 * `force` makes the function overwrite an existing tarball with the same name
@@ -723,7 +723,7 @@ The artifacts are installed into the global artifact store, then copied into a t
 then finally symlinked into the build prefix.  This allows us to (a) save download bandwidth by not
 downloading the same artifacts over and over again, (b) maintain separation in the event of
 catastrophic containment failure, avoiding hosing the main system if a build script decides to try
-to modify the dependent artifact files, and (c) keeping a record of what files are a part of
+to modify the dependent artifact files, and (c) keep a record of what files are a part of
 dependencies as opposed to the package being built, in the form of symlinks to a specific artifacts
 directory.
 """
@@ -793,7 +793,7 @@ function setup_dependencies(prefix::Prefix,
         @debug "Adding dependencies to project" dependencies
         Pkg_add(dependencies; platform=platform, io=outs, julia_version=julia_version)
 
-        # Ony Julia v1.6, `Pkg.add()` doesn't mutate `dependencies`, so we can't use the `UUID`
+        # On Julia v1.6, `Pkg.add()` doesn't mutate `dependencies`, so we can't use the `UUID`
         # that was found during resolution there.  Instead, we'll make use of `ctx.env` to figure
         # out the UUIDs of all our packages.
         ctx = Pkg.Types.Context()
@@ -801,9 +801,9 @@ function setup_dependencies(prefix::Prefix,
         @debug "Found dependency UUIDs" dependency_uuids
 
         # Some JLLs are also standard libraries that may be present in the manifest because
-        # they were pulled by other stdlibs (e.g. through dependence on `Pkg`), not beacuse
+        # they were pulled by other stdlibs (e.g. through dependence on `Pkg`), not because
         # they were actually required for this package. Filter them out if they're present
-        # in the manifest but aren't direct dependencies or dependencies of other JLLS.
+        # in the manifest but aren't direct dependencies or dependencies of other JLLs.
         installed_jll_uuids = collect_jll_uuids(ctx.env.manifest, dependency_uuids)
         installed_jlls = [
             Pkg.Types.PackageSpec(;

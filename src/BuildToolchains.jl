@@ -252,7 +252,7 @@ function generate_toolchain_files!(platform::AbstractPlatform, envs::Dict{String
                                    clang_use_lld::Bool = false,
                                    )
 
-    # Generate the files fot bot the host and the target platforms
+    # Generate the files for both the host and the target platforms
     for p in unique((platform, host_platform))
         dir = joinpath(toolchains_path, triplet(p))
         mkpath(dir)

@@ -74,7 +74,7 @@ Specify a remote file to be downloaded from the Internet from `url`.  `hash` is
 the 64-character SHA256 checksum of the file.
 
 In the builder environment, the file will be saved under `\${WORKSPACE}/srcdir`
-with the same name as the basename of the originating URL, unless the the
+with the same name as the basename of the originating URL, unless the
 keyword argument `filename` is specified.
 """
 struct FileSource <: AbstractSource
@@ -92,7 +92,7 @@ FileSource(url::String, hash::String; filename::String = basename(url)) =
 """
     GitSource(url::String, hash::String; unpack_target::String = "", tag::String = "")
 
-Specify a remote Git repository to clone form `url`.  `hash` is the 40-character
+Specify a remote Git repository to clone from `url`.  `hash` is the 40-character
 SHA1 revision to checkout after cloning.
 
 The repository will be cloned in `\${WORKSPACE}/srcdir`, or in its subdirectory
@@ -442,7 +442,7 @@ JSON.lower(fs::FileSource) = Dict("type" => "file", extract_fields(fs)...)
 JSON.lower(gs::GitSource) = Dict("type" => "git", extract_fields(gs)...)
 JSON.lower(ds::DirectorySource) = Dict("type" => "directory", extract_fields(ds)...)
 
-# When deserialiasing the JSON file, the sources are in the form of
+# When deserializing the JSON file, the sources are in the form of
 # dictionaries.  This function converts the dictionary back to the appropriate
 # AbstractSource.
 function sourcify(d::Dict)

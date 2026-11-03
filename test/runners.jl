@@ -126,7 +126,7 @@ end
                 @test BinaryBuilderBase.import_docker_image(rootfs, dir; verbose=true) === nothing
             end
 
-            # Test that deleting the docker image suceeds, now that we know
+            # Test that deleting the docker image succeeds, now that we know
             # it exists
             @test BinaryBuilderBase.delete_docker_image()
         end
