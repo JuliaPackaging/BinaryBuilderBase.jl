@@ -342,8 +342,8 @@ automatically, if it is not already present).
 
 Declares an `ExecutableProduct` that points to an executable located within the
 prefix.  `binname` specifies the basename of the executable, `varname` is the
-name of the variable in the JLL package that can be used to call into the
-library.  By default, the library is searched in the `bindir`, but you can
+name of the variable in the JLL package that can be used to run the
+executable.  By default, the executable is searched in the `bindir`, but you can
 specify a different directory within the prefix with the `dir_path` argument.
 """
 struct ExecutableProduct <: Product
