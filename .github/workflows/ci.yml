@@ -4,17 +4,13 @@ on:
   push:
     branches: "master"
     tags: ["*"]
-    paths:
+    paths: &paths
       - '.github/workflows/ci.yml'
       - '*.toml'
       - 'src/**'
       - 'test/**'
   pull_request:
-    paths:
-      - '.github/workflows/ci.yml'
-      - '*.toml'
-      - 'src/**'
-      - 'test/**'
+    paths: *paths
   release:
 
 concurrency:
@@ -94,9 +90,6 @@ jobs:
           # Removing "large packages" alone takes a couple of minutes, it could
           # be switched to true if more space is needed (it'd save ~5 GB or so)
           large-packages: false
-      - name: Cleanup /opt
-        run: |
-          sudo rm -rf /opt/*
       - name: Show available storage after cleanup
         run: |
           echo " --> df -h /"
