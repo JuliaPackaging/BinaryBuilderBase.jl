@@ -264,7 +264,7 @@ end
                 generate_compiler_wrappers!(platform; bin_path = bin_path)
                 # Make sure the C++ string ABI is not set
                 @test !occursin("-D_GLIBCXX_USE_CXX11_ABI", read(joinpath(platform_bin_dir, "gcc"), String))
-                # Make sure gfortran doesn't uses ccache when BinaryBuilderBase.use_ccache is true
+                # Make sure gfortran doesn't use ccache when BinaryBuilderBase.use_ccache is true
                 BinaryBuilderBase.use_ccache[] && @test !occursin("ccache", read(joinpath(platform_bin_dir, "gfortran"), String))
             end
         end

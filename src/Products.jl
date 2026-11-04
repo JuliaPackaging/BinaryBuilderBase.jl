@@ -13,7 +13,7 @@ define the following minimum set of functionality:
   the wrapped `Prefix` returning its location as a string
 
 * [`satisfied(::Product)`](@ref): given a `Product`, determine whether it has
-  been successfully satisfied (e.g. it is locateable and it passes all
+  been successfully satisfied (e.g. it is locatable and it passes all
   callbacks)
 
 * [`variable_name(::Product)`](@ref): return the variable name assigned to a
@@ -443,7 +443,7 @@ end
     FileProduct(path, varname::Symbol, dir_path = nothing)
 
 Declares a [`FileProduct`](@ref) that points to a file located relative to the root of
-a `Prefix`, must simply exist to be satisfied. The first argument `path` is either a single `AbstractString` 
+a `Prefix`, which must simply exist to be satisfied. The first argument `path` is either a single `AbstractString` 
 or a `Vector{String}` to allow several paths to be checked.   
 """
 struct FileProduct <: Product
@@ -470,7 +470,7 @@ repr(p::FileProduct) = "FileProduct($(repr(p.paths)), $(repr(p.variable_name)))"
            isolate::Bool = false)
 
 If the given file exists, return its path.  The `platform` and `isolate`
-arguments are is ignored here, but included for uniformity.  For ease of use,
+arguments are ignored here, but included for uniformity.  For ease of use,
 we support a limited number of custom variable expansions such as `\${target}`,
 and `\${nbits}`, so that the detection of files within target-specific folders
 named things like `/lib32/i686-linux-musl` is simpler.

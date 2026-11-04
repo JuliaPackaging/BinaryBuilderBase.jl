@@ -7,5 +7,5 @@
 
 [![codecov](https://codecov.io/gh/JuliaPackaging/Binarybuilderbase.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/JuliaPackaging/Binarybuilderbase.jl)
 
-This package serves as foundation for
+This package serves as the foundation for
 [`BinaryBuilder.jl`](https://github.com/JuliaPackaging/BinaryBuilder.jl).

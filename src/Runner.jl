@@ -58,7 +58,7 @@ function ld_library_path(target::AbstractPlatform,
                          csl_paths::Bool=true,
                          host_lib64::Bool=nbits(host)==64)
     # Helper for generating the library include path for a target.  MacOS, as usual,
-    # puts things in slightly different place.
+    # puts things in a slightly different place.
     function target_lib_dir(p::AbstractPlatform)
         t = aatriplet(p)
         if Sys.isapple(p)
@@ -176,7 +176,7 @@ function wrapper(io::IO,
                  )
     write(io, """
     #!/bin/bash
-    # This compiler wrapper script brought into existence by `generate_compiler_wrappers!()`
+    # This compiler wrapper script was brought into existence by `generate_compiler_wrappers!()`
 
     if [ "x\${SUPER_VERBOSE}" = "x" ]; then
         vrun() { "\$@"; }
@@ -314,7 +314,7 @@ We generate a set of compiler wrapper scripts within our build environment to fo
 build systems to honor the necessary sets of compiler flags to build for our systems.
 Note that while `platform_envs()` sets many environment variables, those values are
 intended to be optional/overridable.  These values, while still overridable by directly
-invoking a compiler binary directly (e.g. /opt/{target}/bin/{target}-gcc), are much more
+invoking a compiler binary (e.g. /opt/{target}/bin/{target}-gcc), are much more
 difficult to override, as the flags embedded in these wrappers are absolutely necessary,
 and even simple programs will not compile without them.
 """
@@ -370,7 +370,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             gcc_toolchain_flag = if !isnothing(gcc_version) && !isnothing(clang_version) && (clang_version >= v"16")
                 "--gcc-install-dir=/opt/$(aatriplet(p))/lib/gcc/$(aatriplet(p))/$(gcc_version)"
             else
-                # This helps MSAN C++ compiler finding the target toolchain, rather than the host one:
+                # This helps the MSAN C++ compiler find the target toolchain, rather than the host one:
                 # <https://github.com/JuliaPackaging/Yggdrasil/pull/7872#issuecomment-1913141689>.
                 "--gcc-toolchain=/opt/$(aatriplet(p))"
             end
@@ -468,7 +468,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             "-nostdinc++",
             # For systems other than macOS this directory doesn't exist out-of-the-box in our
             # toolchain, but you can put in there the headers of the C++ standard library for libc++
-            # from LLLVMLibcxx_jll.  This must come before GCC header files (added below).
+            # from LLVMLibcxx_jll.  This must come before GCC header files (added below).
             "-isystem /opt/$(aatriplet(p))/$(aatriplet(p))/sys-root/usr/include/c++/v1",
         ])
 
@@ -616,7 +616,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             # `/opt/${target}/${target}/lib{,64}`.  Note: we need to push them directly in
             # the wrappers before any additional arguments because we want this path to have
             # precedence over anything else.  In this way for example we avoid libraries
-            # from `CompilerSupportLibraries_jll` in `${libdir}` are picked up by mistake.
+            # from `CompilerSupportLibraries_jll` in `${libdir}` being picked up by mistake.
             # Note 2: Compiler libraries for riscv64 ended up in `lib/` for some reason, and
             # are always in `lib/` for FreeBSD.
             # Note 3: while these are technically link-only flags, link-only flags are
@@ -673,7 +673,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             hash_args = true,
             allow_ccache,
             no_soft_float=arch(p) in ("armv6l", "armv7l"),
-            # Override `LD_LIBRARY_PATH` to avoid external settings mess it up.
+            # Override `LD_LIBRARY_PATH` to avoid external settings messing it up.
             env=Dict("LD_LIBRARY_PATH"=>ld_library_path(platform, host_platform; csl_paths=false)),
             sanitize=!isnothing(sanitize(p)),
             lock_microarchitecture,
@@ -688,7 +688,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             compile_only_flags=clang_compile_flags!(p),
             link_only_flags=clang_link_flags!(p),
             no_soft_float=arch(p) in ("armv6l", "armv7l"),
-            # Override `LD_LIBRARY_PATH` to avoid external settings mess it up.
+            # Override `LD_LIBRARY_PATH` to avoid external settings messing it up.
             env=Dict("LD_LIBRARY_PATH"=>ld_library_path(platform, host_platform; csl_paths=false)),
             sanitize=!isnothing(sanitize(p)),
             lock_microarchitecture,
@@ -705,7 +705,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
 
     # Our general `cc`  points to `gcc` for most systems, but `clang` for MacOS and FreeBSD,
     # unless we're building for msan, which gcc does not support or asan, which gcc does
-    # support, but is claimed to be incompatbile with the LLVM version (that we use for our
+    # support, but is claimed to be incompatible with the LLVM version (that we use for our
     # JIT-generated code)
     function cc(io::IO, p::AbstractPlatform)
         if prefer_clang(p)
@@ -1222,7 +1222,7 @@ compiles toward the defined target architecture.  Examples of things set are
 Accepted keyword arguments are:
 
 * `host_platform`: the platform of the host system,
-* `bootstraop`: if `true`, only basic environment variables will be generated,
+* `bootstrap`: if `true`, only basic environment variables will be generated,
 * `compilers`: list of compilers, some environment variables will be generated
   only if the relevant compilers are used (e.g., for Go and Rust),
 * `rust_version`: version of the Rust toolchain, needed to set the environment
@@ -1313,7 +1313,7 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
         "host_libdir" => host_libdir,
         "host_includedir" => "$(host_prefix)/include",
 
-        # Fancyness!
+        # Fanciness!
         "USER" => get(ENV, "USER", "julia"),
         # Docker filters out `PS1` so we route around it
         "HIDDEN_PS1" => PS1,
@@ -1518,7 +1518,7 @@ function runshell(::Type{R}, platform::AbstractPlatform = HostPlatform(); verbos
 end
 
 # The runners constructors share a large part of their setup.  This function reduces
-# duplication by having bringing the common parts in one place.
+# duplication by bringing the common parts into one place.
 function runner_setup!(workspaces, mappings, workspace_root, verbose, kwargs, platform,
                        src_name, extra_env, compiler_wrapper_path, toolchains_path, shards)
     # Check to make sure we're not going to try and bindmount within an

@@ -62,7 +62,7 @@ default_clones_dir() = get(ENV, "BINARYBUILDER_CLONES_DIR", joinpath(storage_dir
 """
     enable_apple_file()
 
-Return the path to file that, if exists, indicates that the user accepts to
+Return the path to the file that, if it exists, indicates that the user accepts to
 download macOS SDK.  The file is automatically created when the package is
 loaded if the environment variable `BINARYBUILDER_AUTOMATIC_APPLE` is set to
 `"true"`.

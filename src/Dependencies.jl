@@ -16,7 +16,7 @@ are installed to `\${prefix}` in the build environment.
 
 Concrete subtypes of `AbstractDependency` are
 
-* [`Dependency`](@ref): a JLL package that is necessary for to build the package
+* [`Dependency`](@ref): a JLL package that is necessary to build the package
   and to load the generated JLL package.
 * [`RuntimeDependency`](@ref): a JLL package that is necessary only at runtime.  Its
   artifact will not be installed in the prefix during the build.
@@ -67,7 +67,7 @@ is_runtime_dependency
 """
     is_top_level_dependency(dep::AbstractDependency) -> Bool
 
-Return wheter `dep` is a top-level dependency or not.
+Return whether `dep` is a top-level dependency or not.
 """
 is_top_level_dependency(dep::AbstractDependency) = false
 
@@ -95,7 +95,7 @@ which indicates for which platforms the dependency should be used.  By default
 `platforms=[AnyPlatform()]`, to mean that the dependency is compatible with all
 platforms.
 
-The optional keyword argument `top_level` denotates that this dependency is
+The optional keyword argument `top_level` denotes that this dependency is
 platform independent. It implies that the `platforms` keyword argument is set
 to `[AnyPlatform()]`. The primary use-case is for packages that hold information
 about the platform selection using `Preferences`. Platform selection is cached
@@ -161,7 +161,7 @@ The optional keyword argument `platforms` is a vector of `AbstractPlatform`s whi
 for which platforms the dependency should be used.  By default `platforms=[AnyPlatform()]`,
 to mean that the dependency is compatible with all platforms.
 
-The optional keyword argument `top_level` specifies whether the dependency should be use
+The optional keyword argument `top_level` specifies whether the dependency should be used
 only at the top-level of the generated JLL package, instead of inside each platform-specific
 wrapper.  Using `top_level=true` is useful for packages needed for platform augmentation
 (e.g. `MPIPreferences.jl`).
@@ -369,7 +369,7 @@ for (type, type_descr) in ((Dependency, "dependency"), (RuntimeDependency, "runt
     end
 end
 
-# When deserialiasing the JSON file, the dependencies are in the form of
+# When deserializing the JSON file, the dependencies are in the form of
 # dictionaries.  This function converts the dictionary back to the appropriate
 # AbstractDependency.
 function dependencify(d::Dict)

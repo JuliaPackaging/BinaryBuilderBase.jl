@@ -61,7 +61,7 @@ function Base.BinaryPlatforms.validate_tags(tags::Dict)
     # Validate `os`/`arch`/`call_abi` combination
     throw_call_abi_mismatch() = throw(ArgumentError("Invalid os/arch/call_abi combination: $(tags["os"])/$(tags["arch"])/$(tags["call_abi"])"))
     if tags["os"] == "linux" && tags["arch"] ∈ ("armv7l", "armv6l")
-        # If an ARM linux has does not have `call_abi` set to something valid, be sad.
+        # If an ARM linux does not have `call_abi` set to something valid, be sad.
         if !haskey(tags, "call_abi") || tags["call_abi"] ∉ ("eabihf", "eabi")
             throw_call_abi_mismatch()
         end

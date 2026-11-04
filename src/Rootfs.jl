@@ -291,7 +291,7 @@ function mount(cs::CompilerShard, build_prefix::AbstractString; verbose::Bool = 
     # If the destination directory does not already exist, create it
     mkpath(mpath)
 
-    # Run the mountaining
+    # Run the mounting
     run(`$(sudo_cmd()) mount $(squashfs_path) $(mpath) -o ro,loop`)
 
     # Give back the mount path
@@ -420,7 +420,7 @@ const available_gcc_builds = [
     GCCBuild(v"12.0.1-iains", (libgfortran_version = v"5", libstdcxx_version = v"3.4.29", cxxstring_abi = "cxx11")),
 ]
 
-# Since we read the Artifacts.toml at compile time, we need to make sure that we-reprecompile
+# Since we read the Artifacts.toml at compile time, we need to make sure that we re-precompile
 # if the file changes - let Julia know.
 Base.include_dependency(joinpath(dirname(@__DIR__), "Artifacts.toml"))
 
@@ -621,7 +621,7 @@ function choose_shards(p::AbstractPlatform;
     # The preferred GCC version depends on the compilers we are using.
     if preferred_gcc_version === nothing
         preferred_gcc_version = if :ocaml in compilers
-            # OCaml shards have been compiled agains GCC 6
+            # OCaml shards have been compiled against GCC 6
             compatible_gcc_builds = filter(b -> getversion(b) >= v"6", GCC_builds)
             getversion(compatible_gcc_builds[1])
         else
@@ -860,7 +860,7 @@ function expand_gfortran_versions(platform::AbstractPlatform; old_abis::Bool=fal
         return [platform] #MSAN doesn't use libgfortran, it uses libflang
     end
 
-    # If this is an platform that has limited GCC support (such as aarch64-apple-darwin),
+    # If this is a platform that has limited GCC support (such as aarch64-apple-darwin),
     # the libgfortran versions we can expand to are similarly limited.
     libgfortran_versions = if Sys.isbsd(platform) && arch(platform) == "aarch64"
         [v"5"]
@@ -928,7 +928,7 @@ end
     expand_microarchitectures(p::AbstractPlatform, [microarchitectures::Vector{String}])
 
 Given a `Platform`, returns a vector of `Platforms` with differing `march` attributes
-as specified by the `ARCHITECTURE_FLAGS` mapping.  If the given `Platform` alread has a
+as specified by the `ARCHITECTURE_FLAGS` mapping.  If the given `Platform` already has a
 `march` tag specified, only that platform is returned.  If the `microarchitectures`
 argument is given, limit the expansion to the given microarchitectures.
 

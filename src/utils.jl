@@ -1,5 +1,5 @@
 # The functions in this file may not be used anywhere in this package but may
-# needed by different modules of BinaryBuilder.jl
+# be needed by different modules of BinaryBuilder.jl
 
 with_logfile(f::Function, prefix::Prefix, name::String; subdir="") = with_logfile(f, joinpath(logdir(prefix; subdir), name))
 function with_logfile(f::Function, logfile::String)
