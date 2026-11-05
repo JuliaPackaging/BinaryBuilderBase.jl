@@ -554,6 +554,10 @@ function llvm_version(p::AbstractPlatform, LLVM_builds::Vector{LLVMBuild})
         # The target `apple-m1` was introduced in LLVM 13
         LLVM_builds = filter(b -> getversion(b) >= v"13.0", LLVM_builds)
     end
+    if iswasm(p)
+        # LLVM 22 is the first to tell `wasip1`, `wasip2`, `wasip3` apart (llvm-project#165345)
+        LLVM_builds = filter(b -> getversion(b) >= v"22", LLVM_builds)
+    end
 
     return getversion.(LLVM_builds)
 end
@@ -572,6 +576,8 @@ function select_compiler_versions(p::AbstractPlatform,
         error("Impossible compiler constraints $(p) upon $(LLVM_builds)!")
     end
     llvmv = select_closest_version(preferred_llvm_version, filtered_llvm_builds)
+    # clang-only targets have no GCC to select
+    iswasm(p) && return nothing, llvmv
 
     filtered_gcc_builds = gcc_version(p, GCC_builds, compilers; llvm_version=llvmv)
     if isempty(filtered_gcc_builds)
@@ -654,6 +660,10 @@ function choose_shards(p::AbstractPlatform;
         return find_shard(name, version, archive_type; target) !== nothing
     end
     this_platform_GCC_builds = filter(GCC_builds) do GCC_build
+        if iswasm(p)
+            # there is no GCC for wasm, and the host GCC is not needed to drive clang
+            return false
+        end
         if !isa(p, AnyPlatform)
             if !shard_exists("GCCBootstrap", getversion(GCC_build), archive_type; target=p)
                 return false
@@ -687,7 +697,10 @@ function choose_shards(p::AbstractPlatform;
             find_shard("PlatformSupport", ps_build_new, archive_type; target=p)
         ])
 
-        if :c in compilers
+        if :c in compilers && iswasm(p)
+            # clang-only: LLVMBootstrap is built for all targets and has wasm-ld
+            push!(shards, find_shard("LLVMBootstrap", LLVM_build, archive_type))
+        elseif :c in compilers
             append!(shards, [
                 find_shard("GCCBootstrap", GCC_build, archive_type; target=p),
                 find_shard("LLVMBootstrap", LLVM_build, archive_type),
@@ -900,7 +913,7 @@ If `old_abis` is `true`, old ABIs are included in the expanded list, otherwise
 only the new ones are included.
 
 """
-function expand_cxxstring_abis(platform::AbstractPlatform; skip=Sys.isbsd, old_abis::Bool=false)
+function expand_cxxstring_abis(platform::AbstractPlatform; skip=p -> Sys.isbsd(p) || iswasm(p), old_abis::Bool=false)
     # If this platform cannot/should not be expanded, then exit out fast here.
     if cxxstring_abi(platform) !== nothing || skip(platform)
         return [platform]
