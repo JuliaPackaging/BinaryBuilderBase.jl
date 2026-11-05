@@ -42,3 +42,16 @@ using BinaryBuilderBase: iswasm, nbits, proc_family, prefer_clang, map_rust_targ
         end
     end
 end
+
+@testset "WebAssembly LibraryProduct" begin
+    if haskey(Base.BinaryPlatforms.arch_mapping, "wasm32")
+        p = Platform("wasm32", "wasi"; os_version = v"1")
+        mktempdir() do dir
+            mkpath(joinpath(dir, "lib"))
+            write(joinpath(dir, "lib", "libpcre2-8.a"), "!<arch>\n")
+            lp = LibraryProduct("libpcre2-8", :libpcre2_8)
+            @test locate(lp, Prefix(dir); platform = p) == joinpath(dir, "lib", "libpcre2-8.a")
+            @test locate(LibraryProduct("libnope", :libnope), Prefix(dir); platform = p) === nothing
+        end
+    end
+end
