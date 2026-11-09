@@ -32,7 +32,7 @@ Subtypes of `AbstractDependency` should define the following traits:
 * [`is_target_dependency`](@ref)
 * [`is_build_dependency`](@ref)
 * [`is_runtime_dependency`](@ref)
-* [`is_top_level_dependency`][@ref]
+* [`is_top_level_dependency`](@ref)
 """
 abstract type AbstractDependency end
 

@@ -197,7 +197,7 @@ using JSON
         # Several builders sharing one downloads directory must be able to request the
         # same repository at the same time: exactly one of them clones, the others wait
         # for it and then find the cache.  We exercise this with separate processes,
-        # since the lock is a pidfile-based inter-process lock.
+        # since the lock is an inter-process `flock(2)` file lock.
         url = "https://github.com/ralna/ARCHDefs.git"
         hash = "fc8c5960c3a6d26970ab245241cfc067fe4ecfdd"
         mktempdir() do dir

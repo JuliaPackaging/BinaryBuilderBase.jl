@@ -32,7 +32,7 @@ end
 abi_agnostic(p::AnyPlatform) = p
 
 """
-    abi_agnostic(p::AbstractPlatform)
+    libabi_agnostic(p::Platform)
 
 Like `abi_agnostic`, but keep the sanitizer ABI tags.
 """
