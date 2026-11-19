@@ -147,6 +147,36 @@ end
         end
     end
 
+    @testset "shard installed into another depot after construction" begin
+        mktempdir() do dir
+            depots, bootstrap = copy(DEPOT_PATH), copy(BinaryBuilderBase.bootstrap_list)
+            try
+                push!(BinaryBuilderBase.bootstrap_list, :rootfs, :platform_support)
+                platform = Platform("x86_64", "linux"; libc="musl")
+                shards = BinaryBuilderBase.choose_shards(platform)
+                # Squashfs shards are mounted at paths of their own.
+                if all(s -> s.archive_type == :unpacked, shards)
+                    # Probes the runner, if not done yet, with the usual depots.
+                    preferred_runner()(dir; platform)
+                    rootfs, support = BinaryBuilderBase.mount.(shards, dir)
+                    # Only a later depot has the rootfs; the platform support
+                    # shard is installed there after the runner was constructed.
+                    first_depot = mkpath(joinpath(dir, "first"))
+                    artifacts = mkpath(joinpath(dir, "later", "artifacts"))
+                    append!(empty!(DEPOT_PATH), [first_depot, dirname(artifacts)])
+                    symlink(rootfs, joinpath(artifacts, basename(rootfs)))
+                    @test !ispath(BinaryBuilderBase.mount_path(shards[2], dir))
+                    ur = preferred_runner()(dir; platform, shards)
+                    symlink(support, joinpath(artifacts, basename(support)))
+                    @test run(ur, `/bin/sh -c "test -f /opt/x86_64-linux-musl/x86_64-linux-musl/sys-root/usr/include/asm/a.out.h"`, devnull)
+                end
+            finally
+                append!(empty!(DEPOT_PATH), depots)
+                append!(empty!(BinaryBuilderBase.bootstrap_list), bootstrap)
+            end
+        end
+    end
+
     @testset "run_interactive" begin
         platform = default_host_platform
         io = IOBuffer()
