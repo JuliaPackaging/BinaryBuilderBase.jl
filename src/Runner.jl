@@ -1532,6 +1532,12 @@ function runner_setup!(workspaces, mappings, workspace_root, verbose, kwargs, pl
         # Choose the shards we're going to mount
         shards::Vector{CompilerShard} = choose_shards(platform; compilers..., extract_kwargs(kwargs, (:preferred_gcc_version,:preferred_llvm_version,:bootstrap_list))...)
     end
+    # The runners resolve the shards' paths now, so install them first: a shard
+    # installed nowhere resolves to the first depot, but by the time the runner
+    # runs, another process may have installed it into a different one.
+    for shard in shards
+        shard.archive_type == :squashfs || mount(shard, workspace_root; verbose)
+    end
     # Determine version of Rust toolchain
     rb = filter(s -> s.name == "RustBase", shards)
     rust_version = length(rb) == 1 ? only(rb).version : nothing
