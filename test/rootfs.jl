@@ -292,6 +292,16 @@ end
                 @test !occursin("You used one or more of the unsafe flags", gcc)
             end
         end
+        @testset "Unwind tables on $(arch) Linux" for (arch, expected) in (("aarch64", true), ("x86_64", false))
+            platform = Platform(arch, "linux")
+            mktempdir() do bin_path
+                generate_compiler_wrappers!(platform; bin_path = bin_path)
+                for tool in ("gcc", "g++", "gfortran")
+                    wrapper = read(joinpath(bin_path, triplet(platform), tool), String)
+                    @test occursin("-fasynchronous-unwind-tables", wrapper) == expected
+                end
+            end
+        end
         platform = Platform("aarch64", "macos")
         @testset "$(triplet(platform))" begin
             mktempdir() do bin_path
