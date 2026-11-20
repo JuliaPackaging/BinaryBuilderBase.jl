@@ -16,9 +16,9 @@ The default host platform in the build environment.
 const default_host_platform = Platform("x86_64", "linux"; libc="musl", cxxstring_abi="cxx11")
 
 function nbits(p::AbstractPlatform)
-    if arch(p) in ("i686", "armv6l", "armv7l")
+    if arch(p) in ("i686", "armv6l", "armv7l", "wasm32")
         return 32
-    elseif arch(p) in ("x86_64", "aarch64", "powerpc64le", "riscv64")
+    elseif arch(p) in ("x86_64", "aarch64", "powerpc64le", "riscv64", "wasm64")
         return 64
     else
         error("Unknown bitwidth for architecture $(arch(p))")
@@ -34,6 +34,8 @@ function proc_family(p::AbstractPlatform)
         return "power"
     elseif arch(p) == "riscv64"
         return "riscv"
+    elseif iswasm(p)
+        return "wasm"
     else
         error("Unknown processor family for architecture $(arch(p))")
     end
@@ -146,7 +148,7 @@ end
 
 # Platforms for which Clang should be the default compiler.
 prefer_clang(p::AbstractPlatform) =
-    Sys.isbsd(p) || sanitize(p) in ("memory", "memory_origins", "address")
+    Sys.isbsd(p) || iswasm(p) || sanitize(p) in ("memory", "memory_origins", "address")
 
 # Add the string ABI define
 function add_cxx_abi(p::AbstractPlatform, flags::Vector{String})
@@ -293,10 +295,19 @@ function wrapper(io::IO,
     """)
 end
 
+# The binutils of a target: its GCC shard's, or LLVM's from the host toolchain for clang-only targets
+function binutil_path(p::AbstractPlatform, tool::String)
+    if iswasm(p)
+        host = aatriplet(default_host_platform)
+        return tool == "ld" ? "/opt/$(host)/bin/wasm-ld" : "/opt/$(host)/bin/llvm-$(tool)"
+    end
+    return string("/opt/", aatriplet(p), "/bin/", aatriplet(p), "-", tool)
+end
+
 # Write out a bunch of common tools
 for tool in (:cpp, :ld, :nm, :libtool, :objcopy, :objdump, :otool,
              :strip, :install_name_tool, :dlltool, :windres, :winmc, :lipo)
-    @eval $(tool)(io::IO, p::AbstractPlatform) = $(wrapper)(io, string("/opt/", aatriplet(p), "/bin/", aatriplet(p), "-", $(string(tool))); allow_ccache=false)
+    @eval $(tool)(io::IO, p::AbstractPlatform) = $(wrapper)(io, binutil_path(p, $(string(tool))); allow_ccache=false)
 end
 
 """
@@ -356,7 +367,10 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             # Set our sysroot to the platform-specific location, dropping compiler ABI annotations
             "--sysroot=/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root",
         ])
-        if !Sys.isbsd(p)
+        if iswasm(p)
+            # the sysroot's libc++, as wasi-sdk ships it; no exceptions unless a recipe opts in
+            iscxx && push!(flags, "-stdlib=libc++")
+        elseif !Sys.isbsd(p)
             add_cxx_abi(p, flags)
             if iscxx
                 append!(flags, [
@@ -490,7 +504,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             end
         end
 
-        if !Sys.isbsd(p)
+        if !Sys.isbsd(p) && !iswasm(p)
             # GCC header files
             if !isnothing(gcc_version)
                 append!(flags, [
@@ -524,7 +538,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         # https://github.com/llvm-mirror/clang/blob/f3b7928366f63b51ffc97e74f8afcff497c57e8d/lib/Driver/ToolChains/FreeBSD.cpp
         # For everything else, we provide `-rtlib=libgcc` because clang-builtins are broken (pending Valentin-based-magic),
         # and we also need to provide `-stdlib=libstdc++` to match Julia on these platforms.
-        if !Sys.isbsd(p)
+        if !Sys.isbsd(p) && !iswasm(p)
             append!(flags, [
                 # Use libgcc as the C runtime library
                 "-rtlib=libgcc"
@@ -538,7 +552,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         end
         # we want to use a particular linker with clang.  But we want to avoid warnings about unused
         # flags when just compiling, so we put it into "linker-only flags".
-        if !clang_use_lld #Clang with 16 or above is setup to use lld by default
+        if !clang_use_lld && !iswasm(p) # wasm always links with wasm-ld; clang with 16 or above is setup to use lld by default
             push!(flags, "-fuse-ld=$(aatriplet(p))")
         end
         if Sys.isfreebsd(p) && clang_use_lld
@@ -727,6 +741,10 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
     function GOOS(p::AbstractPlatform)
         if os(p) == "macos"
             return "darwin"
+        elseif os(p) == "wasi"
+            return "wasip1"
+        elseif os(p) == "emscripten"
+            return "js"
         end
         return os(p)
     end
@@ -739,6 +757,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             "i686" => "386",
             "powerpc64le" => "ppc64le",
             "riscv64" => "riscv64",
+            "wasm32" => "wasm",
         )
         return arch_mapping[arch(p)]
     end
@@ -879,11 +898,15 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
             echo "Continuing build, but please repent." >&2
         fi
         """
-        wrapper(io, string("/opt/", aatriplet(p), "/bin/", ar_name); allow_ccache=false, extra_cmds=extra_cmds)
+        path = iswasm(p) ? binutil_path(p, "ar") : string("/opt/", aatriplet(p), "/bin/", ar_name)
+        wrapper(io, path; allow_ccache=false, extra_cmds=extra_cmds)
     end
 
     function ranlib(io::IO, p::AbstractPlatform)
-        if !Sys.isapple(p)
+        if iswasm(p)
+            # llvm-ranlib is always reproducible
+            return wrapper(io, binutil_path(p, "ranlib"); allow_ccache=false)
+        elseif !Sys.isapple(p)
             ranlib_name = string(aatriplet(p), "-ranlib")
             extra_cmds = raw"""
             if [[ " ${ARGS[@]} " =~ "-[hHvVt]*U" ]]; then
@@ -1180,7 +1203,12 @@ end
 map_rust_arch(p::AbstractPlatform) =
     replace(arch(p), "armv7l" => "armv7", "armv6l" => "arm", "riscv64" => "riscv64gc")
 function map_rust_target(p::AbstractPlatform)
-    if Sys.isapple(p)
+    if os(p) == "wasi"
+        osvn = os_version(p)
+        return osvn === nothing ? "$(arch(p))-wasip1" : "$(arch(p))-wasip$(osvn.major)"
+    elseif os(p) == "emscripten"
+        return "$(arch(p))-unknown-emscripten"
+    elseif Sys.isapple(p)
         return "$(map_rust_arch(p))-apple-darwin"
     elseif Sys.isfreebsd(p)
         return "$(map_rust_arch(p))-unknown-freebsd"

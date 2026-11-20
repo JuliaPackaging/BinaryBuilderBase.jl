@@ -26,6 +26,11 @@ function cmake_os(p::AbstractPlatform)
         return "Darwin"
     elseif Sys.iswindows(p)
         return "Windows"
+    elseif os(p) == "wasi"
+        # Platform/WASI.cmake ships with the wasm PlatformSupport shard, as with wasi-sdk
+        return "WASI"
+    elseif os(p) == "emscripten"
+        return "Emscripten"
     else
         return "Unknown"
     end
@@ -180,6 +185,8 @@ function meson_cpu_family(p::AbstractPlatform)
         return "arm"
     elseif arch(p) == "riscv64"
         return "riscv64"
+    elseif iswasm(p)
+        return arch(p)
     end
 end
 

@@ -175,7 +175,22 @@ const ARCHITECTURE_FLAGS = Dict(
         "aarch64" => OrderedDict(
             "apple_m1"       => ["-mcpu=apple-m1"],
         ),
+        # WebAssembly features are opt-in per recipe (`-msimd128`, ...); the baseline is clang's `generic`
+        "wasm32" => OrderedDict(
+            "generic" => ["-mcpu=generic"],
+        ),
+        "wasm64" => OrderedDict(
+            "generic" => ["-mcpu=generic"],
+        ),
     ),
 )
 march(p::AbstractPlatform; default=nothing) = get(tags(p), "march", default)
+
+"""
+    iswasm(p::AbstractPlatform)
+
+Whether `p` is a WebAssembly platform: `wasm32`/`wasm64`, on `wasi` or `emscripten`. These are
+clang-only, static-only targets: there is no GCC, and no stable dynamic-linking ABI.
+"""
+iswasm(p::AbstractPlatform) = arch(p) in ("wasm32", "wasm64")
 sanitize(p::AbstractPlatform; default=nothing) = get(tags(p), "sanitize", default)
