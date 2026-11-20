@@ -190,7 +190,11 @@ function package(src_dir::AbstractString, tarball_path::AbstractString;
     compress_cmd = if format == "gzip"
         pipeline(`$(pigz()) --no-time --no-name -9`, stdout=tarball_path)
     elseif format == "xz"
-        pipeline(`$(xz()) -T0 -9`; stdout=tarball_path)
+        # xz's default limit ignores cgroup memory limits. 1 GiB is enough for -9
+        # single-threaded; with less, xz would shrink its dictionary and make the tarball
+        # larger.
+        memlimit = max(Int(Sys.total_memory()) - Int(Sys.maxrss()) - (1 << 30), 1 << 30)
+        pipeline(`$(xz()) -T0 -9 --memlimit-compress=$(memlimit)`; stdout=tarball_path)
     else
         pipeline(`$(p7zip()) a -si -t$format -mx9 $tarball_path`, stdout=devnull)
     end
