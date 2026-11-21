@@ -144,6 +144,22 @@ function macos_version(p::AbstractPlatform)
     return macos_version(version.major)
 end
 
+"""
+    macos_deployment_target(p::AbstractPlatform)
+
+The minimum macOS version (`MACOSX_DEPLOYMENT_TARGET`) that binaries built for `p` target.
+This is the macOS version corresponding to the `os_version` of `p`, except on x86_64: its
+compiler shards are built for Darwin 20 (macOS 11 SDK), but binaries target macOS 10.14, the
+oldest version Julia supports.  GCC for x86_64 macOS can't target macOS 11 or later anyway.
+"""
+function macos_deployment_target(p::AbstractPlatform)
+    version = macos_version(p)
+    if version !== nothing && arch(p) == "x86_64" && VersionNumber(version) >= v"11"
+        return "10.14"
+    end
+    return version
+end
+
 # Platforms for which Clang should be the default compiler.
 prefer_clang(p::AbstractPlatform) =
     Sys.isbsd(p) || sanitize(p) in ("memory", "memory_origins", "address")
@@ -1110,7 +1126,7 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         # platform, ref: <https://github.com/JuliaPackaging/Yggdrasil/pull/4403>.  In the
         # future we may add more arguments, see
         # <https://www.unix.com/man-page/osx/1/sw_vers/> for reference.
-        product_version = macos_version(platform)
+        product_version = macos_deployment_target(platform)
         product_name = VersionNumber(product_version) < v"10.12" ? "Mac OS X" : "macOS"
         sw_vers_path = joinpath(bin_path, triplet(platform), "sw_vers")
         write(sw_vers_path, """
@@ -1434,7 +1450,7 @@ function platform_envs(platform::AbstractPlatform, src_name::AbstractString;
     # If we're on macOS, we give a hint to things like `configure` that they should use this as the linker
     if Sys.isapple(platform)
         mapping["LD"] = "/opt/bin/$(triplet(platform))/ld"
-        mapping["MACOSX_DEPLOYMENT_TARGET"] = macos_version(platform)
+        mapping["MACOSX_DEPLOYMENT_TARGET"] = macos_deployment_target(platform)
         mapping["SDKROOT"] = "/opt/$(aatriplet(platform))/$(aatriplet(platform))/sys-root"
     end
 
