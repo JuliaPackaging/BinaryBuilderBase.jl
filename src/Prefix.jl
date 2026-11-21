@@ -872,7 +872,9 @@ function setup_dependencies(prefix::Prefix,
 
             # If the artifact is available for the given platform, make sure it
             # is also installed.  It may not be the case for lazy artifacts or stdlibs.
-            normalized_platform = normalize_platform(platform)
+            # Like for a host platform, treat the `os_version` (and `libstdcxx_version`) of
+            # the target as an upper bound: artifacts built for an older OS are usable too.
+            normalized_platform = HostPlatform(deepcopy(normalize_platform(platform)))
             @debug "Using normalized platform" normalized_platform
             meta = artifact_meta(name[1:end-4], artifacts_toml; platform=normalized_platform)
             if meta === nothing

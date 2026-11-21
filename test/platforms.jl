@@ -63,6 +63,16 @@ end
               expand_microarchitectures(expand_gfortran_versions(expand_cxxstring_abis(supported_platforms(; experimental=true)))))
 end
 
+@testset "Concrete OS versions" begin
+    for (p, os_ver) in ((Platform("x86_64", "macos"), v"20"),
+                        (Platform("aarch64", "macos"), v"20"),
+                        (Platform("x86_64", "freebsd"), v"14.1"),
+                        (Platform("aarch64", "freebsd"), v"14.1"))
+        concrete = get_concrete_platform(p; compilers=[:c], preferred_gcc_version=v"8")
+        @test os_version(concrete) == os_ver
+    end
+end
+
 @testset "Target properties" begin
     for p in [Platform("i686", "linux"), Platform("i686", "windows"), Platform("armv7l", "linux")]
         @test nbits(p) == 32

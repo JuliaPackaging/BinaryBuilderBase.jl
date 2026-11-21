@@ -431,6 +431,27 @@ end
                 @test_broken false
             end
         end
+
+        if VERSION >= v"1.10"
+            @testset "OS version as upper bound: $(triplet(platform))" for platform in (
+                    parse(Platform, "x86_64-apple-darwin20-libgfortran5-cxx11"),
+                    parse(Platform, "x86_64-unknown-freebsd14.1-libgfortran5-cxx11"),
+                )
+                # The artifacts of Zlib_jll v1.4.2 are tagged with the OS version they were
+                # built for (darwin20, freebsd14.1).  A target with a newer OS version, like a
+                # host platform, can use them too.
+                newer_platform = deepcopy(platform)
+                newer_platform["os_version"] = Sys.isapple(platform) ? "21" : "15.0"
+                for p in (platform, newer_platform)
+                    with_temp_project() do dir
+                        prefix = Prefix(dir)
+                        dependencies = [PackageSpec(; name="Zlib_jll", version="1.4.2")]
+                        test_setup_dependencies(prefix, dependencies, p)
+                        @test any(startswith("libz."), readdir(joinpath(destdir(dir, p), "lib")))
+                    end
+                end
+            end
+        end
     end
 end
 
