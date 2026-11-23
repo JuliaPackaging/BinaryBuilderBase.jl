@@ -191,6 +191,15 @@ function locate(lp::LibraryProduct, prefix::Prefix; platform::AbstractPlatform =
     dir_paths = joinpath.(prefix.path, template.(lp.dir_paths, Ref(platform)))
     append!(dir_paths, libdirs(prefix, platform))
 
+    if iswasm(platform)
+        # A wasm library is a static archive, `<libname>.a`, for a linker; nothing to dlopen()
+        for dir_path in dir_paths, libname in lp.libnames
+            path = joinpath(dir_path, template(libname, platform) * ".a")
+            isfile(path) && return abspath(path)
+        end
+        return nothing
+    end
+
     for dir_path in dir_paths
         if !isdir(dir_path)
             continue
