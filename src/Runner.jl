@@ -633,6 +633,11 @@ function generate_compiler_wrappers!(platform::AbstractPlatform; bin_path::Abstr
         if libc(platform) == "musl" && gcc_version in (v"4.8.5", v"5.2.0")
             add_system_includedir(flags)
         end
+        if arch(p) == "aarch64" && Sys.islinux(p)
+            # GCC doesn't always emit `.eh_frame` by default here, unlike on x86_64. Without
+            # it, unwinders need slower fallbacks and may lose frames when profiling.
+            push!(flags, "-fasynchronous-unwind-tables")
+        end
         return flags
     end
 
