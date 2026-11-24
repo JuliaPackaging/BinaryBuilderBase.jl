@@ -6224,27 +6224,27 @@ os = "linux"
     sha256 = "b0e3353902e74394387311cb3122a1856704c35257acf9bb39268860f7a77df6"
     url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/Rootfs-v2025.7.4/Rootfs.v2025.7.4.x86_64-linux-musl.unpacked.tar.gz"
 
-[["Rootfs.v2026.11.19.x86_64-linux-musl.squashfs"]]
+[["Rootfs.v2026.11.24.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
-git-tree-sha1 = "4cfe004e8a2e65979cfcf6af9eebf379938d50cc"
+git-tree-sha1 = "996621055960a121ca4a1f8d104f92b9242c1011"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["Rootfs.v2026.11.19.x86_64-linux-musl.squashfs".download]]
-    sha256 = "72961af2c1fb347fea14d43291618be4f80800b5909a5b426b90120949023a5c"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/Rootfs-v2026.11.19/Rootfs.v2026.11.19.x86_64-linux-musl.squashfs.tar.gz"
+    [["Rootfs.v2026.11.24.x86_64-linux-musl.squashfs".download]]
+    sha256 = "2035555de4995a65e55d254496a5445ac7f6e4e5d4e67c796edfc1a7390151fd"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/Rootfs-v2026.11.24/Rootfs.v2026.11.24.x86_64-linux-musl.squashfs.tar.gz"
 
-[["Rootfs.v2026.11.19.x86_64-linux-musl.unpacked"]]
+[["Rootfs.v2026.11.24.x86_64-linux-musl.unpacked"]]
 arch = "x86_64"
-git-tree-sha1 = "3b87cc039d57b068be49779180bbf93b4d3c3323"
+git-tree-sha1 = "33dfddc97e93d2cbb15889faf3eadd66ba01c428"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["Rootfs.v2026.11.19.x86_64-linux-musl.unpacked".download]]
-    sha256 = "17d7d05711b96f7c076119d927fb787af42243bb198c9a0d1934211ecbf3753a"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/Rootfs-v2026.11.19/Rootfs.v2026.11.19.x86_64-linux-musl.unpacked.tar.gz"
+    [["Rootfs.v2026.11.24.x86_64-linux-musl.unpacked".download]]
+    sha256 = "b0c3769dd4a6e0c58d34ab37567cf8bcb861f1767dc05cd28bd8753622ae66fa"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/Rootfs-v2026.11.24/Rootfs.v2026.11.24.x86_64-linux-musl.unpacked.tar.gz"
 
 [["Rootfs.v2026.6.10.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
